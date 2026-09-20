@@ -60,10 +60,22 @@ def _strip_accents(s: str) -> str:
                    if unicodedata.category(c) != "Mn").lower().strip()
 
 def _to_local(path: str) -> str:
-    """Chuẩn hóa path đọc bằng Python file API (dbfs: -> /dbfs)."""
-    if path.startswith("dbfs:/"):
-        return "/dbfs/" + path[len("dbfs:/"):]
-    return path
+    """Chuẩn hóa path để đọc bằng Python file API.
+    - dbfs:/Volumes/...  -> /Volumes/...   (Volume đọc trực tiếp, KHÔNG thêm /dbfs)
+    - /Volumes/...        -> giữ nguyên
+    - dbfs:/xxx (DBFS)   -> /dbfs/xxx
+    """
+    p = path
+    if p.startswith("dbfs:"):
+        p = p[len("dbfs:"):]          # bỏ tiền tố 'dbfs:', còn '/Volumes/...' hoặc '/xxx'
+    if p.startswith("/Volumes/"):
+        return p                       # Volume: đọc thẳng
+    if p.startswith("/dbfs/"):
+        return p                       # đã là local DBFS
+    if p.startswith("/"):
+        # DBFS thường: cần prefix /dbfs
+        return "/dbfs" + p if not p.startswith("/Volumes/") else p
+    return p
 
 # COMMAND ----------
 
