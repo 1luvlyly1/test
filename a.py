@@ -1,51 +1,22 @@
 # Databricks notebook source
-# MAGIC %md
-# MAGIC # Tóm tắt thông tin doanh nghiệp — call AI endpoint (Databricks)
-# MAGIC
-# MAGIC **Kiến trúc:**
-# MAGIC
-# MAGIC - **Luồng 1 — Đăng ký kinh doanh:** bảng (CREATE TABLE + select) đối chiếu với các PDF ĐKKD
-# MAGIC   (tên file YYYYMM_...): so tên đại diện theo cùng thời điểm + so ngày lớn nhất.
-# MAGIC - **Luồng 2 — Tình hình quan hệ:**
-# MAGIC   1. Excel 3 sheet → JSON = **HIỆN TẠI** (AI dò schema → Python đọc).
-# MAGIC   2. AI **thống kê context hiện tại** từ JSON (chưa so sánh).
-# MAGIC   3. PDF báo cáo **CŨ** → khối chân dung (ngành nghề → quy trình SX) = **QUÁ KHỨ**.
-# MAGIC   4. AI **tự do so sánh** hiện tại vs quá khứ, trình bày **theo format các mục chân dung của OCR cũ**.
-# MAGIC
-# MAGIC **Output Markdown:**
-# MAGIC - `bao_cao_tong_hop.md` — chính: OCR quá khứ + thống kê hiện tại + so sánh QK↔HT.
-# MAGIC - `du_lieu_excel.md` — dữ liệu Excel dạng bảng (tách riêng).
-# MAGIC
-# MAGIC Nội dung AI ghi thẳng ra file text → xuống dòng thật, không còn `\n` literal.
-
-# COMMAND ----------
-
 # MAGIC %pip install openpyxl pdfplumber
 # dbutils.library.restartPython()
 
 # COMMAND ----------
 
-# ============================================================
-# CẤU HÌNH
-# ============================================================
 CONFIG = {
-    "endpoint_name": "databricks-meta-llama-3-3-70b-instruct",  # đổi thành endpoint của bạn
+    "endpoint_name": "databricks-meta-llama-3-3-70b-instruct",
     "max_tokens": 4096,
     "temperature": 0.0,
-
     "enterprise_table": "main.default.enterprise_info",
-
-    "dkkd_folder": "/Volumes/main/default/reports/dkkd",          # folder PDF ĐKKD
-    "report_pdf_path": "/Volumes/main/default/reports/bao_cao_cu.pdf",  # PDF báo cáo CŨ (tự khai tên)
-    "excel_path": "/Volumes/main/default/reports/Book1.xlsx",     # Excel HIỆN TẠI
-
+    "dkkd_folder": "/Volumes/main/default/reports/dkkd",
+    "report_pdf_path": "/Volumes/main/default/reports/bao_cao_cu.pdf",
+    "excel_path": "/Volumes/main/default/reports/Book1.xlsx",
     "schema_scan_rows": 25,
     "schema_cache_path": "/Volumes/main/default/reports/_schema_cache.json",
     "use_schema_cache": True,
-
     "out_main_md": "/Volumes/main/default/reports/bao_cao_tong_hop.md",
     "out_excel_md": "/Volumes/main/default/reports/du_lieu_excel.md",
-
     "portrait_fields": ["ngành nghề", "hoạt động kinh doanh", "quy trình sản xuất"],
 }
 
@@ -54,45 +25,57 @@ CONFIG = {
 import re, os, json, unicodedata
 import openpyxl, pdfplumber
 from datetime import datetime
+from mlflow.deployments import get_deploy_client
 
-def _strip_accents(s: str) -> str:
+_client = get_deploy_client("databricks")
+
+
+def strip_accents(s):
     return "".join(c for c in unicodedata.normalize("NFD", str(s))
                    if unicodedata.category(c) != "Mn").lower().strip()
 
-def _to_local(path: str) -> str:
-    """Chuẩn hóa path để đọc bằng Python file API.
-    - dbfs:/Volumes/...  -> /Volumes/...   (Volume đọc trực tiếp, KHÔNG thêm /dbfs)
-    - /Volumes/...        -> giữ nguyên
-    - dbfs:/xxx (DBFS)   -> /dbfs/xxx
-    """
-    p = path
-    if p.startswith("dbfs:"):
-        p = p[len("dbfs:"):]          # bỏ tiền tố 'dbfs:', còn '/Volumes/...' hoặc '/xxx'
-    if p.startswith("/Volumes/"):
-        return p                       # Volume: đọc thẳng
-    if p.startswith("/dbfs/"):
-        return p                       # đã là local DBFS
-    if p.startswith("/"):
-        # DBFS thường: cần prefix /dbfs
-        return "/dbfs" + p if not p.startswith("/Volumes/") else p
-    return p
+
+def to_local(path):
+    p = path[len("dbfs:"):] if path.startswith("dbfs:") else path
+    if p.startswith("/Volumes/") or p.startswith("/dbfs/"):
+        return p
+    return "/dbfs" + p if p.startswith("/") else p
+
+
+def call_ai(system, user):
+    resp = _client.predict(
+        endpoint=CONFIG["endpoint_name"],
+        inputs={
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "max_tokens": CONFIG["max_tokens"],
+            "temperature": CONFIG["temperature"],
+        },
+    )
+    return resp["choices"][0]["message"]["content"]
+
+
+def parse_json(out):
+    out = re.sub(r"^```(?:json)?|```$", "", out.strip(), flags=re.MULTILINE).strip()
+    return json.loads(out)
+
+
+def read_pdf(path):
+    with pdfplumber.open(to_local(path)) as pdf:
+        return "\n".join(p.extract_text() or "" for p in pdf.pages)
 
 # COMMAND ----------
 
-# ============================================================
-# BẢNG DOANH NGHIỆP — tạo bừa 1 bảng + function select
-# ============================================================
 # MAGIC %sql
 # MAGIC CREATE TABLE IF NOT EXISTS main.default.enterprise_info (
-# MAGIC   tax_code            STRING COMMENT 'mã số thuế',
-# MAGIC   representative_name STRING COMMENT 'tên đại diện',
-# MAGIC   updated_date        STRING COMMENT 'ngày cập nhật (YYYYMM hoặc YYYY-MM-DD)'
+# MAGIC   tax_code STRING, representative_name STRING, updated_date STRING
 # MAGIC );
 
 # COMMAND ----------
 
 # MAGIC %sql
-# MAGIC -- dữ liệu mẫu (thay bằng dữ liệu thật, hoặc trỏ enterprise_table sang bảng có sẵn)
 # MAGIC INSERT INTO main.default.enterprise_info VALUES
 # MAGIC   ('0101234567', 'Nguyễn Văn A', '202511'),
 # MAGIC   ('0101234567', 'Nguyễn Văn A', '202601'),
@@ -100,336 +83,252 @@ def _to_local(path: str) -> str:
 
 # COMMAND ----------
 
-def get_enterprise_rows() -> list:
-    df = spark.sql(f"""
-        SELECT tax_code, representative_name, updated_date
-        FROM {CONFIG['enterprise_table']}
-        ORDER BY updated_date
-    """)
+def get_enterprise_rows():
+    df = spark.sql(f"SELECT tax_code, representative_name, updated_date "
+                   f"FROM {CONFIG['enterprise_table']} ORDER BY updated_date")
     return [r.asDict() for r in df.collect()]
 
 # COMMAND ----------
 
-# ============================================================
-# CALL AI ENDPOINT
-# ============================================================
-from mlflow.deployments import get_deploy_client
-_deploy_client = get_deploy_client("databricks")
+def to_yyyymm(s):
+    d = re.sub(r"\D", "", str(s))
+    return d[:6] if len(d) >= 6 else d
 
-def call_ai(system_prompt: str, user_prompt: str,
-            max_tokens: int = None, temperature: float = None) -> str:
-    resp = _deploy_client.predict(
-        endpoint=CONFIG["endpoint_name"],
-        inputs={
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "max_tokens": max_tokens or CONFIG["max_tokens"],
-            "temperature": temperature if temperature is not None else CONFIG["temperature"],
-        },
-    )
-    return resp["choices"][0]["message"]["content"]
 
-def _parse_json(out: str):
-    out = re.sub(r"^```(?:json)?|```$", "", out.strip(), flags=re.MULTILINE).strip()
-    return json.loads(out)
-
-# COMMAND ----------
-
-# ============================================================
-# PDF: đọc text
-# ============================================================
-def extract_pdf_text(pdf_path: str) -> str:
-    local = _to_local(pdf_path)
-    chunks = []
-    with pdfplumber.open(local) as pdf:
-        for page in pdf.pages:
-            chunks.append(page.extract_text() or "")
-    return "\n".join(chunks)
-
-# COMMAND ----------
-
-# ============================================================
-# LUỒNG 1 — ĐĂNG KÝ KINH DOANH
-# ============================================================
-def _period_to_yyyymm(s: str) -> str:
-    digits = re.sub(r"\D", "", str(s))
-    return digits[:6] if len(digits) >= 6 else digits
-
-def list_dkkd_files(folder: str) -> list:
-    """Liệt kê PDF trong folder ĐKKD, lấy period YYYYMM từ đầu tên file.
-    Volume (/Volumes/...) mount như filesystem thường -> dùng os.listdir, KHÔNG dùng
-    dbutils.fs.ls (nó trả path 'dbfs:/Volumes/...' gây lỗi khi mở bằng Python)."""
-    local_dir = _to_local(folder)
-    files = []
-    for name in os.listdir(local_dir):
+def list_dkkd_files(folder):
+    local = to_local(folder)
+    out = []
+    for name in os.listdir(local):
         if not name.lower().endswith(".pdf"):
             continue
         m = re.match(r"^(\d{6})_", name)
         if m:
-            files.append({
-                "period": m.group(1),
-                "name": name,
-                "path": os.path.join(local_dir, name),  # path đầy đủ, đọc trực tiếp
-            })
-    return sorted(files, key=lambda x: x["period"])
+            out.append({"period": m.group(1), "name": name,
+                        "path": os.path.join(local, name)})
+    return sorted(out, key=lambda x: x["period"])
 
-def ai_extract_legal_reps(pdf_text: str) -> list:
-    system = ("Bạn bóc tách thông tin từ giấy đăng ký kinh doanh tiếng Việt. "
-              "Chỉ trả JSON hợp lệ, không giải thích.")
-    user = f"""Từ nội dung giấy ĐKKD dưới đây, liệt kê TÊN NHỮNG NGƯỜI ĐẠI DIỆN PHÁP LUẬT.
-Trả JSON: {{"legal_representatives": ["...", "..."]}}
 
---- NỘI DUNG ---
-{pdf_text}
-"""
+def extract_legal_reps(text):
+    system = "Bóc tách giấy đăng ký kinh doanh tiếng Việt. Chỉ trả JSON, không giải thích."
+    user = ('Liệt kê tên người đại diện pháp luật trong nội dung dưới đây. '
+            'Chỉ lấy tên có thật trong văn bản, không suy diễn.\n'
+            'Trả JSON: {"legal_representatives": ["..."]}\n\n' + text)
     try:
-        return _parse_json(call_ai(system, user)).get("legal_representatives", [])
+        return parse_json(call_ai(system, user)).get("legal_representatives", [])
     except Exception:
         return []
 
-def _name_match(a: str, b: str) -> bool:
-    return _strip_accents(a) == _strip_accents(b)
 
-def run_dkkd_flow() -> dict:
+def run_dkkd_flow():
     rows = get_enterprise_rows()
     files = list_dkkd_files(CONFIG["dkkd_folder"])
+    file_reps = [{**f, "legal_representatives": extract_legal_reps(read_pdf(f["path"]))}
+                 for f in files]
 
-    file_reps = []
-    for fi in files:
-        text = extract_pdf_text(fi["path"])
-        file_reps.append({**fi, "legal_representatives": ai_extract_legal_reps(text)})
-
-    period_matches = []
+    matches = []
     for fr in file_reps:
-        p = fr["period"]
         table_names = [r["representative_name"] for r in rows
-                       if _period_to_yyyymm(r["updated_date"]) == p]
-        matched = any(_name_match(tn, fn)
-                      for tn in table_names for fn in fr["legal_representatives"])
-        period_matches.append({
-            "period": p, "file": fr["name"],
-            "ten_trong_file": fr["legal_representatives"],
-            "ten_trong_bang": table_names,
+                       if to_yyyymm(r["updated_date"]) == fr["period"]]
+        matched = any(strip_accents(t) == strip_accents(f)
+                      for t in table_names for f in fr["legal_representatives"])
+        matches.append({
+            "period": fr["period"], "file": fr["name"],
+            "ten_file": fr["legal_representatives"], "ten_bang": table_names,
             "trung_khop": matched if table_names else None,
         })
 
-    max_file = max((fr["period"] for fr in file_reps), default=None)
-    max_tbl = max((_period_to_yyyymm(r["updated_date"]) for r in rows), default=None)
-
+    max_file = max((f["period"] for f in file_reps), default=None)
+    max_tbl = max((to_yyyymm(r["updated_date"]) for r in rows), default=None)
     return {
-        "so_dong_bang": len(rows),
-        "so_file_dkkd": len(files),
-        "doi_chieu_theo_thoi_diem": period_matches,
+        "so_dong_bang": len(rows), "so_file": len(files),
+        "doi_chieu": matches,
         "ngay_lon_nhat": {
-            "max_file_period": max_file, "max_table_period": max_tbl,
-            "trung_khop": (max_file == max_tbl) if (max_file and max_tbl) else None,
+            "max_file": max_file, "max_bang": max_tbl,
+            "trung_khop": (max_file == max_tbl) if max_file and max_tbl else None,
         },
     }
 
 # COMMAND ----------
 
-# ============================================================
-# LUỒNG 2 — PDF CŨ: khối "a. Phương án" / chân dung (QUÁ KHỨ)
-# ============================================================
-def slice_phuong_an(raw_text: str) -> str:
-    start = re.search(r"ng[àa]nh\s*ngh[eề]", raw_text, flags=re.IGNORECASE)
-    end = re.search(r"quy\s*tr[ìi]nh\s*s[aả]n\s*xu[aấ]t.*", raw_text, flags=re.IGNORECASE)
-    if start and end: return raw_text[start.start(): end.end()].strip()
-    if start:         return raw_text[start.start():].strip()
-    return raw_text.strip()
+def slice_phuong_an(text):
+    start = re.search(r"ng[àa]nh\s*ngh[eề]", text, re.IGNORECASE)
+    end = re.search(r"quy\s*tr[ìi]nh\s*s[aả]n\s*xu[aấ]t.*", text, re.IGNORECASE)
+    if start and end:
+        return text[start.start():end.end()].strip()
+    if start:
+        return text[start.start():].strip()
+    return text.strip()
 
-def ai_extract_portrait(phuong_an_text: str) -> dict:
+
+def extract_portrait(text):
     fields = CONFIG["portrait_fields"]
-    system = ("Bạn bóc tách báo cáo doanh nghiệp tiếng Việt. Chỉ trả JSON hợp lệ, không markdown.")
-    user = f"""Nội dung bảng 'chân dung | nội dung đánh giá' (phần a. Phương án).
-Trích NGUYÊN VĂN nội dung đánh giá cho từng chân dung: {fields}. Không có -> "".
-Trả JSON: {{{", ".join(f'"{f}": "..."' for f in fields)}}}
-
---- NỘI DUNG ---
-{phuong_an_text}
-"""
+    keys = ", ".join('"%s": "..."' % f for f in fields)
+    system = "Bóc tách báo cáo doanh nghiệp tiếng Việt. Chỉ trả JSON, không markdown."
+    user = (f"Trích NGUYÊN VĂN nội dung đánh giá cho từng mục: {fields}. "
+            'Mục nào không có trong văn bản để giá trị "". Tuyệt đối không suy diễn.\n'
+            f"Trả JSON: {{{keys}}}\n\n{text}")
     try:
-        return _parse_json(call_ai(system, user))
+        return parse_json(call_ai(system, user))
     except Exception:
         return {f: "" for f in fields}
 
 # COMMAND ----------
 
-# ============================================================
-# LUỒNG 2 — EXCEL HIỆN TẠI: AI dò schema -> Python đọc -> JSON
-# (đã BỎ compare đầu kỳ/cuối kỳ & highlight theo yêu cầu)
-# ============================================================
-def sheet_to_grid_text(ws, max_rows: int) -> str:
+def grid_text(ws, max_rows):
     lines = []
     for i, row in enumerate(ws.iter_rows(values_only=True)):
-        if i >= max_rows: break
+        if i >= max_rows:
+            break
         cells = [f"C{j}={v!r}" for j, v in enumerate(row) if v is not None]
         lines.append(f"R{i}: " + " | ".join(cells))
     return "\n".join(lines)
 
-def ai_detect_schema(ws, sheet_name: str) -> dict:
-    grid = sheet_to_grid_text(ws, CONFIG["schema_scan_rows"])
-    system = ("Bạn phân tích layout sheet Excel tiếng Việt có header nhiều tầng và dòng rác. "
-              "Chỉ trả JSON, KHÔNG giải thích, KHÔNG trả giá trị, chỉ trả index.")
-    user = f"""Sheet '{sheet_name}'. Lưới (Rn=dòng, Cn=cột, index từ 0):
-{grid}
 
-Xác định cấu trúc bảng chính, bỏ dòng/cột rác. Header nhiều tầng: nhóm thời điểm
-(đầu kỳ/nhập/xuất/tồn/phát sinh/cuối kỳ) + cột con (thành tiền/số lượng hoặc nợ/có).
+def detect_schema(ws, sheet_name):
+    system = ("Phân tích layout sheet Excel tiếng Việt có header nhiều tầng và dòng rác. "
+              "Chỉ trả JSON index, không giải thích, không trả giá trị dữ liệu.")
+    user = (f"Sheet '{sheet_name}'. Lưới (Rn=dòng, Cn=cột, index từ 0):\n"
+            f"{grid_text(ws, CONFIG['schema_scan_rows'])}\n\n"
+            "Xác định cấu trúc bảng chính, bỏ dòng/cột rác. Trả JSON:\n"
+            '{"data_start_row": <int>, "columns": {"ten": <int>, "ma": <int hoặc null>, '
+            '"groups": {"<ten_nhom>": {"<con>": <int>}}}}\n'
+            "Tên nhóm/con: thường, không dấu, gạch dưới "
+            "(dau_ky, cuoi_ky, phat_sinh, nhap, xuat, ton; no, co, thanh_tien, so_luong).")
+    return parse_json(call_ai(system, user))
 
-Trả JSON:
-{{
-  "data_start_row": <int>,
-  "columns": {{
-     "ten": <int>, "ma": <int hoặc null>,
-     "groups": {{ "<ten_nhom>": {{"<con>": <int>, ...}}, ... }}
-  }}
-}}
-Tên nhóm/con: thường, không dấu, gạch dưới (dau_ky, cuoi_ky, phat_sinh, nhap, xuat, ton; no, co, thanh_tien, so_luong).
-"""
-    return _parse_json(call_ai(system, user))
 
-def validate_schema(ws, schema: dict) -> None:
-    assert "columns" in schema and "data_start_row" in schema, "Thiếu khóa schema"
-    cols = schema["columns"]; maxc, maxr = ws.max_column, ws.max_row
-    dsr = schema["data_start_row"]
-    assert isinstance(dsr, int) and 0 <= dsr < maxr, f"data_start_row sai: {dsr}"
-    assert isinstance(cols.get("ten"), int) and 0 <= cols["ten"] < maxc, "col 'ten' sai"
+def validate_schema(ws, schema):
+    cols = schema["columns"]
+    maxc, maxr = ws.max_column, ws.max_row
+    assert 0 <= schema["data_start_row"] < maxr
+    assert isinstance(cols.get("ten"), int) and 0 <= cols["ten"] < maxc
     if cols.get("ma") is not None:
-        assert 0 <= cols["ma"] < maxc, "col 'ma' sai"
-    assert cols.get("groups"), "thiếu groups"
-    for g, subs in cols["groups"].items():
-        for sub, idx in subs.items():
-            assert idx is None or (isinstance(idx, int) and 0 <= idx < maxc), f"col {g}.{sub} sai"
+        assert 0 <= cols["ma"] < maxc
+    assert cols.get("groups")
+    for subs in cols["groups"].values():
+        for idx in subs.values():
+            assert idx is None or (0 <= idx < maxc)
 
-def read_by_schema(ws, schema: dict) -> list:
+
+def read_by_schema(ws, schema):
     rows = list(ws.iter_rows(values_only=True))
-    cols = schema["columns"]; recs = []
+    cols = schema["columns"]
+    recs = []
     for r in rows[schema["data_start_row"]:]:
-        if cols["ten"] >= len(r): continue
-        name = r[cols["ten"]]
-        if name in (None, ""): continue
-        rec = {"ten": str(name).strip(),
+        if cols["ten"] >= len(r) or r[cols["ten"]] in (None, ""):
+            continue
+        rec = {"ten": str(r[cols["ten"]]).strip(),
                "ma": r[cols["ma"]] if cols.get("ma") is not None and cols["ma"] < len(r) else None,
                "groups": {}}
         for g, subs in cols["groups"].items():
-            rec["groups"][g] = {sub: (r[idx] if idx is not None and idx < len(r) else None)
-                                for sub, idx in subs.items()}
+            rec["groups"][g] = {s: (r[i] if i is not None and i < len(r) else None)
+                                for s, i in subs.items()}
         recs.append(rec)
     return recs
 
-def _load_cache():
-    if CONFIG["use_schema_cache"] and os.path.exists(_to_local(CONFIG["schema_cache_path"])):
+
+def load_cache():
+    p = to_local(CONFIG["schema_cache_path"])
+    if CONFIG["use_schema_cache"] and os.path.exists(p):
         try:
-            with open(_to_local(CONFIG["schema_cache_path"]), "r", encoding="utf-8") as f:
+            with open(p, encoding="utf-8") as f:
                 return json.load(f)
-        except Exception: return {}
+        except Exception:
+            pass
     return {}
 
-def _save_cache(cache):
-    if not CONFIG["use_schema_cache"]: return
-    p = _to_local(CONFIG["schema_cache_path"])
+
+def save_cache(cache):
+    if not CONFIG["use_schema_cache"]:
+        return
+    p = to_local(CONFIG["schema_cache_path"])
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "w", encoding="utf-8") as f:
         json.dump(cache, f, ensure_ascii=False, indent=2)
 
-def get_schema(ws, sheet_name, cache):
-    if sheet_name in cache:
-        try:
-            validate_schema(ws, cache[sheet_name]); return cache[sheet_name]
-        except AssertionError:
-            pass
-    schema = ai_detect_schema(ws, sheet_name)
-    validate_schema(ws, schema)
-    cache[sheet_name] = schema
-    return schema
 
-def _classify_sheet(name):
-    k = _strip_accents(name)
-    if "ton" in k: return "hang_ton"
-    if "thu" in k: return "phai_thu"
-    if "tra" in k: return "phai_tra"
+def classify_sheet(name):
+    k = strip_accents(name)
+    if "ton" in k:
+        return "hang_ton"
+    if "thu" in k:
+        return "phai_thu"
+    if "tra" in k:
+        return "phai_tra"
     return k.replace(" ", "_")
 
+
 def load_excel(path):
-    wb = openpyxl.load_workbook(_to_local(path), data_only=True)
-    cache = _load_cache(); data, schemas = {}, {}
+    wb = openpyxl.load_workbook(to_local(path), data_only=True)
+    cache = load_cache()
+    data = {}
     for name in wb.sheetnames:
-        ws = wb[name]; schema = get_schema(ws, name, cache)
-        data[_classify_sheet(name)] = read_by_schema(ws, schema)
-        schemas[_classify_sheet(name)] = schema
-    _save_cache(cache)
-    return data, schemas
+        ws = wb[name]
+        if name not in cache:
+            schema = detect_schema(ws, name)
+            validate_schema(ws, schema)
+            cache[name] = schema
+        data[classify_sheet(name)] = read_by_schema(ws, cache[name])
+    save_cache(cache)
+    return data
 
 # COMMAND ----------
 
-# ============================================================
-# AI — (1) THỐNG KÊ CONTEXT HIỆN TẠI  (2) SO SÁNH TỰ DO QK vs HT
-# ============================================================
-def ai_thongke_hientai(excel_json: dict) -> str:
-    """Bước 1: AI thống kê / mô tả tình hình HIỆN TẠI từ JSON Excel — CHƯA so sánh."""
-    system = ("Bạn là chuyên viên phân tích tín dụng. Từ dữ liệu Excel (hàng tồn kho, phải thu, phải trả), "
-              "hãy THỐNG KÊ và MÔ TẢ tình hình HIỆN TẠI của doanh nghiệp bằng tiếng Việt: quy mô, cơ cấu, "
-              "các con số nổi bật, điểm cần lưu ý. CHƯA so sánh với bất kỳ mốc nào. Viết đoạn văn mạch lạc, có số liệu.")
-    user = f"""DỮ LIỆU HIỆN TẠI (JSON từ Excel):
-{json.dumps(excel_json, ensure_ascii=False, indent=2)}
-
-Hãy thống kê tình hình hiện tại về: hàng tồn kho, công nợ phải thu, công nợ phải trả."""
+def thongke_hientai(excel_json):
+    system = ("Chuyên viên phân tích tín dụng. Thống kê tình hình HIỆN TẠI của doanh nghiệp "
+              "(hàng tồn kho, phải thu, phải trả) từ dữ liệu cho sẵn. Chỉ dùng con số có trong dữ liệu, "
+              "không bịa, không suy diễn số không tồn tại. Viết đoạn văn có số liệu, chưa so sánh.")
+    user = ("Dữ liệu hiện tại (JSON từ Excel):\n"
+            f"{json.dumps(excel_json, ensure_ascii=False, indent=2)}")
     return call_ai(system, user).strip()
 
-def ai_sosanh_tudo(portrait_cu: dict, thongke_hientai: str, excel_json: dict) -> str:
-    """Bước 2: AI TỰ DO so sánh HIỆN TẠI (Excel) vs QUÁ KHỨ (chân dung PDF cũ),
-    trình bày THEO FORMAT các mục chân dung của OCR cũ."""
+
+def sosanh_tudo(portrait_cu, thongke_ht, excel_json):
     fields = CONFIG["portrait_fields"]
-    system = ("Bạn là chuyên viên phân tích tín dụng. So sánh tình hình HIỆN TẠI (từ Excel) với "
-              "báo cáo QUÁ KHỨ (các mục chân dung trong PDF cũ). Được TỰ DO nhận định, không bị định hướng. "
-              "Lưu ý: báo cáo cũ có thể THIẾU thông tin mà dữ liệu mới có, và ngược lại có thông tin mới phát sinh — "
-              "hãy nêu rõ khi gặp. Trình bày kết quả THEO ĐÚNG CÁC MỤC của báo cáo cũ.")
-    sections = "\n".join(f"### {f}\n- Quá khứ (PDF): {portrait_cu.get(f) or '(không có trong báo cáo cũ)'}"
-                         for f in fields)
-    user = f"""BÁO CÁO QUÁ KHỨ — các mục chân dung (OCR PDF cũ):
-{json.dumps(portrait_cu, ensure_ascii=False, indent=2)}
-
-THỐNG KÊ HIỆN TẠI (đã tổng hợp từ Excel):
-{thongke_hientai}
-
-DỮ LIỆU HIỆN TẠI CHI TIẾT (JSON Excel):
-{json.dumps(excel_json, ensure_ascii=False, indent=2)}
-
-YÊU CẦU: Với TỪNG MỤC của báo cáo cũ dưới đây, viết phần "Quá khứ" (nguyên văn OCR cũ) và
-phần "Hiện tại & so sánh" (dựa trên Excel + thống kê). Nếu mục cũ trống -> ghi rõ là thông tin mới phát sinh.
-Khung mục cần bám theo:
-{sections}
-
-Với mỗi mục, xuất ra dạng Markdown:
-#### <tên mục>
-**Quá khứ:** <nội dung OCR cũ hoặc 'không có trong báo cáo cũ'>
-**Hiện tại & so sánh:** <nhận định>
-"""
+    system = (
+        "Chuyên viên phân tích tín dụng. So sánh QUÁ KHỨ (báo cáo PDF cũ) với HIỆN TẠI (Excel).\n"
+        "QUY TẮC BẮT BUỘC chống bịa đặt:\n"
+        "- Chỉ dùng dữ kiện có thật trong nguồn được cấp. Không thêm thông tin không có.\n"
+        "- 'Quá khứ' chỉ lấy từ nội dung PDF cũ. Nếu mục đó trong PDF trống -> ghi 'Không có trong báo cáo cũ'.\n"
+        "- 'Hiện tại' chỉ lấy từ dữ liệu Excel/thống kê. Nếu Excel không có dữ liệu cho mục đó -> "
+        "ghi 'Không có dữ liệu hiện tại', KHÔNG được nói là có cập nhật.\n"
+        "- Chỉ kết luận 'có thay đổi/cập nhật' khi cả hai phía đều có dữ liệu để đối chiếu.\n"
+        "- Không suy đoán nguyên nhân nếu nguồn không nêu."
+    )
+    frame = "\n".join(f"- {f}" for f in fields)
+    user = (
+        f"NGUỒN QUÁ KHỨ (PDF cũ, JSON):\n{json.dumps(portrait_cu, ensure_ascii=False, indent=2)}\n\n"
+        f"NGUỒN HIỆN TẠI - thống kê:\n{thongke_ht}\n\n"
+        f"NGUỒN HIỆN TẠI - chi tiết (JSON Excel):\n{json.dumps(excel_json, ensure_ascii=False, indent=2)}\n\n"
+        f"Với TỪNG mục dưới đây, xuất Markdown:\n{frame}\n\n"
+        "#### <tên mục>\n"
+        "**Quá khứ:** <nguyên văn PDF cũ, hoặc 'Không có trong báo cáo cũ'>\n"
+        "**Hiện tại:** <từ Excel, hoặc 'Không có dữ liệu hiện tại'>\n"
+        "**So sánh:** <chỉ khi cả hai phía có dữ liệu; nếu không, ghi rõ thiếu phía nào>"
+    )
     return call_ai(system, user).strip()
 
 # COMMAND ----------
 
-# ============================================================
-# XUẤT MARKDOWN
-# ============================================================
-def _fmt(v):
-    if v is None: return ""
-    if isinstance(v, float) and v.is_integer(): v = int(v)
-    if isinstance(v, (int, float)): return f"{v:,}"
-    return str(v)
+def fmt(v):
+    if v is None:
+        return ""
+    if isinstance(v, float) and v.is_integer():
+        v = int(v)
+    return f"{v:,}" if isinstance(v, (int, float)) else str(v)
 
-def _write(path, text):
-    local = _to_local(path)
+
+def write_file(path, text):
+    local = to_local(path)
     os.makedirs(os.path.dirname(local), exist_ok=True)
     with open(local, "w", encoding="utf-8") as f:
         f.write(text)
 
-def md_excel_file(excel_data: dict) -> str:
-    L = ["# Dữ liệu Excel — Tình hình hiện tại", ""]
-    label = {"hang_ton": "Hàng tồn kho", "phai_thu": "Công nợ phải thu", "phai_tra": "Công nợ phải trả"}
+
+def md_excel(excel_data):
+    label = {"hang_ton": "Hàng tồn kho", "phai_thu": "Công nợ phải thu",
+             "phai_tra": "Công nợ phải trả"}
+    L = ["# Dữ liệu Excel - Tình hình hiện tại", ""]
     for key, records in excel_data.items():
         L += [f"## {label.get(key, key)}", ""]
         if records:
@@ -439,69 +338,49 @@ def md_excel_file(excel_data: dict) -> str:
             L.append("| " + " | ".join(head) + " |")
             L.append("| " + " | ".join(["---"] * len(head)) + " |")
             for r in records:
-                cells = [r["ten"], _fmt(r["ma"])] + [_fmt(r["groups"][g].get(s))
-                                                     for g in groups for s in subs[g]]
+                cells = [r["ten"], fmt(r["ma"])] + [fmt(r["groups"][g].get(s))
+                                                    for g in groups for s in subs[g]]
                 L.append("| " + " | ".join(cells) + " |")
         L.append("")
     return "\n".join(L)
 
-def md_main_file(dkkd: dict, portrait_cu: dict, thongke_ht: str, sosanh: str) -> str:
+
+def md_main(dkkd, portrait_cu, thongke_ht, sosanh):
     L = ["# Báo cáo tóm tắt thông tin doanh nghiệp", "",
-         f"*Tạo lúc: {datetime.now().strftime('%Y-%m-%d %H:%M')} — Endpoint: {CONFIG['endpoint_name']}*", ""]
-
-    # 1. ĐKKD
-    L += ["## 1. Đối chiếu Đăng ký kinh doanh", "",
-          f"- Số dòng trong bảng: **{dkkd['so_dong_bang']}**",
-          f"- Số file ĐKKD: **{dkkd['so_file_dkkd']}**", "",
-          "### 1.1. Đối chiếu tên đại diện theo cùng thời điểm", "",
-          "| Kỳ (YYYYMM) | File | Tên trong file | Tên trong bảng | Trùng khớp |",
-          "| --- | --- | --- | --- | --- |"]
-    for m in dkkd["doi_chieu_theo_thoi_diem"]:
-        tk = "✅" if m["trung_khop"] else ("❌" if m["trung_khop"] is False else "—")
-        L.append(f"| {m['period']} | {m['file']} | {', '.join(m['ten_trong_file']) or '—'} "
-                 f"| {', '.join(m['ten_trong_bang']) or '—'} | {tk} |")
-    nn = dkkd["ngay_lon_nhat"]
-    tk = "✅ khớp" if nn["trung_khop"] else ("❌ lệch" if nn["trung_khop"] is False else "—")
+         f"*{datetime.now():%Y-%m-%d %H:%M} - {CONFIG['endpoint_name']}*", "",
+         "## 1. Đối chiếu Đăng ký kinh doanh", "",
+         f"- Số dòng trong bảng: {dkkd['so_dong_bang']}",
+         f"- Số file ĐKKD: {dkkd['so_file']}", "",
+         "### 1.1. Đối chiếu tên đại diện theo cùng thời điểm", "",
+         "| Kỳ | File | Tên trong file | Tên trong bảng | Trùng khớp |",
+         "| --- | --- | --- | --- | --- |"]
+    for m in dkkd["doi_chieu"]:
+        tk = "Trùng" if m["trung_khop"] else ("Lệch" if m["trung_khop"] is False else "-")
+        L.append(f"| {m['period']} | {m['file']} | {', '.join(m['ten_file']) or '-'} "
+                 f"| {', '.join(m['ten_bang']) or '-'} | {tk} |")
+    n = dkkd["ngay_lon_nhat"]
+    tk = "Khớp" if n["trung_khop"] else ("Lệch" if n["trung_khop"] is False else "-")
     L += ["", "### 1.2. So sánh ngày lớn nhất", "",
-          f"- Ngày lớn nhất từ tên file: **{nn['max_file_period'] or '—'}**",
-          f"- Ngày lớn nhất trong bảng: **{nn['max_table_period'] or '—'}**",
-          f"- Kết quả: **{tk}**", ""]
-
-    # 2. OCR quá khứ (nguyên văn chân dung PDF cũ)
-    L += ["## 2. Báo cáo quá khứ (OCR PDF cũ)", ""]
+          f"- Ngày lớn nhất từ tên file: {n['max_file'] or '-'}",
+          f"- Ngày lớn nhất trong bảng: {n['max_bang'] or '-'}",
+          f"- Kết quả: {tk}", "",
+          "## 2. Báo cáo quá khứ (OCR PDF cũ)", ""]
     for f in CONFIG["portrait_fields"]:
-        L += [f"### {f.capitalize()}", "", (portrait_cu.get(f) or "_(không có trong báo cáo cũ)_"), ""]
-
-    # 3. Thống kê hiện tại
-    L += ["## 3. Thống kê tình hình hiện tại (từ Excel)", "", thongke_ht, "",
-          "> Dữ liệu chi tiết dạng bảng xem file `du_lieu_excel.md`.", ""]
-
-    # 4. So sánh quá khứ ↔ hiện tại (theo format mục chân dung cũ)
-    L += ["## 4. So sánh quá khứ ↔ hiện tại", "", sosanh, ""]
+        L += [f"### {f.capitalize()}", "", portrait_cu.get(f) or "_(không có trong báo cáo cũ)_", ""]
+    L += ["## 3. Thống kê tình hình hiện tại", "", thongke_ht, "",
+          "> Dữ liệu chi tiết xem file du_lieu_excel.md", "",
+          "## 4. So sánh quá khứ - hiện tại", "", sosanh, ""]
     return "\n".join(L)
 
 # COMMAND ----------
 
-# ============================================================
-# PIPELINE CHÍNH
-# ============================================================
-# Luồng 1
 dkkd = run_dkkd_flow()
+portrait_cu = extract_portrait(slice_phuong_an(read_pdf(CONFIG["report_pdf_path"])))
+excel_data = load_excel(CONFIG["excel_path"])
+thongke_ht = thongke_hientai(excel_data)
+sosanh = sosanh_tudo(portrait_cu, thongke_ht, excel_data)
 
-# Luồng 2 — quá khứ (PDF) & hiện tại (Excel)
-portrait_cu = ai_extract_portrait(slice_phuong_an(extract_pdf_text(CONFIG["report_pdf_path"])))
-excel_data, schemas = load_excel(CONFIG["excel_path"])
+write_file(CONFIG["out_main_md"], md_main(dkkd, portrait_cu, thongke_ht, sosanh))
+write_file(CONFIG["out_excel_md"], md_excel(excel_data))
 
-# Bước 1: thống kê hiện tại  ->  Bước 2: so sánh tự do
-thongke_ht = ai_thongke_hientai(excel_data)
-sosanh = ai_sosanh_tudo(portrait_cu, thongke_ht, excel_data)
-
-# Xuất 2 file
-_write(CONFIG["out_main_md"], md_main_file(dkkd, portrait_cu, thongke_ht, sosanh))
-_write(CONFIG["out_excel_md"], md_excel_file(excel_data))
-
-print("Đã xuất:")
-print(" -", CONFIG["out_main_md"])
-print(" -", CONFIG["out_excel_md"])
-print("=" * 60)
-print(md_main_file(dkkd, portrait_cu, thongke_ht, sosanh))
+print("Đã xuất:", CONFIG["out_main_md"], "và", CONFIG["out_excel_md"])
