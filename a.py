@@ -159,14 +159,20 @@ def _period_to_yyyymm(s: str) -> str:
 
 def list_dkkd_files(folder: str) -> list:
     """Liệt kê PDF trong folder ĐKKD, lấy period YYYYMM từ đầu tên file.
-    Dùng f.path trực tiếp (đã đầy đủ), KHÔNG tự ghép chuỗi -> tránh lỗi path."""
+    Volume (/Volumes/...) mount như filesystem thường -> dùng os.listdir, KHÔNG dùng
+    dbutils.fs.ls (nó trả path 'dbfs:/Volumes/...' gây lỗi khi mở bằng Python)."""
+    local_dir = _to_local(folder)
     files = []
-    for f in dbutils.fs.ls(folder):
-        if not f.name.lower().endswith(".pdf"):
+    for name in os.listdir(local_dir):
+        if not name.lower().endswith(".pdf"):
             continue
-        m = re.match(r"^(\d{6})_", f.name)
+        m = re.match(r"^(\d{6})_", name)
         if m:
-            files.append({"period": m.group(1), "name": f.name, "path": f.path})
+            files.append({
+                "period": m.group(1),
+                "name": name,
+                "path": os.path.join(local_dir, name),  # path đầy đủ, đọc trực tiếp
+            })
     return sorted(files, key=lambda x: x["period"])
 
 def ai_extract_legal_reps(pdf_text: str) -> list:
