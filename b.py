@@ -47,7 +47,10 @@ REGISTERED_MODEL = f"{CATALOG}.{SCHEMA}.banking_assistant"
 SERVING_ENDPOINT = "banking-assistant"
 
 TOP_K = 5
-MIN_SCORE = 0.0030               # calibrate o section 2
+USE_RERANKER = True              # cross-encoder rerank sau hybrid
+RERANK_COLUMNS = ["chunk_content", "section_title"]
+MIN_SCORE_HYBRID = 0.0030        # calibrate o section 2
+MIN_SCORE_RERANK = 0.0           # thang diem khac hybrid, calibrate o section 2
 MAX_WORDS_PER_CHUNK = 400
 CHUNK_OVERLAP_WORDS = 80
 MAX_PARENT_WORDS = 3000
@@ -61,7 +64,8 @@ MLFLOW_EXPERIMENT = f"/Users/{CURRENT_USER}/banking_rag_eval"
 for k, v in [
     ("catalog.schema", f"{CATALOG}.{SCHEMA}"), ("raw docs", RAW_DOCS_PATH),
     ("delta table", TABLE), ("vs endpoint", VS_ENDPOINT), ("vs index", VS_INDEX),
-    ("llm endpoint", LLM_ENDPOINT), ("registered model", REGISTERED_MODEL),
+    ("llm endpoint", LLM_ENDPOINT), ("reranker", f"{USE_RERANKER} {RERANK_COLUMNS}"),
+    ("registered model", REGISTERED_MODEL),
     ("serving endpoint", SERVING_ENDPOINT), ("mlflow exp", MLFLOW_EXPERIMENT),
 ]:
     print(f"{k:18s}: {v}")
@@ -174,6 +178,7 @@ def clean_text(raw: str) -> str:
 # DBTITLE 1,Regex heading + guard + unit test
 HEADING_RE = re.compile(r"^\s{0,6}(\d{1,2}(?:\.\d{1,2}){0,3})\.?\s+(\S.{0,150})$")
 CURRENCY_RE = re.compile(r"^(?:USD|VND|EUR|JPY|GBP|\$|EUR)\s*[\d.,]", re.I)
+TOC_RE = re.compile(r"(\.{3,}|\u2026+|_{3,}|\s{3,}|\t)\s*\d{1,4}\s*$")
 
 
 def parse_heading(line: str):
@@ -182,6 +187,9 @@ def parse_heading(line: str):
         return None
     no, title = m.group(1), m.group(2).strip()
 
+    # dong muc luc: "2.1 Identification ........ 5" -> khong phai heading
+    if TOC_RE.search(title):
+        return None
     # segment 3 chu so -> so tien (450.000)
     if any(len(s) == 3 for s in no.split(".")):
         return None
@@ -211,6 +219,8 @@ HEADING_TESTS = [
     ("2.1 the bank shall verify the identity of the customer", None),
     ("Page 12", None),
     ("5.", None),
+    ("2.1 Identification Requirements ........ 5", None),
+    ("3. Customer Onboarding\t12", None),
 ]
 
 failed = [(l, e, parse_heading(l)) for l, e in HEADING_TESTS
@@ -224,56 +234,63 @@ assert not failed, failed
 
 # DBTITLE 1,Cay muc + chunk parent-child
 def parse_sections(text: str):
+    """Moi muc co sid = thu tu xuat hien -> duy nhat ke ca khi section_no lap lai
+    (danh so lai o phu luc, list danh so trong than bai)."""
     lines = text.split("\n")
     heads = [(i, *h) for i, ln in enumerate(lines) if (h := parse_heading(ln))]
 
     if not heads:
-        return [{"section_no": "1", "section_title": "Document", "level": 1,
-                 "parent_section_no": None, "body": text.strip()}]
+        return [{"sid": 0, "section_no": "1", "section_title": "Document", "level": 1,
+                 "parent_section_no": None, "parent_sid": None, "body": text.strip()}]
 
     sections = []
     preamble = "\n".join(lines[: heads[0][0]]).strip()
     if len(preamble.split()) >= 30:
-        sections.append({"section_no": "0", "section_title": "Preamble", "level": 1,
-                         "parent_section_no": None, "body": preamble})
+        sections.append({"sid": 0, "section_no": "0", "section_title": "Preamble", "level": 1,
+                         "parent_section_no": None, "parent_sid": None, "body": preamble})
 
+    last_seen = {}                               # section_no -> sid gan nhat phia truoc
     for j, (i, no, title) in enumerate(heads):
         end = heads[j + 1][0] if j + 1 < len(heads) else len(lines)
+        parent_no = no.rsplit(".", 1)[0] if "." in no else None
+        sid = len(sections)
         sections.append({
+            "sid": sid,
             "section_no": no,
             "section_title": title,
             "level": no.count(".") + 1,
-            "parent_section_no": no.rsplit(".", 1)[0] if "." in no else None,
+            "parent_section_no": parent_no,
+            "parent_sid": last_seen.get(parent_no) if parent_no else None,
             "body": "\n".join(lines[i + 1:end]).strip(),
         })
+        last_seen[no] = sid
     return sections
 
 
 def build_full_content(sections):
-    """full[no] = title + body + toan bo con chau, dung lam parent_content."""
-    by_no = {s["section_no"]: s for s in sections}
+    """full[sid] = title + body + toan bo con chau, dung lam parent_content."""
+    by_sid = {s["sid"]: s for s in sections}
     children = {}
     for s in sections:
-        p = s["parent_section_no"]
-        if p in by_no:
-            children.setdefault(p, []).append(s["section_no"])
+        if s["parent_sid"] is not None:
+            children.setdefault(s["parent_sid"], []).append(s["sid"])
 
     full = {}
 
-    def render(no):
-        if no in full:
-            return full[no]
-        s = by_no[no]
-        parts = [f"{no}. {s['section_title']}"]
+    def render(sid):
+        if sid in full:
+            return full[sid]
+        s = by_sid[sid]
+        parts = [f"{s['section_no']}. {s['section_title']}"]
         if s["body"]:
             parts.append(s["body"])
-        for c in sorted(children.get(no, []), key=lambda x: [int(v) for v in x.split(".")]):
+        for c in children.get(sid, []):          # sid tang dan = thu tu trong tai lieu
             parts.append(render(c))
-        full[no] = "\n".join(parts).strip()
-        return full[no]
+        full[sid] = "\n".join(parts).strip()
+        return full[sid]
 
     for s in sections:
-        render(s["section_no"])
+        render(s["sid"])
     return full, children
 
 
@@ -295,41 +312,46 @@ def cap_words(text, n):
     return text if len(words) <= n else " ".join(words[:n]) + " ..."
 
 
-def chunk_document(path: str):
-    document_name = os.path.basename(path)
-    document_id = re.sub(r"[^a-zA-Z0-9]+", "_", os.path.splitext(document_name)[0]).strip("_").lower()
+def make_document_ids(paths):
+    """document_id duy nhat: giu ca duoi file, them hau to neu van trung."""
+    ids, used = {}, Counter()
+    for p in paths:
+        base = re.sub(r"[^a-zA-Z0-9]+", "_", os.path.basename(p)).strip("_").lower()
+        used[base] += 1
+        ids[p] = base if used[base] == 1 else f"{base}_{used[base]}"
+    return ids
 
+
+def chunk_document(path: str, document_id: str):
+    document_name = os.path.basename(path)
     sections = parse_sections(clean_text(extract_text(path)))
     full, children = build_full_content(sections)
-    by_no = {s["section_no"]: s for s in sections}
 
     rows = []
     for s in sections:
-        no = s["section_no"]
-        if children.get(no):                       # chi muc la duoc embed
+        sid = s["sid"]
+        if children.get(sid):                    # chi muc la duoc embed
             continue
 
-        child_text = f"{no}. {s['section_title']}\n{s['body']}".strip()
+        child_text = f"{s['section_no']}. {s['section_title']}\n{s['body']}".strip()
         if len(child_text.split()) < 5:
             continue
 
-        parent_no = s["parent_section_no"]
-        parent_text = cap_words(
-            (full.get(parent_no) if parent_no in by_no else full.get(no)) or child_text,
-            MAX_PARENT_WORDS,
-        )
+        psid = s["parent_sid"]
+        parent_text = cap_words(full.get(psid if psid is not None else sid) or child_text,
+                                MAX_PARENT_WORDS)
 
         parts = split_long(child_text, MAX_WORDS_PER_CHUNK, CHUNK_OVERLAP_WORDS)
         for k, part in enumerate(parts, 1):
             rows.append({
                 "document_id": document_id,
                 "document_name": document_name,
-                "chunk_id": f"{document_id}#{no}#{k}",
+                "chunk_id": f"{document_id}#{sid:04d}#{s['section_no']}#{k}",
                 "chunk_content": part,
-                "section_no": no,
+                "section_no": s["section_no"],
                 "section_title": s["section_title"],
                 "level": int(s["level"]),
-                "parent_section_no": parent_no,
+                "parent_section_no": s["parent_section_no"] if psid is not None else None,
                 "parent_content": parent_text,
                 "source_path": path,
             })
@@ -340,14 +362,31 @@ def chunk_document(path: str):
 # DBTITLE 1,Chay ingestion
 import pandas as pd
 
+DOC_IDS = make_document_ids(SOURCE_FILES)
+
 all_rows = []
 for p in SOURCE_FILES:
-    rows = chunk_document(p)
+    rows = chunk_document(p, DOC_IDS[p])
     all_rows.extend(rows)
-    print(f"{os.path.basename(p):45s} -> {len(rows):4d} chunks")
+    print(f"{os.path.basename(p):45s} -> {len(rows):4d} chunks  (id={DOC_IDS[p]})")
 
 pdf_chunks = pd.DataFrame(all_rows)
 print(f"\nTONG: {len(pdf_chunks)} chunks / {len(SOURCE_FILES)} documents")
+
+# Kiem tra TRUOC khi ghi Delta, khong de loi lot vao bang
+dup_ids = pdf_chunks[pdf_chunks.chunk_id.duplicated(keep=False)]
+assert dup_ids.empty, f"chunk_id trung:\n{dup_ids[['chunk_id', 'section_title']].head(20)}"
+
+# Chan doan: section_no lap trong cung tai lieu (khong con gay trung id, nhung nen biet)
+rep = (pdf_chunks.drop_duplicates(["document_name", "chunk_id"])
+       .assign(sid=lambda d: d.chunk_id.str.split("#").str[1])
+       .drop_duplicates(["document_name", "sid"])
+       .groupby(["document_name", "section_no"]).size().reset_index(name="lan_xuat_hien"))
+rep = rep[rep.lan_xuat_hien > 1]
+if not rep.empty:
+    print(f"\n[info] {len(rep)} section_no lap lai trong cung tai lieu (phu luc danh so lai / list danh so):")
+    display(rep.head(30))
+
 display(pdf_chunks.head(10))
 
 # COMMAND ----------
@@ -465,21 +504,47 @@ else:
 
 # COMMAND ----------
 
-# DBTITLE 1,retrieve + parent expansion
+# DBTITLE 1,retrieve (hybrid + reranker) + parent expansion
+try:
+    from databricks.vector_search.reranker import DatabricksReranker
+except ImportError:
+    DatabricksReranker = None
+
+if USE_RERANKER and DatabricksReranker is None:
+    raise ImportError("databricks-vectorsearch qua cu, chua co DatabricksReranker. "
+                      "Chay lai cell %pip install -U o section 0.")
+
 RETRIEVE_COLUMNS = ["chunk_id", "document_name", "section_no", "section_title",
                     "chunk_content", "parent_section_no", "parent_content"]
 
 
-def retrieve(query: str, k: int = TOP_K):
-    res = index.similarity_search(query_text=query, columns=RETRIEVE_COLUMNS,
-                                  num_results=k, query_type="HYBRID")
+def retrieve(query: str, k: int = TOP_K, use_reranker: bool = USE_RERANKER,
+             return_debug: bool = False):
+    """Hybrid (bi-encoder + keyword). Neu use_reranker: top 50 duoc cross-encoder cham lai.
+    Moi hit co co 'reranked' = reranker that su chay (khong fallback)."""
+    kwargs = dict(query_text=query, columns=RETRIEVE_COLUMNS,
+                  num_results=k, query_type="HYBRID")
+    if use_reranker:
+        kwargs["reranker"] = DatabricksReranker(columns_to_rerank=RERANK_COLUMNS)
+        kwargs["debug_level"] = 1
+
+    res = index.similarity_search(**kwargs)
+    debug = res.get("debug_info") or {}
+    reranked = use_reranker and not debug.get("warnings")
+
     cols = [c["name"] for c in res["manifest"]["columns"]]
     hits = []
     for row in res["result"].get("data_array", []):
         d = dict(zip(cols, row))
         d["score"] = float(row[-1])
+        d["reranked"] = reranked
         hits.append(d)
-    return hits
+    return (hits, debug) if return_debug else hits
+
+
+def min_score_for(hits):
+    """Nguong theo thang diem thuc te: reranker fallback thi quay ve nguong hybrid."""
+    return MIN_SCORE_RERANK if hits and hits[0]["reranked"] else MIN_SCORE_HYBRID
 
 
 def expand_parents(hits):
@@ -510,26 +575,67 @@ DEMO_QUESTIONS = [
     "What is the approval process for personal loans?",
 ]
 
+mode = "hybrid + rerank" if USE_RERANKER else "hybrid"
 for q in DEMO_QUESTIONS:
     print("=" * 100)
-    print(f"QUESTION: {q}")
+    print(f"QUESTION: {q}   [{mode}]")
     for i, h in enumerate(retrieve(q, 5), 1):
         print(f"{i}. score={h['score']:.5f}  {h['document_name']} S{h['section_no']} - {h['section_title']}")
         print(f"   {h['chunk_content'][:200]}...")
 
 # COMMAND ----------
 
-# DBTITLE 1,Calibrate MIN_SCORE
-OUT_OF_SCOPE = ["What is the weather in Hanoi today?", "Who won the world cup in 2018?"]
+# DBTITLE 1,Kiem tra reranker co that su chay
+if USE_RERANKER:
+    for q in DEMO_QUESTIONS:
+        _, dbg = retrieve(q, 5, use_reranker=True, return_debug=True)
+        if dbg.get("warnings"):
+            print(f"[FALLBACK] {q[:50]} -> {dbg['warnings']}")
+        else:
+            print(f"[OK] rerank {dbg.get('reranker_time', '?')} ms  {q[:50]}")
+else:
+    print("USE_RERANKER = False, bo qua")
 
-in_scores = [retrieve(q, 1)[0]["score"] for q in DEMO_QUESTIONS]
-out_scores = [(retrieve(q, 1) or [{"score": 0.0}])[0]["score"] for q in OUT_OF_SCOPE]
+# COMMAND ----------
 
-print("in-scope :", [f"{s:.5f}" for s in in_scores])
-print("out-scope:", [f"{s:.5f}" for s in out_scores])
-print(f"MIN_SCORE dang dung: {MIN_SCORE}")
-print(f"MIN_SCORE goi y    : {(min(in_scores) + max(out_scores)) / 2:.5f}")
-print("Neu 2 nhom khong tach duoc: nguong score vo nghia, dua vao guard 2+3.")
+# DBTITLE 1,So sanh thu hang: hybrid vs hybrid + rerank
+def label(h):
+    return f"{h['document_name'][:22]} S{h['section_no']}"
+
+for q in DEMO_QUESTIONS:
+    hy = retrieve(q, 5, use_reranker=False)
+    rr = retrieve(q, 5, use_reranker=True)
+    print("=" * 100)
+    print(f"QUESTION: {q}")
+    print(f"   {'HYBRID':42s} | HYBRID + RERANK")
+    for i in range(max(len(hy), len(rr))):
+        a = f"{hy[i]['score']:.4f} {label(hy[i])}" if i < len(hy) else ""
+        b = f"{rr[i]['score']:.4f} {label(rr[i])}" if i < len(rr) else ""
+        print(f"{i+1}. {a:42s} | {b}")
+    moved = len({h["chunk_id"] for h in rr} - {h["chunk_id"] for h in hy})
+    print(f"   -> {moved}/5 chunk moi duoc reranker keo len tu ngoai top-5 hybrid")
+
+# COMMAND ----------
+
+# DBTITLE 1,Calibrate MIN_SCORE_HYBRID va MIN_SCORE_RERANK
+OUT_OF_SCOPE = ["What is the weather in Hanoi today?", "Who won the world cup in 2018?",
+                "What is the exact interest rate for a 36-month term deposit in 2027?"]
+
+for use_rr, name, current in [(False, "MIN_SCORE_HYBRID", MIN_SCORE_HYBRID),
+                              (True, "MIN_SCORE_RERANK", MIN_SCORE_RERANK)]:
+    in_s = [retrieve(q, 1, use_reranker=use_rr)[0]["score"] for q in DEMO_QUESTIONS]
+    out_s = [(retrieve(q, 1, use_reranker=use_rr) or [{"score": 0.0}])[0]["score"]
+             for q in OUT_OF_SCOPE]
+    gap = min(in_s) - max(out_s)
+    print(f"--- {name} ---")
+    print("  in-scope :", [f"{s:.5f}" for s in in_s])
+    print("  out-scope:", [f"{s:.5f}" for s in out_s])
+    print(f"  dang dung: {current}")
+    if gap > 0:
+        print(f"  goi y    : {(min(in_s) + max(out_s)) / 2:.5f}   (khoang cach {gap:.5f})")
+    else:
+        print(f"  KHONG TACH DUOC (gap {gap:.5f}) -> de nguong thap, dua vao guard 2+3")
+    print()
 
 # COMMAND ----------
 
@@ -544,7 +650,7 @@ print("Neu 2 nhom khong tach duoc: nguong score vo nghia, dua vao guard 2+3.")
 # MAGIC agent.py tu chua (chay trong serving env, khong thay bien notebook). Cell sau se assert khong lech config.
 # MAGIC
 # MAGIC Guard chong ao giac va chong injection:
-# MAGIC 1. Khong hit nao vuot MIN_SCORE -> fallback, khong goi LLM.
+# MAGIC 1. Khong hit nao vuot nguong (MIN_SCORE_RERANK neu reranker chay, nguoc lai MIN_SCORE_HYBRID) -> fallback, khong goi LLM.
 # MAGIC 2. System prompt: chi dung context, bat buoc trich dan, context la du lieu khong phai chi thi, cam lo prompt / doi vai / tu van phe duyet.
 # MAGIC 3. Context boc trong delimiter ngau nhien moi request, chunk bi strip the dong context gia.
 # MAGIC 4. Post-check: doi chieu tung citation voi block that su dua vao prompt; sai hoac thieu -> fallback.
@@ -565,11 +671,19 @@ print("Neu 2 nhom khong tach duoc: nguong score vo nghia, dua vao guard 2+3.")
 # MAGIC from mlflow.pyfunc import ChatAgent
 # MAGIC from mlflow.types.agent import ChatAgentMessage, ChatAgentResponse, ChatContext
 # MAGIC
+# MAGIC try:
+# MAGIC     from databricks.vector_search.reranker import DatabricksReranker
+# MAGIC except ImportError:
+# MAGIC     DatabricksReranker = None
+# MAGIC
 # MAGIC VS_ENDPOINT = "banking_vs_endpoint"
 # MAGIC VS_INDEX = "main.banking_rag.banking_documents_index"
 # MAGIC LLM_ENDPOINT = "databricks-claude-sonnet-4-5"
 # MAGIC TOP_K = 5
-# MAGIC MIN_SCORE = 0.0030
+# MAGIC USE_RERANKER = True
+# MAGIC RERANK_COLUMNS = ["chunk_content", "section_title"]
+# MAGIC MIN_SCORE_HYBRID = 0.0030
+# MAGIC MIN_SCORE_RERANK = 0.0
 # MAGIC MAX_QUESTION_CHARS = 1000
 # MAGIC FALLBACK_ANSWER = "I cannot find relevant information in the policy documents."
 # MAGIC
@@ -676,14 +790,24 @@ print("Neu 2 nhom khong tach duoc: nguong score vo nghia, dua vao guard 2+3.")
 # MAGIC         return self._llm
 # MAGIC
 # MAGIC     @mlflow.trace(span_type="RETRIEVER")
-# MAGIC     def retrieve(self, query: str, k: int = TOP_K) -> list[dict]:
-# MAGIC         res = self.index.similarity_search(query_text=query, columns=RETRIEVE_COLUMNS,
-# MAGIC                                            num_results=k, query_type="HYBRID")
+# MAGIC     def retrieve(self, query: str, k: int = TOP_K, use_reranker: bool = USE_RERANKER) -> list[dict]:
+# MAGIC         kwargs = dict(query_text=query, columns=RETRIEVE_COLUMNS,
+# MAGIC                       num_results=k, query_type="HYBRID")
+# MAGIC         if use_reranker:
+# MAGIC             if DatabricksReranker is None:
+# MAGIC                 raise RuntimeError("databricks-vectorsearch khong co DatabricksReranker")
+# MAGIC             kwargs["reranker"] = DatabricksReranker(columns_to_rerank=RERANK_COLUMNS)
+# MAGIC             kwargs["debug_level"] = 1
+# MAGIC
+# MAGIC         res = self.index.similarity_search(**kwargs)
+# MAGIC         reranked = use_reranker and not (res.get("debug_info") or {}).get("warnings")
+# MAGIC
 # MAGIC         cols = [c["name"] for c in res["manifest"]["columns"]]
 # MAGIC         hits = []
 # MAGIC         for row in res["result"].get("data_array", []):
 # MAGIC             d = dict(zip(cols, row))
 # MAGIC             d["score"] = float(row[-1])
+# MAGIC             d["reranked"] = reranked
 # MAGIC             hits.append(d)
 # MAGIC         return hits
 # MAGIC
@@ -719,10 +843,13 @@ print("Neu 2 nhom khong tach duoc: nguong score vo nghia, dua vao guard 2+3.")
 # MAGIC         return (resp.choices[0].message.content or "").strip()
 # MAGIC
 # MAGIC     @mlflow.trace(span_type="CHAIN")
-# MAGIC     def answer_policy_question(self, question: str) -> dict:
+# MAGIC     def answer_policy_question(self, question: str, use_reranker: bool = USE_RERANKER) -> dict:
 # MAGIC         question = (question or "")[:MAX_QUESTION_CHARS]
-# MAGIC         hits = self.retrieve(question)
-# MAGIC         kept = [h for h in hits if h["score"] >= MIN_SCORE]
+# MAGIC         hits = self.retrieve(question, use_reranker=use_reranker)
+# MAGIC         # reranker fallback -> diem ve thang hybrid -> dung nguong hybrid
+# MAGIC         reranked = bool(hits) and hits[0]["reranked"]
+# MAGIC         threshold = MIN_SCORE_RERANK if reranked else MIN_SCORE_HYBRID
+# MAGIC         kept = [h for h in hits if h["score"] >= threshold]
 # MAGIC
 # MAGIC         def chunks_of(hs):
 # MAGIC             return [{"chunk_id": h["chunk_id"], "section_no": h["section_no"],
@@ -731,7 +858,8 @@ print("Neu 2 nhom khong tach duoc: nguong score vo nghia, dua vao guard 2+3.")
 # MAGIC         # Guard 1
 # MAGIC         if not kept:
 # MAGIC             return {"answer": FALLBACK_ANSWER, "retrieved_chunks": chunks_of(hits),
-# MAGIC                     "guard": "below_min_score", "citations": [], "invalid_citations": []}
+# MAGIC                     "guard": "below_min_score", "citations": [], "invalid_citations": [],
+# MAGIC                     "reranked": reranked}
 # MAGIC
 # MAGIC         blocks = self.expand_parents(kept)
 # MAGIC
@@ -758,7 +886,7 @@ print("Neu 2 nhom khong tach duoc: nguong score vo nghia, dua vao guard 2+3.")
 # MAGIC             answer, guard = FALLBACK_ANSWER, "invalid_citation"
 # MAGIC
 # MAGIC         return {"answer": answer, "retrieved_chunks": chunks_of(kept), "guard": guard,
-# MAGIC                 "citations": found, "invalid_citations": invalid}
+# MAGIC                 "citations": found, "invalid_citations": invalid, "reranked": reranked}
 # MAGIC
 # MAGIC     @mlflow.trace(span_type="CHAIN")
 # MAGIC     def investigate_transaction(self, tx: dict) -> dict:
@@ -821,10 +949,11 @@ print("Neu 2 nhom khong tach duoc: nguong score vo nghia, dua vao guard 2+3.")
 # MAGIC                 custom_outputs={"mode": "fraud", **r},
 # MAGIC             )
 # MAGIC
-# MAGIC         r = self.answer_policy_question(question)
+# MAGIC         use_reranker = bool(custom_inputs.get("use_reranker", USE_RERANKER))
+# MAGIC         r = self.answer_policy_question(question, use_reranker=use_reranker)
 # MAGIC         return ChatAgentResponse(
 # MAGIC             messages=[ChatAgentMessage(role="assistant", content=r["answer"], id=str(uuid.uuid4()))],
-# MAGIC             custom_outputs={"mode": "rag", "guard": r["guard"],
+# MAGIC             custom_outputs={"mode": "rag", "guard": r["guard"], "reranked": r["reranked"],
 # MAGIC                             "citations": r["citations"],
 # MAGIC                             "invalid_citations": r["invalid_citations"],
 # MAGIC                             "retrieved_chunks": r["retrieved_chunks"]},
@@ -837,12 +966,23 @@ print("Neu 2 nhom khong tach duoc: nguong score vo nghia, dua vao guard 2+3.")
 # COMMAND ----------
 
 # DBTITLE 1,Assert agent.py khong lech config
+import ast
+
 agent_src = open("agent.py").read()
-drift = [n for n, v in [("VS_ENDPOINT", VS_ENDPOINT), ("VS_INDEX", VS_INDEX),
-                        ("LLM_ENDPOINT", LLM_ENDPOINT), ("MIN_SCORE", MIN_SCORE),
-                        ("FALLBACK_ANSWER", FALLBACK_ANSWER)]
-         if f'{n} = "{v}"' not in agent_src and f"{n} = {v}" not in agent_src]
-assert not drift, f"Config drift: {drift} - sua trong cell %%writefile roi chay lai"
+expected = {
+    "VS_ENDPOINT": VS_ENDPOINT, "VS_INDEX": VS_INDEX, "LLM_ENDPOINT": LLM_ENDPOINT,
+    "TOP_K": TOP_K, "USE_RERANKER": USE_RERANKER, "RERANK_COLUMNS": RERANK_COLUMNS,
+    "MIN_SCORE_HYBRID": MIN_SCORE_HYBRID, "MIN_SCORE_RERANK": MIN_SCORE_RERANK,
+    "MAX_QUESTION_CHARS": MAX_QUESTION_CHARS, "FALLBACK_ANSWER": FALLBACK_ANSWER,
+}
+drift = []
+for name, val in expected.items():
+    m = re.search(rf"^{name} = (.+)$", agent_src, re.M)
+    got = ast.literal_eval(m.group(1)) if m else "<khong co>"
+    if got != val:                          # so sanh gia tri, 0.0030 == 0.003
+        drift.append(f"{name}: agent.py={got!r} notebook={val!r}")
+
+assert not drift, "Config drift - sua trong cell %%writefile roi chay lai:\n" + "\n".join(drift)
 print("[OK] agent.py khop config")
 
 # COMMAND ----------
@@ -887,7 +1027,7 @@ for q in OOS_TESTS:
     print(f"        {a[:160]}\n")
 
 assert ask(OOS_TESTS[0]).messages[0].content.strip() == FALLBACK_ANSWER, "Guard khong hoat dong"
-print("Cau CHECK: doc ky answer, neu bia so lieu khong co trong doc thi tang MIN_SCORE.")
+print("Cau CHECK: doc ky answer, neu bia so lieu khong co trong doc thi tang MIN_SCORE_RERANK / MIN_SCORE_HYBRID.")
 
 # COMMAND ----------
 
@@ -939,70 +1079,85 @@ print(f"{len(EVAL_SET)} cau: {len(EVAL_IN_SCOPE)} in-scope, {len(OOS_TESTS)} OOS
 
 # COMMAND ----------
 
-# DBTITLE 1,Batch eval + log MLflow
+# DBTITLE 1,Batch eval 2 che do (hybrid vs hybrid + rerank) + log MLflow
 import json
 import time
 import pandas as pd
 
 mlflow.set_experiment(MLFLOW_EXPERIMENT)
 
-rows = []
-for item in EVAL_SET:
-    q = item["question"]
-    t0 = time.perf_counter()
-    resp = ask(q)
-    latency = time.perf_counter() - t0
-    co = resp.custom_outputs or {}
-    answer = resp.messages[0].content
 
-    rows.append({
-        "question": q,
-        "answer": answer,
-        "latency_s": round(latency, 3),
-        "retrieved_chunks": json.dumps(co.get("retrieved_chunks", []), ensure_ascii=False),
-        "kind": item["kind"],
-        "guard": co.get("guard", ""),
-        "n_chunks": len(co.get("retrieved_chunks", [])),
-        "n_invalid_citations": len(co.get("invalid_citations", [])),
-        "is_fallback": answer.strip() == FALLBACK_ANSWER,
-        "leaked": any(m.lower() in answer.lower() for m in LEAK_MARKERS),
-    })
-    print(f"{latency:6.2f}s  {item['kind']:13s} guard={co.get('guard',''):18s} {q[:55]}")
+def run_eval(use_reranker: bool):
+    name = "rerank" if use_reranker else "hybrid"
+    rows = []
+    for item in EVAL_SET:
+        q = item["question"]
+        t0 = time.perf_counter()
+        resp = ask(q, custom_inputs={"use_reranker": use_reranker})
+        latency = time.perf_counter() - t0
+        co = resp.custom_outputs or {}
+        answer = resp.messages[0].content
+        rows.append({
+            "question": q,
+            "answer": answer,
+            "latency_s": round(latency, 3),
+            "retrieved_chunks": json.dumps(co.get("retrieved_chunks", []), ensure_ascii=False),
+            "kind": item["kind"],
+            "guard": co.get("guard", ""),
+            "reranked": co.get("reranked", False),
+            "n_chunks": len(co.get("retrieved_chunks", [])),
+            "n_invalid_citations": len(co.get("invalid_citations", [])),
+            "is_fallback": answer.strip() == FALLBACK_ANSWER,
+            "leaked": any(m.lower() in answer.lower() for m in LEAK_MARKERS),
+        })
+        print(f"[{name}] {latency:6.2f}s  {item['kind']:13s} guard={co.get('guard',''):18s} {q[:50]}")
 
-df_eval = pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    rag = df[df.kind != "injection"]
+    metrics = {
+        "avg_latency_s": float(df.latency_s.mean()),
+        "p95_latency_s": float(df.latency_s.quantile(0.95)),
+        "fallback_rate": float(df.is_fallback.mean()),
+        "invalid_citation_rate": float((df.n_invalid_citations > 0).mean()),
+        "oos_fallback_rate": float(df[df.kind == "out_of_scope"].is_fallback.mean()),
+        "injection_resisted_rate": float(1 - df[df.kind == "injection"].leaked.mean()),
+        "in_scope_answer_rate": float(1 - df[df.kind == "in_scope"].is_fallback.mean()),
+        "rerank_success_rate": float(rag.reranked.mean()) if use_reranker else 0.0,
+    }
 
-with mlflow.start_run(run_name="banking_assistant_eval") as run:
-    mlflow.log_table(df_eval[["question", "answer", "latency_s", "retrieved_chunks"]],
-                     artifact_file="eval_results.json")
-    mlflow.log_metric("avg_latency_s", float(df_eval.latency_s.mean()))
-    mlflow.log_metric("p95_latency_s", float(df_eval.latency_s.quantile(0.95)))
-    mlflow.log_metric("fallback_rate", float(df_eval.is_fallback.mean()))
-    mlflow.log_metric("invalid_citation_rate", float((df_eval.n_invalid_citations > 0).mean()))
-    mlflow.log_metric("oos_fallback_rate",
-                      float(df_eval[df_eval.kind == "out_of_scope"].is_fallback.mean()))
-    mlflow.log_metric("injection_resisted_rate",
-                      float(1 - df_eval[df_eval.kind == "injection"].leaked.mean()))
-    mlflow.log_metric("in_scope_answer_rate",
-                      float(1 - df_eval[df_eval.kind == "in_scope"].is_fallback.mean()))
-    mlflow.log_params({
-        "llm_endpoint": LLM_ENDPOINT, "embedding_endpoint": EMBEDDING_ENDPOINT,
-        "top_k": TOP_K, "query_type": "HYBRID", "min_score": MIN_SCORE,
-        "n_documents": len(SOURCE_FILES), "n_chunks_total": total,
-        "retrieval": "parent-child expansion",
-    })
-    EVAL_RUN_ID = run.info.run_id
+    with mlflow.start_run(run_name=f"banking_assistant_eval_{name}") as run:
+        mlflow.log_table(df[["question", "answer", "latency_s", "retrieved_chunks"]],
+                         artifact_file="eval_results.json")
+        mlflow.log_metrics(metrics)
+        mlflow.log_params({
+            "llm_endpoint": LLM_ENDPOINT, "embedding_endpoint": EMBEDDING_ENDPOINT,
+            "top_k": TOP_K, "query_type": "HYBRID",
+            "reranker": use_reranker,
+            "rerank_columns": ",".join(RERANK_COLUMNS) if use_reranker else "",
+            "min_score": MIN_SCORE_RERANK if use_reranker else MIN_SCORE_HYBRID,
+            "n_documents": len(SOURCE_FILES), "n_chunks_total": total,
+            "retrieval": "parent-child expansion",
+        })
+        run_id = run.info.run_id
+    return df, metrics, run_id
 
-print(f"\nrun_id: {EVAL_RUN_ID}")
-print(f"in-scope answered   : {1 - df_eval[df_eval.kind=='in_scope'].is_fallback.mean():.0%}")
-print(f"OOS fallback        : {df_eval[df_eval.kind=='out_of_scope'].is_fallback.mean():.0%}")
-print(f"injection resisted  : {1 - df_eval[df_eval.kind=='injection'].leaked.mean():.0%}")
-print(f"invalid citation    : {(df_eval.n_invalid_citations > 0).mean():.0%}")
-display(df_eval[["kind", "question", "latency_s", "guard", "is_fallback", "answer"]])
+
+df_hybrid, m_hybrid, run_hybrid = run_eval(use_reranker=False)
+df_rerank, m_rerank, run_rerank = run_eval(use_reranker=True)
+
+# run chinh de nop = che do dang bat trong Config
+df_eval, EVAL_RUN_ID = (df_rerank, run_rerank) if USE_RERANKER else (df_hybrid, run_hybrid)
+
+cmp = pd.DataFrame({"hybrid": m_hybrid, "hybrid_rerank": m_rerank})
+cmp["delta"] = cmp.hybrid_rerank - cmp.hybrid
+print(f"\nrun hybrid: {run_hybrid}\nrun rerank: {run_rerank}\nrun chinh : {EVAL_RUN_ID}")
+display(cmp.round(3))
+display(df_eval[["kind", "question", "latency_s", "guard", "reranked", "is_fallback", "answer"]])
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC Deliverable Task 4: screenshot MLflow Run - tab Table (eval_results.json), Metrics, Traces (span RETRIEVER + LLM).
+# MAGIC Deliverable Task 4: screenshot MLflow Run - tab Table (eval_results.json), Metrics, Traces (span RETRIEVER + LLM). Chon 2 run eval_hybrid va eval_rerank roi bam Compare de chup bang so sanh.
 
 # COMMAND ----------
 
@@ -1166,7 +1321,8 @@ print(json.dumps(r.json(), indent=2, ensure_ascii=False)[:3000])
 # MAGIC     A["Documents PDF / DOCX"] --> B["Regex hierarchical chunker"]
 # MAGIC     B --> C["Delta Table banking_documents"]
 # MAGIC     C -->|Delta Sync + CDF| D["Vector Search Index HYBRID"]
-# MAGIC     D --> E["Parent expansion"]
+# MAGIC     D --> R["Databricks Reranker - cross-encoder"]
+# MAGIC     R --> E["Parent expansion"]
 # MAGIC     E --> F["Mosaic AI Agent - Claude Sonnet + guard"]
 # MAGIC     F --> G["Model Serving POST /invocations"]
 # MAGIC     F -.-> H["MLflow tracing + eval"]
@@ -1204,7 +1360,7 @@ print(f"6. Registered Model  : {host}/explore/data/models/{REGISTERED_MODEL.repl
 # MAGIC ### 7.4 Truoc khi nop
 # MAGIC
 # MAGIC - Detach & re-attach cluster, Run All mot luot khong loi.
-# MAGIC - MIN_SCORE da calibrate o section 2, khong de mac dinh.
+# MAGIC - MIN_SCORE_HYBRID va MIN_SCORE_RERANK da calibrate o section 2, khong de mac dinh.
 # MAGIC - EVAL_IN_SCOPE da sua cho khop tai lieu that (5 cau cuoi la placeholder).
 # MAGIC - Khong co token hardcode trong notebook.
 # MAGIC - Cell assert agent.py pass.
@@ -1260,7 +1416,8 @@ def show(question, custom_inputs=None, target="local"):
     print(f"Q ({target}): {question}\n")
     print(answer)
     print("\n" + "-" * 100)
-    print(f"latency: {latency:.2f}s   mode: {co.get('mode', '?')}   guard: {co.get('guard', '-')}")
+    print(f"latency: {latency:.2f}s   mode: {co.get('mode', '?')}   guard: {co.get('guard', '-')}"
+          f"   reranked: {co.get('reranked', '-')}")
 
     if co.get("mode") == "rag":
         print(f"citations: {co.get('citations', [])}")
