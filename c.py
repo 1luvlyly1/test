@@ -41,6 +41,10 @@ VS_INDEX = f"{CATALOG}.{SCHEMA}.banking_documents_index"
 EMBEDDING_ENDPOINT = "databricks-gte-large-en"   # xac nhan o cell Discovery
 RECREATE_INDEX = True            # xoa index cu truoc khi tao; bat khi da ghi lai bang
 
+# Serverless budget policy. De trong = dung policy mac dinh cua workspace.
+# Lay ID o cell Discovery, hoac Settings > Compute > Serverless budget policies > About this policy.
+BUDGET_POLICY_ID = ""
+
 # Xac nhan bang cell Discovery ben duoi truoc khi chay tiep
 LLM_ENDPOINT = "databricks-claude-sonnet-4-5"
 
@@ -66,6 +70,7 @@ for k, v in [
     ("catalog.schema", f"{CATALOG}.{SCHEMA}"), ("raw docs", RAW_DOCS_PATH),
     ("delta table", TABLE), ("vs endpoint", VS_ENDPOINT), ("vs index", VS_INDEX),
     ("llm endpoint", LLM_ENDPOINT), ("reranker", f"{USE_RERANKER} {RERANK_COLUMNS}"),
+    ("budget policy", BUDGET_POLICY_ID or "(mac dinh workspace)"),
     ("registered model", REGISTERED_MODEL),
     ("serving endpoint", SERVING_ENDPOINT), ("mlflow exp", MLFLOW_EXPERIMENT),
 ]:
@@ -117,6 +122,21 @@ else:
         print(f"[OK] {EMBEDDING_ENDPOINT} goi duoc, dim = {len(out.data[0].embedding)}")
     except Exception as e:
         print(f"[FAIL] {EMBEDDING_ENDPOINT} ton tai nhung goi loi (quyen / rate limit): {e}")
+
+# Budget policy kha dung
+print("\nServerless budget policies:")
+try:
+    policies = list(w.budget_policy.list())
+    for pol in policies:
+        mark = " <- dang dung" if pol.policy_id == BUDGET_POLICY_ID else ""
+        print(f"  {pol.policy_id}  {pol.name}{mark}")
+    if not policies:
+        print("  (khong co policy nao duoc gan cho user nay)")
+    elif not BUDGET_POLICY_ID:
+        print(f'  -> Sua Config: BUDGET_POLICY_ID = "{policies[0].policy_id}"')
+except Exception as e:
+    print(f"  Khong liet ke duoc qua SDK ({type(e).__name__}). Lay ID thu cong: "
+          "Settings > Compute > Serverless budget policies > chon policy > About this policy.")
 
 # COMMAND ----------
 
@@ -469,8 +489,27 @@ from databricks.vector_search.client import VectorSearchClient
 
 vsc = VectorSearchClient(disable_notice=True)
 
+def policy_kwargs():
+    """budget_policy_id chi them khi co, va chi khi SDK ho tro (tham so la Public Preview)."""
+    return {"budget_policy_id": BUDGET_POLICY_ID} if BUDGET_POLICY_ID else {}
+
+
 if VS_ENDPOINT not in [e["name"] for e in vsc.list_endpoints().get("endpoints", [])]:
-    vsc.create_endpoint(name=VS_ENDPOINT, endpoint_type="STANDARD")
+    try:
+        vsc.create_endpoint(name=VS_ENDPOINT, endpoint_type="STANDARD", **policy_kwargs())
+    except TypeError:
+        print("[!] databricks-vectorsearch chua ho tro budget_policy_id -> tao khong policy, "
+              "gan bang UI sau (Compute > Vector Search > pencil icon)")
+        vsc.create_endpoint(name=VS_ENDPOINT, endpoint_type="STANDARD")
+elif BUDGET_POLICY_ID:
+    # endpoint da ton tai voi policy mac dinh -> doi policy, khong can xoa endpoint
+    try:
+        vsc.update_endpoint_budget_policy(name=VS_ENDPOINT, budget_policy_id=BUDGET_POLICY_ID)
+        print(f"Da gan budget policy cho {VS_ENDPOINT}")
+    except (AttributeError, TypeError):
+        w.vector_search_endpoints.update_endpoint_budget_policy(
+            endpoint_name=VS_ENDPOINT, budget_policy_id=BUDGET_POLICY_ID)
+        print(f"Da gan budget policy cho {VS_ENDPOINT} (qua SDK)")
 
 for _ in range(120):
     state = vsc.get_endpoint(VS_ENDPOINT)["endpoint_status"]["state"]
@@ -499,7 +538,7 @@ if RECREATE_INDEX and index_exists():
     print("Da xoa index cu")
 
 if not index_exists():
-    vsc.create_delta_sync_index(
+    index_args = dict(
         endpoint_name=VS_ENDPOINT,
         index_name=VS_INDEX,
         source_table_name=TABLE,
@@ -508,7 +547,12 @@ if not index_exists():
         embedding_source_column="chunk_content",
         embedding_model_endpoint_name=EMBEDDING_ENDPOINT,
     )
-    print("Dang tao index")
+    try:
+        vsc.create_delta_sync_index(**index_args, **policy_kwargs())
+    except TypeError:
+        print("[!] SDK chua ho tro budget_policy_id cho index -> tao khong policy")
+        vsc.create_delta_sync_index(**index_args)
+    print(f"Dang tao index (budget policy: {BUDGET_POLICY_ID or 'mac dinh'})")
 else:
     vsc.get_index(VS_ENDPOINT, VS_INDEX).sync()
     print("Index da co, trigger sync lai")
@@ -539,6 +583,11 @@ desc = index.describe()
 st = desc.get("status", {})
 print(f"state   : {st.get('detailed_state')}")
 print(f"message : {st.get('message')}")
+
+ep_info = vsc.get_endpoint(VS_ENDPOINT)
+print(f"endpoint budget policy : {ep_info.get('effective_budget_policy_id') or '(mac dinh)'}")
+print(f"index budget policy    : {desc.get('effective_budget_policy_id') or '(mac dinh)'}")
+print(f"Config BUDGET_POLICY_ID: {BUDGET_POLICY_ID or '(trong)'}")
 
 # Loi that nam trong event log cua pipeline dong bo
 pipeline_id = (desc.get("delta_sync_index_spec") or {}).get("pipeline_id")
@@ -1294,8 +1343,14 @@ mlflow.models.predict(
 # DBTITLE 1,Deploy (10-20 phut)
 from databricks import agents
 
-deployment = agents.deploy(REGISTERED_MODEL, MODEL_VERSION,
-                           endpoint_name=SERVING_ENDPOINT, scale_to_zero=True)
+deploy_args = dict(endpoint_name=SERVING_ENDPOINT, scale_to_zero=True)
+try:
+    deployment = agents.deploy(REGISTERED_MODEL, MODEL_VERSION,
+                               **deploy_args, **policy_kwargs())
+except TypeError:
+    print("[!] databricks-agents chua ho tro budget_policy_id -> deploy khong policy, "
+          "gan bang UI o trang Serving endpoint")
+    deployment = agents.deploy(REGISTERED_MODEL, MODEL_VERSION, **deploy_args)
 print(deployment)
 
 # COMMAND ----------
@@ -1453,6 +1508,7 @@ print(f"6. Registered Model  : {host}/explore/data/models/{REGISTERED_MODEL.repl
 # MAGIC - Detach & re-attach cluster, Run All mot luot khong loi.
 # MAGIC - MIN_SCORE_HYBRID va MIN_SCORE_RERANK da calibrate o section 2, khong de mac dinh.
 # MAGIC - EVAL_IN_SCOPE da sua cho khop tai lieu that (5 cau cuoi la placeholder).
+# MAGIC - BUDGET_POLICY_ID da dien, endpoint va index deu hien dung policy do (cell Chan doan).
 # MAGIC - Khong co token hardcode trong notebook.
 # MAGIC - Cell assert agent.py pass.
 
