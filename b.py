@@ -1,11 +1,11 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Quét hồ sơ vay → báo cáo Markdown
-# MAGIC Claude Sonnet 4.5 qua Databricks Foundation Model API
+# MAGIC # Rà soát hồ sơ vay → báo cáo Markdown
+# MAGIC Gọi trực tiếp REST API của Model Serving (không cần thư viện openai)
 
 # COMMAND ----------
 
-# MAGIC %pip install pymupdf pillow openai --quiet
+# MAGIC %pip install pymupdf --quiet
 
 # COMMAND ----------
 
@@ -19,157 +19,160 @@ IMAGE_DIR  = "/Volumes/main/credit/loan_docs/images"
 PDF_PATH   = "/Volumes/main/credit/loan_docs/ho_so_vay.pdf"
 CONTEXT    = None   # vd: "Công ty ABC, MST 0101234567, đề nghị vay 5 tỷ bổ sung vốn lưu động"
 OUTPUT_MD  = "/Volumes/main/credit/loan_docs/reports/bao_cao_tham_dinh.md"
-
-INCLUDE_APPENDIX = True   # đính kèm mô tả + OCR từng tài liệu ở cuối báo cáo
-MAX_WORKERS = 4
-MAX_SIDE    = 1568
-IMG_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
+IMG_EXTS   = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
 
 # COMMAND ----------
 
-import os, io, time, base64
+import os, io, time, base64, requests
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
-import fitz
 from PIL import Image
-from databricks.sdk import WorkspaceClient
+import fitz
 
-client = WorkspaceClient().serving_endpoints.get_open_ai_client()
+ctx   = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
+HOST  = ctx.apiUrl().get()
+TOKEN = ctx.apiToken().get()
+HEADERS = {"Authorization": f"Bearer {TOKEN}"}
 
 
-def to_data_url(img):
+def img_to_b64(img):
     img = img.convert("RGB")
-    img.thumbnail((MAX_SIDE, MAX_SIDE))
+    img.thumbnail((1568, 1568))
     buf = io.BytesIO()
     img.save(buf, "JPEG", quality=90)
-    return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
+    return base64.b64encode(buf.getvalue()).decode()
 
 
-def ask(prompt, image=None, max_tokens=4096, retries=5):
-    content = [{"type": "text", "text": prompt}]
-    if image is not None:
-        content.append({"type": "image_url", "image_url": {"url": to_data_url(image)}})
-    for i in range(retries):
-        try:
-            r = client.chat.completions.create(
-                model=ENDPOINT, max_tokens=max_tokens, temperature=0,
-                messages=[{"role": "user", "content": content}])
-            c = r.choices[0].message.content
-            return c if isinstance(c, str) else "".join(p.get("text", "") for p in c)
-        except Exception as e:
-            if i == retries - 1:
-                raise
-            time.sleep(2 ** i * 3)
+def ask(prompt, image=None, max_tokens=4096):
+    """Gửi 1 prompt (kèm 1 ảnh nếu có) tới endpoint, trả về text."""
+    if image is None:
+        content = prompt
+    else:
+        content = [
+            {"type": "text", "text": prompt},
+            {"type": "image_url",
+             "image_url": {"url": "data:image/jpeg;base64," + img_to_b64(image)}},
+        ]
+    body = {"messages": [{"role": "user", "content": content}],
+            "max_tokens": max_tokens, "temperature": 0}
+
+    for attempt in range(5):
+        r = requests.post(f"{HOST}/serving-endpoints/{ENDPOINT}/invocations",
+                          headers=HEADERS, json=body, timeout=300)
+        if r.status_code == 200:
+            return r.json()["choices"][0]["message"]["content"]
+        if r.status_code in (429, 500, 503):
+            time.sleep(5 * (attempt + 1))
+            continue
+        raise RuntimeError(f"HTTP {r.status_code}: {r.text[:500]}")
+    raise RuntimeError("Hết số lần thử lại")
 
 # COMMAND ----------
 
-# MAGIC %md ## 1. Mô tả + OCR ảnh
+# MAGIC %md ### Kiểm tra kết nối (chạy cell này trước)
 
 # COMMAND ----------
 
-IMAGE_PROMPT = """Mô tả ngắn ảnh này (loại tài liệu, nội dung chính), sau đó chép lại toàn bộ chữ trong ảnh.
-Nếu thấy dấu hiệu chỉnh sửa hoặc bất thường (chữ/số ghi đè, con dấu, chữ ký lạ...) thì ghi thêm.
-Trả lời theo dạng:
-**Mô tả:** ...
-**OCR:** ...
-**Bất thường:** ... (hoặc "Không thấy")"""
+try:
+    print(ask("Trả lời đúng 1 từ: OK"))
+except Exception as e:
+    print("LỖI:", e)
+    # Liệt kê các endpoint Claude có trong workspace để kiểm tra đúng tên
+    eps = requests.get(f"{HOST}/api/2.0/serving-endpoints", headers=HEADERS).json()
+    print("Endpoint Claude hiện có:",
+          [e["name"] for e in eps.get("endpoints", []) if "claude" in e["name"].lower()])
 
+# COMMAND ----------
 
-def process_image(path):
-    try:
-        with Image.open(path) as img:
-            return path, ask(IMAGE_PROMPT, img)
-    except Exception as e:
-        return path, f"(Lỗi: {e})"
+# MAGIC %md ## Bước 1: Từng ảnh → mô tả, OCR, dấu hiệu bất thường
 
+# COMMAND ----------
+
+IMAGE_PROMPT = """Đây là một tài liệu trong hồ sơ vay của doanh nghiệp. Hãy trả lời:
+**Mô tả:** loại tài liệu và nội dung chính
+**OCR:** chép lại toàn bộ chữ trong ảnh
+**Dấu hiệu bất thường:** các điểm đáng ngờ (chỉnh sửa, số liệu vô lý, con dấu/chữ ký lạ...), hoặc "Không thấy" """
 
 image_paths = sorted(
     os.path.join(root, f)
     for root, _, files in os.walk(IMAGE_DIR)
     for f in files if os.path.splitext(f)[1].lower() in IMG_EXTS
 )
-print(f"{len(image_paths)} ảnh")
 
-with ThreadPoolExecutor(MAX_WORKERS) as ex:
-    image_results = list(ex.map(process_image, image_paths))
-
-# COMMAND ----------
-
-# MAGIC %md ## 2. OCR PDF
-
-# COMMAND ----------
-
-PDF_PROMPT = "Chép lại toàn bộ chữ trong trang tài liệu này. Nếu thấy dấu hiệu chỉnh sửa bất thường thì ghi thêm ở cuối."
-
-doc = fitz.open(PDF_PATH)
-pdf_meta = {k: v for k, v in doc.metadata.items() if v}
-pages = []
-for p in doc:
-    pix = p.get_pixmap(dpi=150)
-    pages.append(Image.frombytes("RGB", (pix.width, pix.height), pix.samples))
-doc.close()
-
-with ThreadPoolExecutor(MAX_WORKERS) as ex:
-    pdf_texts = list(ex.map(lambda im: ask(PDF_PROMPT, im), pages))
-print(f"PDF: {len(pdf_texts)} trang | metadata: {pdf_meta}")
+image_results = []
+for i, path in enumerate(image_paths, 1):
+    name = os.path.basename(path)
+    print(f"[{i}/{len(image_paths)}] {name}")
+    try:
+        with Image.open(path) as img:
+            image_results.append((name, ask(IMAGE_PROMPT, img)))
+    except Exception as e:
+        image_results.append((name, f"(Lỗi xử lý: {e})"))
 
 # COMMAND ----------
 
-# MAGIC %md ## 3. Phân tích & viết báo cáo
+# MAGIC %md ## Bước 2: OCR PDF
 
 # COMMAND ----------
 
 pdf_name = os.path.basename(PDF_PATH)
-data = f"""# Context đề xuất vay
-{CONTEXT.strip() if CONTEXT and CONTEXT.strip() else "(Không có)"}
+pdf_texts = []
+with fitz.open(PDF_PATH) as doc:
+    for i, page in enumerate(doc, 1):
+        print(f"PDF trang {i}/{doc.page_count}")
+        pix = page.get_pixmap(dpi=150)
+        img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
+        pdf_texts.append(ask("Chép lại toàn bộ chữ trong trang tài liệu này.", img))
 
-# File PDF: {pdf_name}
-Metadata: {pdf_meta}
-""" + "\n".join(f"\n## Trang {i+1}\n{t}" for i, t in enumerate(pdf_texts)) + \
-"\n\n# Ảnh đính kèm\n" + "\n".join(f"\n## {os.path.basename(p)}\n{r}" for p, r in image_results)
+# COMMAND ----------
 
-REPORT_PROMPT = """Bạn là chuyên viên thẩm định tín dụng. Dựa trên dữ liệu hồ sơ vay bên dưới, viết báo cáo Markdown bằng tiếng Việt
-chỉ ra các dấu hiệu gian lận hoặc bất thường của doanh nghiệp. Chỉ dựa trên dữ liệu có sẵn, ghi rõ nguồn (tên file/trang);
-thông tin nào thiếu thì nói là thiếu, không suy đoán.
+# MAGIC %md ## Bước 3: Rà soát tổng thể → báo cáo
 
-Cấu trúc:
+# COMMAND ----------
+
+data = "# Context đề xuất vay\n" + (CONTEXT.strip() if CONTEXT and CONTEXT.strip() else "(Không có)")
+data += f"\n\n# File PDF: {pdf_name}\n" + "\n".join(f"\n## Trang {i}\n{t}" for i, t in enumerate(pdf_texts, 1))
+data += "\n\n# Kết quả phân tích từng ảnh\n" + "\n".join(f"\n## {n}\n{r}" for n, r in image_results)
+
+REVIEW_PROMPT = """Bạn là chuyên viên thẩm định tín dụng. Dưới đây là toàn bộ hồ sơ vay của một doanh nghiệp
+(context, nội dung PDF, kết quả phân tích từng ảnh). Hãy rà soát tổng thể, đối chiếu chéo giữa các tài liệu
+để tìm dấu hiệu gian lận hoặc bất thường. Chỉ dựa trên dữ liệu có sẵn, ghi rõ nguồn; thiếu thông tin thì nói là thiếu.
+
+Viết báo cáo Markdown tiếng Việt gồm:
 ## 1. Tóm tắt hồ sơ
 ## 2. Dấu hiệu bất thường (bảng: Dấu hiệu | Bằng chứng | Nguồn | Mức độ)
 ## 3. Thông tin còn thiếu
-## 4. Kết luận (mức rủi ro: Thấp / Trung bình / Cao, kèm lý do)
+## 4. Kết luận (mức rủi ro Thấp / Trung bình / Cao và lý do)
 ## 5. Đề xuất xác minh
 
-DỮ LIỆU:
+HỒ SƠ:
 """ + data
 
-report = ask(REPORT_PROMPT, max_tokens=8192)
+report = ask(REVIEW_PROMPT, max_tokens=8192)
 
 # COMMAND ----------
 
-# MAGIC %md ## 4. Xuất file .md
+# MAGIC %md ## Bước 4: Xuất file .md
 
 # COMMAND ----------
 
-md = f"""# Báo cáo thẩm định dấu hiệu bất thường hồ sơ vay
+md = f"""# Báo cáo rà soát hồ sơ vay
 
 - Thời gian: {datetime.now():%d/%m/%Y %H:%M}
-- File PDF: `{pdf_name}` ({len(pdf_texts)} trang)
-- Số ảnh: {len(image_results)}
+- PDF: `{pdf_name}` ({len(pdf_texts)} trang) | Số ảnh: {len(image_results)}
 - Context: {CONTEXT or "(Không có)"}
 
 ---
 
 {report}
-"""
 
-if INCLUDE_APPENDIX:
-    md += "\n\n---\n\n# Phụ lục: Nội dung tài liệu\n"
-    md += "\n".join(f"\n### PDF – trang {i+1}\n\n{t}\n" for i, t in enumerate(pdf_texts))
-    md += "\n".join(f"\n### Ảnh – {os.path.basename(p)}\n\n{r}\n" for p, r in image_results)
+---
+
+# Phụ lục: Phân tích từng ảnh
+""" + "\n".join(f"\n### {n}\n\n{r}\n" for n, r in image_results)
 
 os.makedirs(os.path.dirname(OUTPUT_MD), exist_ok=True)
 with open(OUTPUT_MD, "w", encoding="utf-8") as f:
     f.write(md)
-print("Đã lưu:", OUTPUT_MD)
 
-displayHTML(f"<pre style='white-space:pre-wrap'>{report}</pre>")
+print("Đã lưu:", OUTPUT_MD)
+print(report)
