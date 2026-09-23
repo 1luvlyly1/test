@@ -5,7 +5,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install pymupdf --quiet
+# MAGIC %pip install pymupdf markdown --quiet
 
 # COMMAND ----------
 
@@ -23,7 +23,8 @@ IMG_EXTS   = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
 
 # COMMAND ----------
 
-import os, io, time, base64, requests
+import os, io, time, base64, html, requests
+import markdown as mdlib
 from datetime import datetime
 from PIL import Image
 import fitz
@@ -66,6 +67,22 @@ def ask(prompt, image=None, max_tokens=4096):
         raise RuntimeError(f"HTTP {r.status_code}: {r.text[:500]}")
     raise RuntimeError("Hết số lần thử lại")
 
+
+def card(title, image, text):
+    """Tạo khối HTML: ảnh bên trái, kết quả phân tích bên phải."""
+    thumb = image.copy()
+    thumb.thumbnail((700, 700))
+    body = mdlib.markdown(text, extensions=["tables"]) if text else ""
+    return f"""
+    <div style="border:1px solid #ccc;border-radius:8px;padding:12px;margin:10px 0;font-family:sans-serif">
+      <h3 style="margin-top:0">{html.escape(title)}</h3>
+      <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
+        <img src="data:image/jpeg;base64,{img_to_b64(thumb)}"
+             style="max-width:45%;min-width:280px;border:1px solid #eee"/>
+        <div style="flex:1;min-width:300px;font-size:14px;line-height:1.5">{body}</div>
+      </div>
+    </div>"""
+
 # COMMAND ----------
 
 # MAGIC %md ### Kiểm tra kết nối (chạy cell này trước)
@@ -87,9 +104,16 @@ except Exception as e:
 
 # COMMAND ----------
 
-IMAGE_PROMPT = """Đây là một tài liệu trong hồ sơ vay của doanh nghiệp. Hãy trả lời:
-**Mô tả:** loại tài liệu và nội dung chính
-**OCR:** chép lại toàn bộ chữ trong ảnh
+IMAGE_PROMPT = """Đây là một ảnh trong hồ sơ vay của doanh nghiệp. Hãy trả lời theo đúng cấu trúc:
+
+**Mô tả:** loại tài liệu/ảnh và nội dung chính
+
+**Những gì xuất hiện trong ảnh:**
+- liệt kê từng thành phần nhìn thấy được (vd: tiêu đề, bảng số liệu, con dấu, chữ ký, logo, người, máy móc, hàng hóa, biển hiệu...)
+
+**OCR:**
+chép lại toàn bộ chữ trong ảnh
+
 **Dấu hiệu bất thường:** các điểm đáng ngờ (chỉnh sửa, số liệu vô lý, con dấu/chữ ký lạ...), hoặc "Không thấy" """
 
 image_paths = sorted(
@@ -98,15 +122,21 @@ image_paths = sorted(
     for f in files if os.path.splitext(f)[1].lower() in IMG_EXTS
 )
 
-image_results = []
+image_results, cards = [], []
 for i, path in enumerate(image_paths, 1):
     name = os.path.basename(path)
     print(f"[{i}/{len(image_paths)}] {name}")
     try:
         with Image.open(path) as img:
-            image_results.append((name, ask(IMAGE_PROMPT, img)))
+            img = img.convert("RGB")
+            result = ask(IMAGE_PROMPT, img)
+            cards.append(card(f"[{i}/{len(image_paths)}] {name}", img, result))
     except Exception as e:
-        image_results.append((name, f"(Lỗi xử lý: {e})"))
+        result = f"(Lỗi xử lý: {e})"
+        print(result)
+    image_results.append((name, result))
+
+displayHTML("".join(cards))
 
 # COMMAND ----------
 
@@ -115,13 +145,17 @@ for i, path in enumerate(image_paths, 1):
 # COMMAND ----------
 
 pdf_name = os.path.basename(PDF_PATH)
-pdf_texts = []
+pdf_texts, cards = [], []
 with fitz.open(PDF_PATH) as doc:
     for i, page in enumerate(doc, 1):
         print(f"PDF trang {i}/{doc.page_count}")
         pix = page.get_pixmap(dpi=150)
         img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
-        pdf_texts.append(ask("Chép lại toàn bộ chữ trong trang tài liệu này.", img))
+        text = ask("Chép lại toàn bộ chữ trong trang tài liệu này.", img)
+        pdf_texts.append(text)
+        cards.append(card(f"PDF {pdf_name} – trang {i}", img, text))
+
+displayHTML("".join(cards))
 
 # COMMAND ----------
 
@@ -175,4 +209,4 @@ with open(OUTPUT_MD, "w", encoding="utf-8") as f:
     f.write(md)
 
 print("Đã lưu:", OUTPUT_MD)
-print(report)
+displayHTML("<div style='font-family:sans-serif'>" + mdlib.markdown(report, extensions=["tables"]) + "</div>")
