@@ -1,7 +1,7 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Rà soát hồ sơ vay → báo cáo Markdown
-# MAGIC Gọi trực tiếp REST API của Model Serving (không cần thư viện openai)
+# MAGIC # Rà soát hồ sơ vay → báo cáo HTML (ảnh trái – text phải) + Markdown
+# MAGIC Gọi trực tiếp REST API của Model Serving
 
 # COMMAND ----------
 
@@ -14,90 +14,54 @@ dbutils.library.restartPython()
 # COMMAND ----------
 
 # ================== CẤU HÌNH ==================
-ENDPOINT   = "databricks-claude-sonnet-4-5"
-IMAGE_DIR  = "/Volumes/main/credit/loan_docs/images"
-PDF_PATH   = "/Volumes/main/credit/loan_docs/ho_so_vay.pdf"
-CONTEXT    = None   # vd: "Công ty ABC, MST 0101234567, đề nghị vay 5 tỷ bổ sung vốn lưu động"
-OUTPUT_MD  = "/Volumes/main/credit/loan_docs/reports/bao_cao_tham_dinh.md"
-IMG_EXTS   = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
-AUTO_INVERT  = False   # True: tự đảo màu nếu ảnh tài liệu có nền tối bất thường (ảnh âm bản)
-FORCE_INVERT = set()   # tên file luôn đảo màu, vd: {"scan_01.tif"}
-DARK_THEME   = True    # True nếu notebook dùng theme tối (bù lại việc Databricks đảo màu output HTML)
-EMBED_IMAGES_IN_MD = True  # nhúng ảnh (thu nhỏ) vào file .md, ảnh trái - text phải
+ENDPOINT    = "databricks-claude-sonnet-4-5"
+IMAGE_DIR   = "/Volumes/main/credit/loan_docs/images"
+PDF_PATH    = "/Volumes/main/credit/loan_docs/ho_so_vay.pdf"
+CONTEXT     = None   # vd: "Công ty ABC, MST 0101234567, đề nghị vay 5 tỷ bổ sung vốn lưu động"
+OUTPUT_DIR  = "/Volumes/main/credit/loan_docs/reports"
+REPORT_NAME = "bao_cao_tham_dinh"          # -> .html và .md
+IMG_EXTS    = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
 
 # COMMAND ----------
 
-import os, io, time, base64, html, requests
-import markdown as mdlib
-from IPython.display import display, Markdown
+import os, io, re, time, base64, html, textwrap, requests
+import matplotlib.pyplot as plt
 from datetime import datetime
-from PIL import Image, ImageOps, ImageStat
+from PIL import Image, ImageOps
+from IPython.display import display, Markdown, Image as IPImage
+import markdown as mdlib
 import fitz
 
-ctx   = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
-HOST  = ctx.apiUrl().get()
-TOKEN = ctx.apiToken().get()
-HEADERS = {"Authorization": f"Bearer {TOKEN}"}
+ctx     = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
+HOST    = ctx.apiUrl().get()
+HEADERS = {"Authorization": f"Bearer {ctx.apiToken().get()}"}
 
 
 def load_image(path):
-    """Đọc ảnh và chuẩn hóa về RGB đúng màu (xử lý CMYK, 16-bit, nền trong suốt, xoay EXIF, âm bản)."""
-    img = Image.open(path)
-    img.load()
-    img = ImageOps.exif_transpose(img)
-
-    # JPEG CMYK xuất từ Photoshop/máy scan thường bị lưu đảo kênh -> hiển thị thành âm bản
-    if img.mode == "CMYK":
-        if "adobe" in img.info:
-            img = ImageOps.invert(img.convert("RGB")) if _looks_inverted(img.convert("RGB")) else img.convert("RGB")
-        else:
-            img = img.convert("RGB")
-    # Ảnh 16/32-bit (TIFF scan): co về 8-bit
-    elif img.mode in ("I", "I;16", "I;16B", "I;16L", "F"):
-        img = ImageOps.autocontrast(img.convert("F").point(lambda v: v / 256).convert("L"))
-    # Nền trong suốt: đặt lên nền trắng (tránh nền đen)
-    elif img.mode in ("RGBA", "LA", "P"):
+    """Đọc ảnh về RGB, xoay đúng chiều EXIF, nền trong suốt -> trắng."""
+    img = ImageOps.exif_transpose(Image.open(path))
+    if img.mode in ("RGBA", "LA", "P"):
         img = img.convert("RGBA")
         bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
         img = Image.alpha_composite(bg, img)
-
-    img = img.convert("RGB")
-
-    name = os.path.basename(path)
-    if name in FORCE_INVERT or (AUTO_INVERT and _looks_inverted(img)):
-        print(f"   ↳ đảo màu (âm bản): {name}")
-        img = ImageOps.invert(img)
-    return img
+    return img.convert("RGB")
 
 
-def _looks_inverted(img):
-    """Tài liệu bình thường có nền sáng; nếu phần lớn điểm ảnh rất tối thì nhiều khả năng là âm bản."""
-    gray = img.convert("L").resize((200, 200))
-    dark_ratio = sum(gray.histogram()[:60]) / (200 * 200)
-    return dark_ratio > 0.6
-
-
-def img_to_b64(img):
-    img = img.convert("RGB")
-    img.thumbnail((1568, 1568))
+def to_b64(img, size, quality=88):
+    img = img.copy()
+    img.thumbnail((size, size))
     buf = io.BytesIO()
-    img.save(buf, "JPEG", quality=90)
+    img.save(buf, "JPEG", quality=quality)
     return base64.b64encode(buf.getvalue()).decode()
 
 
 def ask(prompt, image=None, max_tokens=4096):
-    """Gửi 1 prompt (kèm 1 ảnh nếu có) tới endpoint, trả về text."""
-    if image is None:
-        content = prompt
-    else:
-        content = [
-            {"type": "text", "text": prompt},
-            {"type": "image_url",
-             "image_url": {"url": "data:image/jpeg;base64," + img_to_b64(image)}},
-        ]
+    content = prompt if image is None else [
+        {"type": "text", "text": prompt},
+        {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + to_b64(image, 1568)}},
+    ]
     body = {"messages": [{"role": "user", "content": content}],
             "max_tokens": max_tokens, "temperature": 0}
-
     for attempt in range(5):
         r = requests.post(f"{HOST}/serving-endpoints/{ENDPOINT}/invocations",
                           headers=HEADERS, json=body, timeout=300)
@@ -110,52 +74,36 @@ def ask(prompt, image=None, max_tokens=4096):
     raise RuntimeError("Hết số lần thử lại")
 
 
-def thumb_b64(image, size=700):
-    t = image.copy()
-    t.thumbnail((size, size))
-    buf = io.BytesIO()
-    t.save(buf, "JPEG", quality=85)
-    return base64.b64encode(buf.getvalue()).decode()
+def preview(title, image, text, max_lines=80, wrap=85):
+    """Xem trong notebook: ảnh trái - text phải, vẽ thành 1 hình PNG nên đúng màu cả ở theme tối."""
+    clean = re.sub(r"\*\*|__|`|^#+\s*", "", text or "", flags=re.M)
+    lines = []
+    for line in clean.splitlines():
+        lines += textwrap.wrap(line, wrap, subsequent_indent="  ") or [""]
+    if len(lines) > max_lines:
+        lines = lines[:max_lines] + ["", "... (xem đầy đủ trong file HTML)"]
 
+    thumb = image.copy()
+    thumb.thumbnail((1000, 1000))
+    height = max(6, len(lines) * 0.19 + 1)
 
-def card(title, image, text):
-    """Khối HTML: ảnh bên trái, kết quả bên phải."""
-    # Theme tối của Databricks đảo màu toàn bộ output HTML -> đảo ngược lại riêng ảnh để ảnh đúng màu
-    img_filter = "filter:invert(1) hue-rotate(180deg);" if DARK_THEME else ""
-    body = mdlib.markdown(html.escape(text or "", quote=False), extensions=["tables"])
-    return f"""
-    <div style="border:1px solid #ccc;border-radius:8px;padding:12px;margin:12px 0;font-family:sans-serif">
-      <h3 style="margin:0 0 10px 0">{html.escape(title)}</h3>
-      <div style="display:flex;gap:16px;align-items:flex-start">
-        <div style="flex:0 0 45%">
-          <img src="data:image/jpeg;base64,{thumb_b64(image)}"
-               style="width:100%;border:1px solid #eee;{img_filter}"/>
-        </div>
-        <div style="flex:1;font-size:14px;line-height:1.5;overflow-x:auto">{body}</div>
-      </div>
-    </div>"""
-
-
-def md_block(title, image, text):
-    """Khối cho file .md: bảng HTML 2 cột, ảnh trái - text phải."""
-    if not EMBED_IMAGES_IN_MD or image is None:
-        return f"\n### {title}\n\n{text}\n"
-    return f"""
-### {title}
-
-<table><tr>
-<td width="45%" valign="top"><img src="data:image/jpeg;base64,{thumb_b64(image, 600)}" width="100%"/></td>
-<td valign="top">
-
-{text}
-
-</td>
-</tr></table>
-"""
+    fig, (ax_img, ax_txt) = plt.subplots(
+        1, 2, figsize=(16, height), gridspec_kw={"width_ratios": [1, 1.15]})
+    fig.patch.set_facecolor("white")
+    ax_img.imshow(thumb)
+    ax_img.set_anchor("N")
+    ax_img.axis("off")
+    ax_txt.axis("off")
+    ax_txt.text(0, 1, "\n".join(lines), va="top", ha="left",
+                fontsize=10, family="DejaVu Sans", transform=ax_txt.transAxes)
+    fig.suptitle(title, x=0.01, ha="left", fontsize=13, fontweight="bold")
+    plt.tight_layout()
+    plt.show()
+    plt.close(fig)
 
 # COMMAND ----------
 
-# MAGIC %md ### Kiểm tra kết nối (chạy cell này trước)
+# MAGIC %md ### Kiểm tra kết nối
 
 # COMMAND ----------
 
@@ -163,14 +111,13 @@ try:
     print(ask("Trả lời đúng 1 từ: OK"))
 except Exception as e:
     print("LỖI:", e)
-    # Liệt kê các endpoint Claude có trong workspace để kiểm tra đúng tên
     eps = requests.get(f"{HOST}/api/2.0/serving-endpoints", headers=HEADERS).json()
     print("Endpoint Claude hiện có:",
-          [e["name"] for e in eps.get("endpoints", []) if "claude" in e["name"].lower()])
+          [x["name"] for x in eps.get("endpoints", []) if "claude" in x["name"].lower()])
 
 # COMMAND ----------
 
-# MAGIC %md ## Bước 1: Từng ảnh → mô tả, OCR, dấu hiệu bất thường
+# MAGIC %md ## Bước 1: Từng ảnh → mô tả, những gì xuất hiện, OCR, dấu hiệu bất thường
 
 # COMMAND ----------
 
@@ -179,7 +126,7 @@ IMAGE_PROMPT = """Đây là một ảnh trong hồ sơ vay của doanh nghiệp.
 **Mô tả:** loại tài liệu/ảnh và nội dung chính
 
 **Những gì xuất hiện trong ảnh:**
-- liệt kê từng thành phần nhìn thấy được (vd: tiêu đề, bảng số liệu, con dấu, chữ ký, logo, người, máy móc, hàng hóa, biển hiệu...)
+- liệt kê từng thành phần nhìn thấy được (tiêu đề, bảng số liệu, con dấu, chữ ký, logo, người, máy móc, hàng hóa, biển hiệu...)
 
 **OCR:**
 chép lại toàn bộ chữ trong ảnh
@@ -192,21 +139,18 @@ image_paths = sorted(
     for f in files if os.path.splitext(f)[1].lower() in IMG_EXTS
 )
 
-image_results, cards = [], []   # (tên, kết quả, ảnh)
+image_results = []   # (tên, kết quả, ảnh base64 thu nhỏ)
 for i, path in enumerate(image_paths, 1):
     name = os.path.basename(path)
     print(f"[{i}/{len(image_paths)}] {name}")
-    img = None
     try:
         img = load_image(path)
         result = ask(IMAGE_PROMPT, img)
-        cards.append(card(f"[{i}/{len(image_paths)}] {name}", img, result))
+        image_results.append((name, result, to_b64(img, 900)))
+        preview(f"[{i}/{len(image_paths)}] {name}", img, result)
     except Exception as e:
-        result = f"(Lỗi xử lý: {e})"
-        print(result)
-    image_results.append((name, result, img))
-
-displayHTML("".join(cards))
+        print("   Lỗi:", e)
+        image_results.append((name, f"(Lỗi xử lý: {e})", None))
 
 # COMMAND ----------
 
@@ -215,26 +159,24 @@ displayHTML("".join(cards))
 # COMMAND ----------
 
 pdf_name = os.path.basename(PDF_PATH)
-pdf_texts, cards = [], []
+pdf_results = []     # (trang, text, ảnh base64 thu nhỏ)
 with fitz.open(PDF_PATH) as doc:
     for i, page in enumerate(doc, 1):
         print(f"PDF trang {i}/{doc.page_count}")
         pix = page.get_pixmap(dpi=150)
         img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
         text = ask("Chép lại toàn bộ chữ trong trang tài liệu này.", img)
-        pdf_texts.append(text)
-        cards.append(card(f"PDF {pdf_name} – trang {i}", img, text))
-
-displayHTML("".join(cards))
+        pdf_results.append((i, text, to_b64(img, 900)))
+        preview(f"PDF {pdf_name} – trang {i}", img, text)
 
 # COMMAND ----------
 
-# MAGIC %md ## Bước 3: Rà soát tổng thể → báo cáo
+# MAGIC %md ## Bước 3: Rà soát tổng thể
 
 # COMMAND ----------
 
 data = "# Context đề xuất vay\n" + (CONTEXT.strip() if CONTEXT and CONTEXT.strip() else "(Không có)")
-data += f"\n\n# File PDF: {pdf_name}\n" + "\n".join(f"\n## Trang {i}\n{t}" for i, t in enumerate(pdf_texts, 1))
+data += f"\n\n# File PDF: {pdf_name}\n" + "\n".join(f"\n## Trang {p}\n{t}" for p, t, _ in pdf_results)
 data += "\n\n# Kết quả phân tích từng ảnh\n" + "\n".join(f"\n## {n}\n{r}" for n, r, _ in image_results)
 
 REVIEW_PROMPT = """Bạn là chuyên viên thẩm định tín dụng. Dưới đây là toàn bộ hồ sơ vay của một doanh nghiệp
@@ -252,17 +194,76 @@ HỒ SƠ:
 """ + data
 
 report = ask(REVIEW_PROMPT, max_tokens=8192)
+display(Markdown(report))
 
 # COMMAND ----------
 
-# MAGIC %md ## Bước 4: Xuất file .md
+# MAGIC %md ## Bước 4: Xuất báo cáo HTML (ảnh trái – text phải) và Markdown
 
 # COMMAND ----------
 
-md = f"""# Báo cáo rà soát hồ sơ vay
+def md2html(text):
+    return mdlib.markdown(html.escape(text or "", quote=False), extensions=["tables"])
 
-- Thời gian: {datetime.now():%d/%m/%Y %H:%M}
-- PDF: `{pdf_name}` ({len(pdf_texts)} trang) | Số ảnh: {len(image_results)}
+
+def row(title, b64, text):
+    img = (f'<img src="data:image/jpeg;base64,{b64}"/>' if b64
+           else '<div class="noimg">Không có ảnh</div>')
+    return f"""
+<section class="item">
+  <h3>{html.escape(title)}</h3>
+  <div class="grid">
+    <div class="pic">{img}</div>
+    <div class="txt">{md2html(text)}</div>
+  </div>
+</section>"""
+
+
+now = datetime.now()
+meta = (f"Thời gian: {now:%d/%m/%Y %H:%M} &nbsp;|&nbsp; PDF: {html.escape(pdf_name)} "
+        f"({len(pdf_results)} trang) &nbsp;|&nbsp; Số ảnh: {len(image_results)}<br>"
+        f"Context: {html.escape(CONTEXT or '(Không có)')}")
+
+html_doc = f"""<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Báo cáo rà soát hồ sơ vay</title>
+<style>
+  body {{ font-family: "Segoe UI", Arial, sans-serif; font-size: 14px; line-height: 1.55;
+         color: #222; background: #f5f6f8; margin: 0; padding: 24px; }}
+  .wrap {{ max-width: 1280px; margin: 0 auto; }}
+  h1 {{ font-size: 22px; margin: 0 0 6px; }}
+  h2 {{ font-size: 18px; margin: 28px 0 10px; border-bottom: 2px solid #2b5797; padding-bottom: 4px; }}
+  h3 {{ font-size: 15px; margin: 0 0 10px; color: #2b5797; }}
+  .meta {{ color: #666; font-size: 13px; margin-bottom: 16px; }}
+  .card, .item {{ background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; }}
+  .grid {{ display: grid; grid-template-columns: 45% 1fr; gap: 20px; align-items: start; }}
+  .pic img {{ width: 100%; border: 1px solid #e3e3e3; border-radius: 4px; }}
+  .noimg {{ padding: 40px; text-align: center; color: #999; border: 1px dashed #ccc; }}
+  .txt {{ max-height: 900px; overflow: auto; }}
+  table {{ border-collapse: collapse; width: 100%; font-size: 13px; margin: 8px 0; }}
+  th, td {{ border: 1px solid #ccc; padding: 6px 8px; text-align: left; vertical-align: top; }}
+  th {{ background: #eef2f8; }}
+  p, ul {{ margin: 6px 0; }}
+  @media (max-width: 800px) {{ .grid {{ grid-template-columns: 1fr; }} }}
+</style></head>
+<body><div class="wrap">
+  <h1>Báo cáo rà soát hồ sơ vay</h1>
+  <div class="meta">{meta}</div>
+
+  <div class="card">{md2html(report)}</div>
+
+  <h2>Phụ lục A – Ảnh đính kèm</h2>
+  {"".join(row(n, b, r) for n, r, b in image_results)}
+
+  <h2>Phụ lục B – File PDF: {html.escape(pdf_name)}</h2>
+  {"".join(row(f"Trang {p}", b, t) for p, t, b in pdf_results)}
+</div></body></html>"""
+
+md_doc = f"""# Báo cáo rà soát hồ sơ vay
+
+- Thời gian: {now:%d/%m/%Y %H:%M}
+- PDF: `{pdf_name}` ({len(pdf_results)} trang) | Số ảnh: {len(image_results)}
 - Context: {CONTEXT or "(Không có)"}
 
 ---
@@ -272,11 +273,15 @@ md = f"""# Báo cáo rà soát hồ sơ vay
 ---
 
 # Phụ lục: Phân tích từng ảnh
-""" + "\n".join(md_block(n, im, r) for n, r, im in image_results)
+""" + "\n".join(f"\n### {n}\n\n{r}\n" for n, r, _ in image_results)
 
-os.makedirs(os.path.dirname(OUTPUT_MD), exist_ok=True)
-with open(OUTPUT_MD, "w", encoding="utf-8") as f:
-    f.write(md)
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+html_path = os.path.join(OUTPUT_DIR, REPORT_NAME + ".html")
+md_path   = os.path.join(OUTPUT_DIR, REPORT_NAME + ".md")
+with open(html_path, "w", encoding="utf-8") as f:
+    f.write(html_doc)
+with open(md_path, "w", encoding="utf-8") as f:
+    f.write(md_doc)
 
-print("Đã lưu:", OUTPUT_MD)
-display(Markdown(report))   # báo cáo chỉ có chữ nên hiển thị native
+print("Đã lưu HTML:", html_path)
+print("Đã lưu MD:  ", md_path)
