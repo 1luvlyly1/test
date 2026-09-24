@@ -605,6 +605,17 @@ index = vsc.get_index(VS_ENDPOINT, VS_INDEX)
 
 # COMMAND ----------
 
+# DBTITLE 1,Ket noi lai index da co (chay cell nay khi mo lai notebook - KHONG tao lai)
+# Dung khi session bi restart: lay lai handle vsc/index ma khong xoa, khong sync lai.
+import time
+from databricks.vector_search.client import VectorSearchClient
+
+vsc = VectorSearchClient(disable_notice=True)
+index = vsc.get_index(VS_ENDPOINT, VS_INDEX)
+print(index.describe().get("status", {}).get("detailed_state"))
+
+# COMMAND ----------
+
 # DBTITLE 1,Cho index sync DU SO DONG (ready=True chua co nghia la sync xong)
 EXPECTED_ROWS = spark.table(TABLE).count()
 _INDEX_VERIFIED = False
@@ -1369,13 +1380,13 @@ print(MODEL_URI, MODEL_VERSION)
 
 # COMMAND ----------
 
-# DBTITLE 1,Validate truoc khi deploy
-mlflow.models.predict(
-    model_uri=MODEL_URI,
-    input_data={"messages": [{"role": "user",
-                              "content": "What documents are required for KYC verification?"}]},
-    env_manager="uv",
-)
+# DBTITLE 1,Smoke test model da log (chay truc tiep, khong dung moi truong ao)
+# Load lai model tu MLflow ngay trong notebook. Khong subprocess, khong build env
+# -> khong dinh loi "non-zero exit code 2" cua env_manager="uv".
+loaded = mlflow.pyfunc.load_model(MODEL_URI)
+out = loaded.predict({"messages": [{"role": "user",
+                                    "content": "What documents are required for KYC verification?"}]})
+print(json.dumps(out, indent=2, ensure_ascii=False)[:1500])
 
 # COMMAND ----------
 
