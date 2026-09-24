@@ -293,8 +293,12 @@ def sosanh_tudo(portrait_cu, thongke_ht, excel_json):
         "- Chỉ dùng dữ kiện có thật trong nguồn được cấp. Không thêm thông tin không có.\n"
         "- 'Quá khứ' chỉ lấy từ nội dung PDF cũ. Nếu mục đó trong PDF trống -> ghi 'Không có trong báo cáo cũ'.\n"
         "- 'Hiện tại' chỉ lấy từ dữ liệu Excel/thống kê. Nếu Excel không có dữ liệu cho mục đó -> "
-        "ghi 'Không có dữ liệu hiện tại', KHÔNG được nói là có cập nhật.\n"
-        "- Chỉ kết luận 'có thay đổi/cập nhật' khi cả hai phía đều có dữ liệu để đối chiếu.\n"
+        "ghi 'Không có dữ liệu hiện tại'.\n"
+        "- Dòng 'So sánh' phải nêu rõ một trong các tình huống: "
+        "(a) cả hai phía có dữ liệu -> nêu điểm giống/khác; "
+        "(b) quá khứ KHÔNG có, hiện tại CÓ -> ghi rõ là THÔNG TIN MỚI PHÁT SINH; "
+        "(c) quá khứ có, hiện tại không -> ghi rõ là thông tin cũ, hiện KHÔNG còn dữ liệu.\n"
+        "- Dòng 'Kết luận' phải có cho MỌI mục: nhận định ngắn gọn về mục đó (tăng/giảm/ổn định/mới phát sinh/mất dữ liệu).\n"
         "- Không suy đoán nguyên nhân nếu nguồn không nêu."
     )
     frame = "\n".join(f"- {f}" for f in fields)
@@ -306,7 +310,11 @@ def sosanh_tudo(portrait_cu, thongke_ht, excel_json):
         "#### <tên mục>\n"
         "**Quá khứ:** <nguyên văn PDF cũ, hoặc 'Không có trong báo cáo cũ'>\n"
         "**Hiện tại:** <từ Excel, hoặc 'Không có dữ liệu hiện tại'>\n"
-        "**So sánh:** <chỉ khi cả hai phía có dữ liệu; nếu không, ghi rõ thiếu phía nào>"
+        "**So sánh:** <theo tình huống a/b/c ở quy tắc>\n"
+        "**Kết luận:** <nhận định ngắn gọn cho mục này>\n\n"
+        "Sau khi xong tất cả các mục, thêm phần:\n"
+        "#### Nhận xét cuối cùng\n"
+        "<tổng hợp toàn cảnh 2-4 câu: xu hướng chung, điểm mới phát sinh, điểm cần lưu ý; chỉ dựa trên dữ kiện đã nêu>"
     )
     return call_ai(system, user).strip()
 
@@ -394,16 +402,20 @@ def tong_ket_thay_doi(dkkd, sosanh):
     lech_dai_dien = [m["period"] for m in dkkd["doi_chieu"] if m["trung_khop"] is False]
     muc_can = ["Đầu ra", "Đầu vào", "Hàng tồn kho", "Thay đổi pháp lý"]
     checklist = "\n".join(f"- {m}" for m in muc_can)
-    system = ("Chuyên viên phân tích tín dụng. Bạn được cấp phần SO SÁNH QUÁ KHỨ - HIỆN TẠI đã viết sẵn. "
-              "CHỈ tóm tắt so sánh cho ĐÚNG các mục trong checklist dưới đây, BỎ QUA mọi mục khác. "
-              "Mỗi mục viết 1 gạch đầu dòng bắt đầu bằng tên mục, nêu thay đổi giữa quá khứ và hiện tại. "
-              "Chỉ dùng thông tin CÓ THẬT trong phần được cấp; nếu một mục không xuất hiện hoặc thiếu dữ liệu, "
-              "ghi '<tên mục>: không có thông tin'. TUYỆT ĐỐI không bịa, không thêm mục ngoài checklist.")
+    system = ("Chuyên viên phân tích tín dụng. Bạn được cấp phần SO SÁNH QUÁ KHỨ - HIỆN TẠI đã viết sẵn "
+              "(mỗi mục có các dòng Quá khứ / Hiện tại / So sánh / Kết luận). "
+              "CHỈ tóm tắt cho ĐÚNG các mục trong checklist dưới đây, BỎ QUA mọi mục khác. "
+              "Mỗi mục viết 1 gạch đầu dòng bắt đầu bằng tên mục, dựa trên dòng 'So sánh' và 'Kết luận' của mục đó "
+              "(nêu rõ thay đổi và kết luận; nếu là thông tin mới phát sinh thì nói rõ). "
+              "Chỉ dùng thông tin CÓ THẬT trong phần được cấp; nếu một mục không xuất hiện, "
+              "ghi '<tên mục>: không có thông tin'. TUYỆT ĐỐI không bịa, không thêm mục ngoài checklist. "
+              "Sau các gạch đầu dòng, thêm 1 dòng 'Nhận xét chung:' tổng hợp toàn cảnh 4 mục trên trong 1-2 câu.")
     user = ("CHECKLIST CÁC MỤC CẦN TÓM TẮT (chỉ đúng các mục này):\n"
             f"{checklist}\n\n"
             "PHẦN SO SÁNH QUÁ KHỨ - HIỆN TẠI (nguồn duy nhất):\n"
             f"{sosanh}\n\n"
-            "Tóm tắt so sánh cho từng mục trong checklist, mỗi mục một gạch đầu dòng.")
+            "Tóm tắt cho từng mục trong checklist (mỗi mục 1 gạch đầu dòng gồm thay đổi + kết luận), "
+            "rồi kết bằng dòng 'Nhận xét chung:'.")
     body = call_ai(system, user).strip()
 
     dkkd_line = (f"- Ngày cập nhật mới nhất: file {n['max_file']} / bảng {n['max_bang']} "
