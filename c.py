@@ -605,20 +605,59 @@ index = vsc.get_index(VS_ENDPOINT, VS_INDEX)
 
 # COMMAND ----------
 
-# DBTITLE 1,Cho index READY truoc khi query (dung ngay neu FAILED)
-for _ in range(120):
+# DBTITLE 1,Cho index sync DU SO DONG (ready=True chua co nghia la sync xong)
+EXPECTED_ROWS = spark.table(TABLE).count()
+_INDEX_VERIFIED = False
+
+
+def index_progress():
     st = index.describe().get("status", {})
-    state = str(st.get("detailed_state", ""))
-    if st.get("ready") and "FAILED" not in state:
-        print(f"Index READY - rows: {st.get('indexed_row_count')}")
-        break
-    print(f"  ready={st.get('ready')} state={state} rows={st.get('indexed_row_count')}")
+    return str(st.get("detailed_state", "")), int(st.get("indexed_row_count") or 0), st
+
+
+def require_index_ready(force: bool = False):
+    """Goi truoc moi truy van. Index co the bao ready=True khi moi embed duoc mot phan,
+    query luc do tra ve rong hoac thieu ket qua ma khong bao loi."""
+    global _INDEX_VERIFIED
+    if _INDEX_VERIFIED and not force:
+        return
+    state, rows, st = index_progress()
+    if "FAILED" in state:
+        raise RuntimeError(f"Index {state}: {st.get('message')} -> chay cell 'Chan doan index'")
+    if rows < EXPECTED_ROWS:
+        raise RuntimeError(
+            f"Index moi sync {rows}/{EXPECTED_ROWS} dong (state={state}). "
+            "Chay lai cell cho o section 2 cho den khi du roi hay chay tiep.")
+    _INDEX_VERIFIED = True
+
+
+for _ in range(160):                              # toi da ~40 phut
+    state, rows, st = index_progress()
     if "FAILED" in state:
         raise RuntimeError(f"Index {state}: {st.get('message', '(khong co message)')}\n"
                            "-> Chay cell 'Chan doan index' ngay ben duoi de xem loi that.")
+    print(f"  state={state} rows={rows}/{EXPECTED_ROWS}")
+    if rows >= EXPECTED_ROWS and state.upper().startswith("ONLINE"):
+        break
     time.sleep(15)
 else:
-    raise TimeoutError("Index chua READY sau 30 phut - chay cell 'Chan doan index'")
+    raise TimeoutError(f"Index moi sync {rows}/{EXPECTED_ROWS} sau 40 phut - chay cell 'Chan doan index'")
+
+# xac nhan bang mot truy van that, khong chi tin vao metadata
+probe = index.similarity_search(query_text="KYC", columns=["chunk_id"], num_results=1,
+                                query_type="HYBRID")
+n_probe = len(probe["result"].get("data_array", []))
+assert n_probe > 0, "Index bao du dong nhung query tra ve rong - doi them 1-2 phut roi chay lai cell nay"
+_INDEX_VERIFIED = True
+print(f"\nIndex SAN SANG - {rows}/{EXPECTED_ROWS} dong, probe query tra ve {n_probe} ket qua")
+
+# COMMAND ----------
+
+# DBTITLE 1,Xem tien do sync bat cu luc nao (khong chan cell khac)
+state, rows, st = index_progress()
+print(f"state : {state}")
+print(f"rows  : {rows}/{spark.table(TABLE).count()}")
+print(f"msg   : {st.get('message', '')}")
 
 # COMMAND ----------
 
@@ -706,6 +745,7 @@ def retrieve(query: str, k: int = TOP_K, use_reranker: bool = USE_RERANKER,
              return_debug: bool = False):
     """Hybrid (bi-encoder + keyword). Neu use_reranker: top 50 duoc cross-encoder cham lai.
     Moi hit co co 'reranked' = reranker that su chay (khong fallback)."""
+    require_index_ready()
     kwargs = dict(query_text=query, columns=RETRIEVE_COLUMNS,
                   num_results=k, query_type="HYBRID")
     if use_reranker:
