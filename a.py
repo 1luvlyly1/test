@@ -5,7 +5,7 @@
 # COMMAND ----------
 
 CONFIG = {
-    "endpoint_name": "databricks-meta-llama-3-3-70b-instruct",
+    "endpoint_name": "databricks-claude-sonnet-4-6",
     "max_tokens": 4096,
     "temperature": 0.0,
     "enterprise_table": "main.default.enterprise_info",
@@ -25,6 +25,7 @@ CONFIG = {
 
 import re, os, json, unicodedata
 import openpyxl, pdfplumber
+import mlflow
 from datetime import datetime
 from mlflow.deployments import get_deploy_client
 
@@ -391,15 +392,18 @@ print("Đã xuất:", CONFIG["out_main_md"], "và", CONFIG["out_excel_md"])
 def tong_ket_thay_doi(dkkd, sosanh):
     n = dkkd["ngay_lon_nhat"]
     lech_dai_dien = [m["period"] for m in dkkd["doi_chieu"] if m["trung_khop"] is False]
-    system = ("Chuyên viên phân tích tín dụng. Tóm tắt NGẮN GỌN những thay đổi/điểm cần lưu ý "
-              "bằng tiếng Việt, dạng gạch đầu dòng. Chỉ dùng dữ kiện được cấp, không bịa, "
-              "không lặp lại chi tiết đã có. Tối đa 8 gạch đầu dòng.")
-    user = ("KẾT QUẢ ĐỐI CHIẾU ĐKKD:\n"
-            f"- Ngày lớn nhất file: {n['max_file']} | bảng: {n['max_bang']} | "
-            f"{'khớp' if n['trung_khop'] else 'lệch' if n['trung_khop'] is False else 'không đủ dữ liệu'}\n"
-            f"- Các kỳ lệch tên đại diện: {lech_dai_dien or 'không có'}\n\n"
-            f"SO SÁNH QUÁ KHỨ - HIỆN TẠI:\n{sosanh}\n\n"
-            "Hãy liệt kê những thay đổi quan trọng nhất và cảnh báo nếu có.")
+    system = ("Chuyên viên phân tích tín dụng. Từ nội dung so sánh chi tiết cho sẵn, "
+              "CHỈ CHẮT RA những điểm ĐÃ THAY ĐỔI giữa quá khứ và hiện tại. "
+              "Không mô tả lại từng mục, không liệt kê thông tin không đổi, không lặp lại nội dung gốc. "
+              "Mỗi gạch đầu dòng nêu 1 thay đổi cụ thể (cái gì, từ đâu sang đâu). "
+              "Nếu một mục không thay đổi hoặc thiếu dữ liệu một phía thì bỏ qua. "
+              "Chỉ dùng dữ kiện có thật, không suy diễn. Tối đa 6 gạch đầu dòng.")
+    user = ("ĐỐI CHIẾU ĐKKD:\n"
+            f"- Ngày lớn nhất file vs bảng: {n['max_file']} / {n['max_bang']} -> "
+            f"{'khớp' if n['trung_khop'] else 'lệch' if n['trung_khop'] is False else 'thiếu dữ liệu'}\n"
+            f"- Kỳ lệch tên đại diện: {lech_dai_dien or 'không có'}\n\n"
+            f"NỘI DUNG SO SÁNH CHI TIẾT (chỉ dùng để rút ra thay đổi, KHÔNG chép lại):\n{sosanh}\n\n"
+            "Liệt kê những thay đổi quan trọng nhất. Nếu không có thay đổi nào, ghi rõ 'Không ghi nhận thay đổi'.")
     return call_ai(system, user).strip()
 
 
