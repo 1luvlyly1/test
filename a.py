@@ -392,25 +392,32 @@ print("Đã xuất:", CONFIG["out_main_md"], "và", CONFIG["out_excel_md"])
 def tong_ket_thay_doi(dkkd, sosanh):
     n = dkkd["ngay_lon_nhat"]
     lech_dai_dien = [m["period"] for m in dkkd["doi_chieu"] if m["trung_khop"] is False]
-    system = ("Chuyên viên phân tích tín dụng. Từ nội dung so sánh chi tiết cho sẵn, "
-              "CHỈ CHẮT RA những điểm ĐÃ THAY ĐỔI giữa quá khứ và hiện tại. "
-              "Không mô tả lại từng mục, không liệt kê thông tin không đổi, không lặp lại nội dung gốc. "
-              "Mỗi gạch đầu dòng nêu 1 thay đổi cụ thể (cái gì, từ đâu sang đâu). "
-              "Nếu một mục không thay đổi hoặc thiếu dữ liệu một phía thì bỏ qua. "
-              "Chỉ dùng dữ kiện có thật, không suy diễn. Tối đa 6 gạch đầu dòng.")
-    user = ("ĐỐI CHIẾU ĐKKD:\n"
-            f"- Ngày lớn nhất file vs bảng: {n['max_file']} / {n['max_bang']} -> "
-            f"{'khớp' if n['trung_khop'] else 'lệch' if n['trung_khop'] is False else 'thiếu dữ liệu'}\n"
-            f"- Kỳ lệch tên đại diện: {lech_dai_dien or 'không có'}\n\n"
-            f"NỘI DUNG SO SÁNH CHI TIẾT (chỉ dùng để rút ra thay đổi, KHÔNG chép lại):\n{sosanh}\n\n"
-            "Liệt kê những thay đổi quan trọng nhất. Nếu không có thay đổi nào, ghi rõ 'Không ghi nhận thay đổi'.")
-    return call_ai(system, user).strip()
+    muc_can = ["Đầu ra", "Đầu vào", "Hàng tồn kho", "Thay đổi pháp lý"]
+    checklist = "\n".join(f"- {m}" for m in muc_can)
+    system = ("Chuyên viên phân tích tín dụng. Bạn được cấp phần SO SÁNH QUÁ KHỨ - HIỆN TẠI đã viết sẵn. "
+              "CHỈ tóm tắt so sánh cho ĐÚNG các mục trong checklist dưới đây, BỎ QUA mọi mục khác. "
+              "Mỗi mục viết 1 gạch đầu dòng bắt đầu bằng tên mục, nêu thay đổi giữa quá khứ và hiện tại. "
+              "Chỉ dùng thông tin CÓ THẬT trong phần được cấp; nếu một mục không xuất hiện hoặc thiếu dữ liệu, "
+              "ghi '<tên mục>: không có thông tin'. TUYỆT ĐỐI không bịa, không thêm mục ngoài checklist.")
+    user = ("CHECKLIST CÁC MỤC CẦN TÓM TẮT (chỉ đúng các mục này):\n"
+            f"{checklist}\n\n"
+            "PHẦN SO SÁNH QUÁ KHỨ - HIỆN TẠI (nguồn duy nhất):\n"
+            f"{sosanh}\n\n"
+            "Tóm tắt so sánh cho từng mục trong checklist, mỗi mục một gạch đầu dòng.")
+    body = call_ai(system, user).strip()
+
+    dkkd_line = (f"- Ngày cập nhật mới nhất: file {n['max_file']} / bảng {n['max_bang']} "
+                 f"({'khớp' if n['trung_khop'] else 'lệch' if n['trung_khop'] is False else 'thiếu dữ liệu'})\n"
+                 f"- Kỳ lệch tên đại diện: {', '.join(lech_dai_dien) if lech_dai_dien else 'không có'}")
+    return body, dkkd_line
 
 
-summary = tong_ket_thay_doi(dkkd, sosanh)
-md = (f"# Tổng kết thay đổi\n\n*{datetime.now():%Y-%m-%d %H:%M}*\n\n{summary}\n")
+body, dkkd_line = tong_ket_thay_doi(dkkd, sosanh)
+md = (f"# Tổng kết thay đổi\n\n*{datetime.now():%Y-%m-%d %H:%M}*\n\n"
+      f"## Đăng ký kinh doanh\n\n{dkkd_line}\n\n"
+      f"## Thay đổi tình hình quan hệ\n\n{body}\n")
 write_file(CONFIG["out_summary_md"], md)
 
 print("Đã xuất tổng kết:", CONFIG["out_summary_md"])
 print("=" * 50)
-print(summary)
+print(body)
