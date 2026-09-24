@@ -1,0 +1,45 @@
+# Databricks notebook source
+# MAGIC %md
+# MAGIC # Flow - banking_rag_min
+
+# COMMAND ----------
+
+# DBTITLE 1,Render flow
+MERMAID = """
+flowchart TD
+    subgraph "Ingest"
+        A1[read_doc<br/>pypdf / python-docx] --> A2[Chunk 300 tu<br/>chong 50 tu]
+    end
+    subgraph "Delta Table"
+        B1[chunk_id, document_name, chunk_content] --> B2[Change Data Feed]
+    end
+    subgraph "Vector Search"
+        C1[Embedding<br/>databricks-gte-large-en] --> C2[Hybrid search]
+        C2 --> C3[DatabricksReranker]
+    end
+    subgraph "Agent"
+        D1[retrieve<br/>top 5] --> D2[Dung context<br/>system prompt]
+        D2 --> D3[Claude Sonnet]
+        D3 --> D4[Khong co hit<br/>tra fallback]
+    end
+    subgraph "Deploy"
+        E1[log_model<br/>Unity Catalog] --> E2[agents.deploy]
+        E2 --> E3[POST /invocations]
+    end
+    F[MLflow eval<br/>6 cau, latency, fallback_rate]
+    A2 --> B1
+    B2 --> C1
+    C3 --> D1
+    D4 --> E1
+    D4 -.-> F
+"""
+
+displayHTML(f"""
+<div style="background:#fff;padding:16px">
+  <pre class="mermaid">{MERMAID}</pre>
+</div>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({{ startOnLoad: true, theme: 'neutral' }});
+</script>
+""")
