@@ -5,7 +5,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install pymupdf --quiet
+# MAGIC %pip install pymupdf markdown --quiet
 
 # COMMAND ----------
 
@@ -22,11 +22,14 @@ OUTPUT_MD  = "/Volumes/main/credit/loan_docs/reports/bao_cao_tham_dinh.md"
 IMG_EXTS   = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
 AUTO_INVERT  = False   # True: tự đảo màu nếu ảnh tài liệu có nền tối bất thường (ảnh âm bản)
 FORCE_INVERT = set()   # tên file luôn đảo màu, vd: {"scan_01.tif"}
+DARK_THEME   = True    # True nếu notebook dùng theme tối (bù lại việc Databricks đảo màu output HTML)
+EMBED_IMAGES_IN_MD = True  # nhúng ảnh (thu nhỏ) vào file .md, ảnh trái - text phải
 
 # COMMAND ----------
 
-import os, io, time, base64, requests
-from IPython.display import display, Markdown, Image as IPImage
+import os, io, time, base64, html, requests
+import markdown as mdlib
+from IPython.display import display, Markdown
 from datetime import datetime
 from PIL import Image, ImageOps, ImageStat
 import fitz
@@ -107,16 +110,48 @@ def ask(prompt, image=None, max_tokens=4096):
     raise RuntimeError("Hết số lần thử lại")
 
 
-def show(title, image, text):
-    """Hiển thị ảnh + kết quả trực tiếp trong notebook (không dùng displayHTML,
-    vì theme tối của Databricks đảo màu output HTML làm ảnh thành âm bản)."""
-    thumb = image.copy()
-    thumb.thumbnail((700, 700))
+def thumb_b64(image, size=700):
+    t = image.copy()
+    t.thumbnail((size, size))
     buf = io.BytesIO()
-    thumb.save(buf, "JPEG", quality=85)
-    display(Markdown(f"---\n### {title}"))
-    display(IPImage(data=buf.getvalue(), format="jpeg"))
-    display(Markdown(text or "_(không có kết quả)_"))
+    t.save(buf, "JPEG", quality=85)
+    return base64.b64encode(buf.getvalue()).decode()
+
+
+def card(title, image, text):
+    """Khối HTML: ảnh bên trái, kết quả bên phải."""
+    # Theme tối của Databricks đảo màu toàn bộ output HTML -> đảo ngược lại riêng ảnh để ảnh đúng màu
+    img_filter = "filter:invert(1) hue-rotate(180deg);" if DARK_THEME else ""
+    body = mdlib.markdown(html.escape(text or "", quote=False), extensions=["tables"])
+    return f"""
+    <div style="border:1px solid #ccc;border-radius:8px;padding:12px;margin:12px 0;font-family:sans-serif">
+      <h3 style="margin:0 0 10px 0">{html.escape(title)}</h3>
+      <div style="display:flex;gap:16px;align-items:flex-start">
+        <div style="flex:0 0 45%">
+          <img src="data:image/jpeg;base64,{thumb_b64(image)}"
+               style="width:100%;border:1px solid #eee;{img_filter}"/>
+        </div>
+        <div style="flex:1;font-size:14px;line-height:1.5;overflow-x:auto">{body}</div>
+      </div>
+    </div>"""
+
+
+def md_block(title, image, text):
+    """Khối cho file .md: bảng HTML 2 cột, ảnh trái - text phải."""
+    if not EMBED_IMAGES_IN_MD or image is None:
+        return f"\n### {title}\n\n{text}\n"
+    return f"""
+### {title}
+
+<table><tr>
+<td width="45%" valign="top"><img src="data:image/jpeg;base64,{thumb_b64(image, 600)}" width="100%"/></td>
+<td valign="top">
+
+{text}
+
+</td>
+</tr></table>
+"""
 
 # COMMAND ----------
 
@@ -157,18 +192,21 @@ image_paths = sorted(
     for f in files if os.path.splitext(f)[1].lower() in IMG_EXTS
 )
 
-image_results = []
+image_results, cards = [], []   # (tên, kết quả, ảnh)
 for i, path in enumerate(image_paths, 1):
     name = os.path.basename(path)
     print(f"[{i}/{len(image_paths)}] {name}")
+    img = None
     try:
         img = load_image(path)
         result = ask(IMAGE_PROMPT, img)
-        show(f"[{i}/{len(image_paths)}] {name}", img, result)
+        cards.append(card(f"[{i}/{len(image_paths)}] {name}", img, result))
     except Exception as e:
         result = f"(Lỗi xử lý: {e})"
         print(result)
-    image_results.append((name, result))
+    image_results.append((name, result, img))
+
+displayHTML("".join(cards))
 
 # COMMAND ----------
 
@@ -177,7 +215,7 @@ for i, path in enumerate(image_paths, 1):
 # COMMAND ----------
 
 pdf_name = os.path.basename(PDF_PATH)
-pdf_texts = []
+pdf_texts, cards = [], []
 with fitz.open(PDF_PATH) as doc:
     for i, page in enumerate(doc, 1):
         print(f"PDF trang {i}/{doc.page_count}")
@@ -185,7 +223,9 @@ with fitz.open(PDF_PATH) as doc:
         img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
         text = ask("Chép lại toàn bộ chữ trong trang tài liệu này.", img)
         pdf_texts.append(text)
-        show(f"PDF {pdf_name} – trang {i}", img, text)
+        cards.append(card(f"PDF {pdf_name} – trang {i}", img, text))
+
+displayHTML("".join(cards))
 
 # COMMAND ----------
 
@@ -195,7 +235,7 @@ with fitz.open(PDF_PATH) as doc:
 
 data = "# Context đề xuất vay\n" + (CONTEXT.strip() if CONTEXT and CONTEXT.strip() else "(Không có)")
 data += f"\n\n# File PDF: {pdf_name}\n" + "\n".join(f"\n## Trang {i}\n{t}" for i, t in enumerate(pdf_texts, 1))
-data += "\n\n# Kết quả phân tích từng ảnh\n" + "\n".join(f"\n## {n}\n{r}" for n, r in image_results)
+data += "\n\n# Kết quả phân tích từng ảnh\n" + "\n".join(f"\n## {n}\n{r}" for n, r, _ in image_results)
 
 REVIEW_PROMPT = """Bạn là chuyên viên thẩm định tín dụng. Dưới đây là toàn bộ hồ sơ vay của một doanh nghiệp
 (context, nội dung PDF, kết quả phân tích từng ảnh). Hãy rà soát tổng thể, đối chiếu chéo giữa các tài liệu
@@ -232,11 +272,11 @@ md = f"""# Báo cáo rà soát hồ sơ vay
 ---
 
 # Phụ lục: Phân tích từng ảnh
-""" + "\n".join(f"\n### {n}\n\n{r}\n" for n, r in image_results)
+""" + "\n".join(md_block(n, im, r) for n, r, im in image_results)
 
 os.makedirs(os.path.dirname(OUTPUT_MD), exist_ok=True)
 with open(OUTPUT_MD, "w", encoding="utf-8") as f:
     f.write(md)
 
 print("Đã lưu:", OUTPUT_MD)
-display(Markdown(report))
+display(Markdown(report))   # báo cáo chỉ có chữ nên hiển thị native
