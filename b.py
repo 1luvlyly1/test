@@ -5,7 +5,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install pymupdf markdown --quiet
+# MAGIC %pip install pymupdf --quiet
 
 # COMMAND ----------
 
@@ -20,19 +20,58 @@ PDF_PATH   = "/Volumes/main/credit/loan_docs/ho_so_vay.pdf"
 CONTEXT    = None   # vd: "Công ty ABC, MST 0101234567, đề nghị vay 5 tỷ bổ sung vốn lưu động"
 OUTPUT_MD  = "/Volumes/main/credit/loan_docs/reports/bao_cao_tham_dinh.md"
 IMG_EXTS   = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
+AUTO_INVERT  = False   # True: tự đảo màu nếu ảnh tài liệu có nền tối bất thường (ảnh âm bản)
+FORCE_INVERT = set()   # tên file luôn đảo màu, vd: {"scan_01.tif"}
 
 # COMMAND ----------
 
-import os, io, time, base64, html, requests
-import markdown as mdlib
+import os, io, time, base64, requests
+from IPython.display import display, Markdown, Image as IPImage
 from datetime import datetime
-from PIL import Image
+from PIL import Image, ImageOps, ImageStat
 import fitz
 
 ctx   = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
 HOST  = ctx.apiUrl().get()
 TOKEN = ctx.apiToken().get()
 HEADERS = {"Authorization": f"Bearer {TOKEN}"}
+
+
+def load_image(path):
+    """Đọc ảnh và chuẩn hóa về RGB đúng màu (xử lý CMYK, 16-bit, nền trong suốt, xoay EXIF, âm bản)."""
+    img = Image.open(path)
+    img.load()
+    img = ImageOps.exif_transpose(img)
+
+    # JPEG CMYK xuất từ Photoshop/máy scan thường bị lưu đảo kênh -> hiển thị thành âm bản
+    if img.mode == "CMYK":
+        if "adobe" in img.info:
+            img = ImageOps.invert(img.convert("RGB")) if _looks_inverted(img.convert("RGB")) else img.convert("RGB")
+        else:
+            img = img.convert("RGB")
+    # Ảnh 16/32-bit (TIFF scan): co về 8-bit
+    elif img.mode in ("I", "I;16", "I;16B", "I;16L", "F"):
+        img = ImageOps.autocontrast(img.convert("F").point(lambda v: v / 256).convert("L"))
+    # Nền trong suốt: đặt lên nền trắng (tránh nền đen)
+    elif img.mode in ("RGBA", "LA", "P"):
+        img = img.convert("RGBA")
+        bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
+        img = Image.alpha_composite(bg, img)
+
+    img = img.convert("RGB")
+
+    name = os.path.basename(path)
+    if name in FORCE_INVERT or (AUTO_INVERT and _looks_inverted(img)):
+        print(f"   ↳ đảo màu (âm bản): {name}")
+        img = ImageOps.invert(img)
+    return img
+
+
+def _looks_inverted(img):
+    """Tài liệu bình thường có nền sáng; nếu phần lớn điểm ảnh rất tối thì nhiều khả năng là âm bản."""
+    gray = img.convert("L").resize((200, 200))
+    dark_ratio = sum(gray.histogram()[:60]) / (200 * 200)
+    return dark_ratio > 0.6
 
 
 def img_to_b64(img):
@@ -68,20 +107,16 @@ def ask(prompt, image=None, max_tokens=4096):
     raise RuntimeError("Hết số lần thử lại")
 
 
-def card(title, image, text):
-    """Tạo khối HTML: ảnh bên trái, kết quả phân tích bên phải."""
+def show(title, image, text):
+    """Hiển thị ảnh + kết quả trực tiếp trong notebook (không dùng displayHTML,
+    vì theme tối của Databricks đảo màu output HTML làm ảnh thành âm bản)."""
     thumb = image.copy()
     thumb.thumbnail((700, 700))
-    body = mdlib.markdown(text, extensions=["tables"]) if text else ""
-    return f"""
-    <div style="border:1px solid #ccc;border-radius:8px;padding:12px;margin:10px 0;font-family:sans-serif">
-      <h3 style="margin-top:0">{html.escape(title)}</h3>
-      <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap">
-        <img src="data:image/jpeg;base64,{img_to_b64(thumb)}"
-             style="max-width:45%;min-width:280px;border:1px solid #eee"/>
-        <div style="flex:1;min-width:300px;font-size:14px;line-height:1.5">{body}</div>
-      </div>
-    </div>"""
+    buf = io.BytesIO()
+    thumb.save(buf, "JPEG", quality=85)
+    display(Markdown(f"---\n### {title}"))
+    display(IPImage(data=buf.getvalue(), format="jpeg"))
+    display(Markdown(text or "_(không có kết quả)_"))
 
 # COMMAND ----------
 
@@ -122,21 +157,18 @@ image_paths = sorted(
     for f in files if os.path.splitext(f)[1].lower() in IMG_EXTS
 )
 
-image_results, cards = [], []
+image_results = []
 for i, path in enumerate(image_paths, 1):
     name = os.path.basename(path)
     print(f"[{i}/{len(image_paths)}] {name}")
     try:
-        with Image.open(path) as img:
-            img = img.convert("RGB")
-            result = ask(IMAGE_PROMPT, img)
-            cards.append(card(f"[{i}/{len(image_paths)}] {name}", img, result))
+        img = load_image(path)
+        result = ask(IMAGE_PROMPT, img)
+        show(f"[{i}/{len(image_paths)}] {name}", img, result)
     except Exception as e:
         result = f"(Lỗi xử lý: {e})"
         print(result)
     image_results.append((name, result))
-
-displayHTML("".join(cards))
 
 # COMMAND ----------
 
@@ -145,7 +177,7 @@ displayHTML("".join(cards))
 # COMMAND ----------
 
 pdf_name = os.path.basename(PDF_PATH)
-pdf_texts, cards = [], []
+pdf_texts = []
 with fitz.open(PDF_PATH) as doc:
     for i, page in enumerate(doc, 1):
         print(f"PDF trang {i}/{doc.page_count}")
@@ -153,9 +185,7 @@ with fitz.open(PDF_PATH) as doc:
         img = Image.frombytes("RGB", (pix.width, pix.height), pix.samples)
         text = ask("Chép lại toàn bộ chữ trong trang tài liệu này.", img)
         pdf_texts.append(text)
-        cards.append(card(f"PDF {pdf_name} – trang {i}", img, text))
-
-displayHTML("".join(cards))
+        show(f"PDF {pdf_name} – trang {i}", img, text)
 
 # COMMAND ----------
 
@@ -209,4 +239,4 @@ with open(OUTPUT_MD, "w", encoding="utf-8") as f:
     f.write(md)
 
 print("Đã lưu:", OUTPUT_MD)
-displayHTML("<div style='font-family:sans-serif'>" + mdlib.markdown(report, extensions=["tables"]) + "</div>")
+display(Markdown(report))
