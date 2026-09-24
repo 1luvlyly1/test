@@ -17,6 +17,7 @@ CONFIG = {
     "use_schema_cache": True,
     "out_main_md": "/Volumes/main/default/reports/bao_cao_tong_hop.md",
     "out_excel_md": "/Volumes/main/default/reports/du_lieu_excel.md",
+    "out_summary_md": "/Volumes/main/default/reports/tong_ket_thay_doi.md",
     "portrait_fields": ["ngành nghề", "hoạt động kinh doanh", "quy trình sản xuất"],
 }
 
@@ -384,3 +385,28 @@ write_file(CONFIG["out_main_md"], md_main(dkkd, portrait_cu, thongke_ht, sosanh)
 write_file(CONFIG["out_excel_md"], md_excel(excel_data))
 
 print("Đã xuất:", CONFIG["out_main_md"], "và", CONFIG["out_excel_md"])
+
+# COMMAND ----------
+
+def tong_ket_thay_doi(dkkd, sosanh):
+    n = dkkd["ngay_lon_nhat"]
+    lech_dai_dien = [m["period"] for m in dkkd["doi_chieu"] if m["trung_khop"] is False]
+    system = ("Chuyên viên phân tích tín dụng. Tóm tắt NGẮN GỌN những thay đổi/điểm cần lưu ý "
+              "bằng tiếng Việt, dạng gạch đầu dòng. Chỉ dùng dữ kiện được cấp, không bịa, "
+              "không lặp lại chi tiết đã có. Tối đa 8 gạch đầu dòng.")
+    user = ("KẾT QUẢ ĐỐI CHIẾU ĐKKD:\n"
+            f"- Ngày lớn nhất file: {n['max_file']} | bảng: {n['max_bang']} | "
+            f"{'khớp' if n['trung_khop'] else 'lệch' if n['trung_khop'] is False else 'không đủ dữ liệu'}\n"
+            f"- Các kỳ lệch tên đại diện: {lech_dai_dien or 'không có'}\n\n"
+            f"SO SÁNH QUÁ KHỨ - HIỆN TẠI:\n{sosanh}\n\n"
+            "Hãy liệt kê những thay đổi quan trọng nhất và cảnh báo nếu có.")
+    return call_ai(system, user).strip()
+
+
+summary = tong_ket_thay_doi(dkkd, sosanh)
+md = (f"# Tổng kết thay đổi\n\n*{datetime.now():%Y-%m-%d %H:%M}*\n\n{summary}\n")
+write_file(CONFIG["out_summary_md"], md)
+
+print("Đã xuất tổng kết:", CONFIG["out_summary_md"])
+print("=" * 50)
+print(summary)
