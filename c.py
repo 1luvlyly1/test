@@ -9,7 +9,7 @@
 # MAGIC | 0 | Config + discovery LLM endpoint | Phase 0 |
 # MAGIC | 1 | Ingestion -> Delta Table | Task 1 |
 # MAGIC | 2 | Vector Search Index | Task 2 |
-# MAGIC | 3 | agent.py - assistant + fraud tool | Task 3 + Bonus |
+# MAGIC | 3 | Agent - assistant + fraud tool | Task 3 + Bonus |
 # MAGIC | 4 | MLflow tracking + eval | Task 4 |
 # MAGIC | 5 | Log model + Model Serving | Task 5 |
 # MAGIC | 6 | Fraud test case TX001 | Bonus |
@@ -831,55 +831,22 @@ for use_rr, name, current in [(False, "MIN_SCORE_HYBRID", MIN_SCORE_HYBRID),
 # MAGIC %md
 # MAGIC ## 3. Task 3 - Banking Assistant Agent
 # MAGIC
-# MAGIC agent.py tu chua (chay trong serving env, khong thay bien notebook). Cell sau se assert khong lech config.
+# MAGIC Agent dinh nghia truc tiep bang cell, dung chung hang so voi Config (khong co file rieng nen khong the lech config).
 # MAGIC
 # MAGIC Guard chong ao giac va chong injection:
 # MAGIC 1. Khong hit nao vuot nguong (MIN_SCORE_RERANK neu reranker chay, nguoc lai MIN_SCORE_HYBRID) -> fallback, khong goi LLM.
 # MAGIC 2. System prompt: chi dung context, bat buoc trich dan, context la du lieu khong phai chi thi, cam lo prompt / doi vai / tu van phe duyet.
-# MAGIC 3. Context boc trong delimiter ngau nhien moi request, chunk bi strip the dong context gia.
+# MAGIC 3. Context boc trong delimiter ngau nhien moi request, chunk bi strip the context gia.
 # MAGIC 4. Post-check: doi chieu tung citation voi block that su dua vao prompt; sai hoac thieu -> fallback.
 
 # COMMAND ----------
 
-# DBTITLE 1,Ghi agent.py (duong dan tuyet doi, khong phu thuoc cwd)
-import os
-from pathlib import Path
-
-AGENT_DIR = "/tmp/banking_rag"
-AGENT_PATH = f"{AGENT_DIR}/agent.py"
-os.makedirs(AGENT_DIR, exist_ok=True)
-
-AGENT_CODE = r'''"""Banking Knowledge Assistant - Mosaic AI Agent (models-from-code)."""
+# DBTITLE 1,Prompt + regex guard
 import json
 import re
 import secrets
 import uuid
 from typing import Any, Optional
-
-import mlflow
-from databricks.sdk import WorkspaceClient
-from databricks.vector_search.client import VectorSearchClient
-from mlflow.pyfunc import ChatAgent
-from mlflow.types.agent import ChatAgentMessage, ChatAgentResponse, ChatContext
-
-try:
-    from databricks.vector_search.reranker import DatabricksReranker
-except ImportError:
-    DatabricksReranker = None
-
-VS_ENDPOINT = "banking_vs_endpoint"
-VS_INDEX = "main.banking_rag.banking_documents_index"
-LLM_ENDPOINT = "databricks-claude-sonnet-4-5"
-TOP_K = 5
-USE_RERANKER = True
-RERANK_COLUMNS = ["chunk_content", "section_title"]
-MIN_SCORE_HYBRID = 0.0030
-MIN_SCORE_RERANK = 0.0
-MAX_QUESTION_CHARS = 1000
-FALLBACK_ANSWER = "I cannot find relevant information in the policy documents."
-
-RETRIEVE_COLUMNS = ["chunk_id", "document_name", "section_no", "section_title",
-                    "chunk_content", "parent_section_no", "parent_content"]
 
 SYSTEM_PROMPT = """You are a banking policy assistant for internal bank staff.
 
@@ -901,14 +868,15 @@ RULES:
 
 CITATION_RE = re.compile(r"\[([^\]\n]+?)\s+(?:SECTION|Section|section|\u00a7)\s*([0-9][0-9.]*)\]")
 CONTEXT_TAG_RE = re.compile(r"</?\s*context[^>]*>", re.I)
+TX_ID_RE = re.compile(r"\bTX\d{3,}\b", re.I)
 
 ALLOWED_ACTIONS = ("MONITOR", "REQUEST_EDD", "HOLD_AND_ESCALATE", "FILE_SAR")
 HIGH_RISK_HINTS = ("high-risk", "high risk", "sanctioned", "blacklist")
-TX_ID_RE = re.compile(r"\bTX\d{3,}\b", re.I)
 
+# COMMAND ----------
 
+# DBTITLE 1,Rule engine fraud (cham diem truoc, LLM giai thich sau)
 def assess_transaction_risk(tx: dict) -> dict:
-    """Rule-based truoc, LLM giai thich sau -> diem on dinh giua cac lan chay."""
     rules, score = [], 0
 
     amount = tx.get("amount") or tx.get("Amount") or 0
@@ -940,41 +908,42 @@ def assess_transaction_risk(tx: dict) -> dict:
 
     score = min(score, 100)
     level = "LOW" if score < 40 else ("MEDIUM" if score < 70 else "HIGH")
-    return {
-        "risk_score": score,
-        "risk_level": level,
-        "triggered_rules": rules,
-        "default_action": {"LOW": "MONITOR", "MEDIUM": "REQUEST_EDD",
-                           "HIGH": "HOLD_AND_ESCALATE"}[level],
-    }
+    return {"risk_score": score, "risk_level": level, "triggered_rules": rules,
+            "default_action": {"LOW": "MONITOR", "MEDIUM": "REQUEST_EDD",
+                               "HIGH": "HOLD_AND_ESCALATE"}[level]}
 
 
-def verify_citations(answer: str, blocks: list[dict]):
-    """Doi chieu citation voi block that su dua vao prompt. Cho phep cite muc con
-    cua block (parent 2 -> cite 2.1 hop le)."""
+def verify_citations(answer: str, blocks: list) -> tuple:
+    """Doi chieu citation voi block that su dua vao prompt.
+    Cho phep cite muc con cua block (parent 2 -> cite 2.1 hop le)."""
     valid = {(b["document_name"].strip(), b["section_no"].strip()) for b in blocks}
     found, invalid = [], []
     for doc, sec in CITATION_RE.findall(answer):
         doc, sec = doc.strip(), sec.strip().rstrip(".")
         found.append(f"{doc} {sec}")
-        if not any(doc == vd and (sec == vs or sec.startswith(vs + "."))
-                   for vd, vs in valid):
+        if not any(doc == vd and (sec == vs or sec.startswith(vs + ".")) for vd, vs in valid):
             invalid.append(f"{doc} {sec}")
     return found, invalid
 
+# COMMAND ----------
+
+# DBTITLE 1,Class BankingAssistant
+from mlflow.pyfunc import ChatAgent
+from mlflow.types.agent import ChatAgentMessage, ChatAgentResponse, ChatContext
+
 
 class BankingAssistant(ChatAgent):
+    """Client duoc tao lazy va bi loai khi pickle (__getstate__) de log_model chay duoc
+    ke ca sau khi agent da duoc goi thu trong notebook."""
+
     def __init__(self):
         self._index = None
         self._llm = None
         self._llm_failed = False
         self._w = None
 
-    @property
-    def index(self):
-        if self._index is None:
-            self._index = VectorSearchClient(disable_notice=True).get_index(VS_ENDPOINT, VS_INDEX)
-        return self._index
+    def __getstate__(self):
+        return {"_index": None, "_llm": None, "_llm_failed": False, "_w": None}
 
     @property
     def workspace(self):
@@ -983,9 +952,15 @@ class BankingAssistant(ChatAgent):
         return self._w
 
     @property
+    def vs_index(self):
+        if self._index is None:
+            self._index = VectorSearchClient(disable_notice=True).get_index(VS_ENDPOINT, VS_INDEX)
+        return self._index
+
+    @property
     def llm(self):
-        """OpenAI-compatible client cua Databricks (Claude cung dung chuan nay).
-        Tra None neu moi truong khong co package openai -> call_llm dung SDK."""
+        """Client OpenAI-compatible cua Databricks (Claude cung dung chuan nay).
+        None neu moi truong khong co package openai -> call_llm quay ve databricks-sdk."""
         if self._llm is None and not self._llm_failed:
             try:
                 self._llm = self.workspace.serving_endpoints.get_open_ai_client()
@@ -994,16 +969,14 @@ class BankingAssistant(ChatAgent):
         return self._llm
 
     @mlflow.trace(span_type="RETRIEVER")
-    def retrieve(self, query: str, k: int = TOP_K, use_reranker: bool = USE_RERANKER) -> list[dict]:
+    def retrieve(self, query: str, k: int = TOP_K, use_reranker: bool = USE_RERANKER) -> list:
         kwargs = dict(query_text=query, columns=RETRIEVE_COLUMNS,
                       num_results=k, query_type="HYBRID")
         if use_reranker:
-            if DatabricksReranker is None:
-                raise RuntimeError("databricks-vectorsearch khong co DatabricksReranker")
             kwargs["reranker"] = DatabricksReranker(columns_to_rerank=RERANK_COLUMNS)
             kwargs["debug_level"] = 1
 
-        res = self.index.similarity_search(**kwargs)
+        res = self.vs_index.similarity_search(**kwargs)
         reranked = use_reranker and not (res.get("debug_info") or {}).get("warnings")
 
         cols = [c["name"] for c in res["manifest"]["columns"]]
@@ -1016,20 +989,16 @@ class BankingAssistant(ChatAgent):
         return hits
 
     @mlflow.trace(span_type="PARSER")
-    def expand_parents(self, hits: list[dict]) -> list[dict]:
-        groups: dict = {}
+    def expand_parents(self, hits: list) -> list:
+        groups = {}
         for h in hits:
             key = (h["document_name"], h.get("parent_section_no") or h["section_no"])
             g = groups.get(key)
             if g is None:
-                groups[key] = {
-                    "document_name": h["document_name"],
-                    "section_no": key[1],
-                    "section_title": h["section_title"],
-                    "content": h.get("parent_content") or h["chunk_content"],
-                    "score": h["score"],
-                    "chunk_ids": [h["chunk_id"]],
-                }
+                groups[key] = {"document_name": h["document_name"], "section_no": key[1],
+                               "section_title": h["section_title"],
+                               "content": h.get("parent_content") or h["chunk_content"],
+                               "score": h["score"], "chunk_ids": [h["chunk_id"]]}
             else:
                 g["score"] = max(g["score"], h["score"])
                 g["chunk_ids"].append(h["chunk_id"])
@@ -1042,9 +1011,7 @@ class BankingAssistant(ChatAgent):
                 model=LLM_ENDPOINT,
                 messages=[{"role": "system", "content": system},
                           {"role": "user", "content": user}],
-                temperature=0,
-                max_tokens=max_tokens,
-            )
+                temperature=0, max_tokens=max_tokens)
             return (resp.choices[0].message.content or "").strip()
 
         from databricks.sdk.service.serving import ChatMessage, ChatMessageRole
@@ -1052,16 +1019,13 @@ class BankingAssistant(ChatAgent):
             name=LLM_ENDPOINT,
             messages=[ChatMessage(role=ChatMessageRole.SYSTEM, content=system),
                       ChatMessage(role=ChatMessageRole.USER, content=user)],
-            temperature=0,
-            max_tokens=max_tokens,
-        )
+            temperature=0, max_tokens=max_tokens)
         return (resp.choices[0].message.content or "").strip()
 
     @mlflow.trace(span_type="CHAIN")
     def answer_policy_question(self, question: str, use_reranker: bool = USE_RERANKER) -> dict:
         question = (question or "")[:MAX_QUESTION_CHARS]
         hits = self.retrieve(question, use_reranker=use_reranker)
-        # reranker fallback -> diem ve thang hybrid -> dung nguong hybrid
         reranked = bool(hits) and hits[0]["reranked"]
         threshold = MIN_SCORE_RERANK if reranked else MIN_SCORE_HYBRID
         kept = [h for h in hits if h["score"] >= threshold]
@@ -1082,9 +1046,7 @@ class BankingAssistant(ChatAgent):
         tag = secrets.token_hex(4)
         body = "\n\n".join(
             f"[{b['document_name']} SECTION {b['section_no']}] {b['section_title']}\n"
-            f"{CONTEXT_TAG_RE.sub(' ', b['content'])}"
-            for b in blocks
-        )
+            f"{CONTEXT_TAG_RE.sub(' ', b['content'])}" for b in blocks)
         user = (f"<context_{tag}>\n{body}\n</context_{tag}>\n\n"
                 f"Question: {CONTEXT_TAG_RE.sub(' ', question)}")
 
@@ -1113,12 +1075,11 @@ class BankingAssistant(ChatAgent):
             "Write reason as 2-4 sentences explaining the triggered rules to an analyst.\n"
             f"recommended_action must be exactly one of: {', '.join(ALLOWED_ACTIONS)}.\n"
             'Reply with ONE JSON object {"risk_score": int, "risk_level": str, "reason": str, '
-            '"recommended_action": str, "triggered_rules": [str]} and nothing else.'
-        )
+            '"recommended_action": str, "triggered_rules": [str]} and nothing else.')
         user = (f"Transaction:\n{json.dumps(tx, ensure_ascii=False, indent=2)}\n\n"
                 f"Rule engine output:\n{json.dumps(rule, ensure_ascii=False, indent=2)}")
 
-        for _ in range(2):                               # parse fail -> retry 1 lan
+        for _ in range(2):                       # parse fail -> retry 1 lan
             raw = self.call_llm(system, user, max_tokens=600)
             cleaned = re.sub(r"^```(?:json)?|```$", "", raw.strip(), flags=re.M).strip()
             try:
@@ -1126,28 +1087,19 @@ class BankingAssistant(ChatAgent):
             except Exception:
                 continue
             action = str(out.get("recommended_action", "")).upper()
-            return {
-                "risk_score": rule["risk_score"],        # luon lay tu rule engine
-                "risk_level": rule["risk_level"],
-                "reason": str(out.get("reason", "")) or "; ".join(rule["triggered_rules"]),
-                "recommended_action": action if action in ALLOWED_ACTIONS else rule["default_action"],
-                "triggered_rules": rule["triggered_rules"],
-            }
+            return {"risk_score": rule["risk_score"],          # luon lay tu rule engine
+                    "risk_level": rule["risk_level"],
+                    "reason": str(out.get("reason", "")) or "; ".join(rule["triggered_rules"]),
+                    "recommended_action": action if action in ALLOWED_ACTIONS else rule["default_action"],
+                    "triggered_rules": rule["triggered_rules"]}
 
-        return {
-            "risk_score": rule["risk_score"],
-            "risk_level": rule["risk_level"],
-            "reason": "Rule-based only: " + "; ".join(rule["triggered_rules"]),
-            "recommended_action": rule["default_action"],
-            "triggered_rules": rule["triggered_rules"],
-        }
+        return {"risk_score": rule["risk_score"], "risk_level": rule["risk_level"],
+                "reason": "Rule-based only: " + "; ".join(rule["triggered_rules"]),
+                "recommended_action": rule["default_action"],
+                "triggered_rules": rule["triggered_rules"]}
 
-    def predict(
-        self,
-        messages: list[ChatAgentMessage],
-        context: Optional[ChatContext] = None,
-        custom_inputs: Optional[dict[str, Any]] = None,
-    ) -> ChatAgentResponse:
+    def predict(self, messages: list, context: Optional[ChatContext] = None,
+                custom_inputs: Optional[dict] = None) -> ChatAgentResponse:
         question = next((m.content or "" for m in reversed(messages) if m.role == "user"), "")
         custom_inputs = custom_inputs or {}
         tx = custom_inputs.get("transaction")
@@ -1161,8 +1113,7 @@ class BankingAssistant(ChatAgent):
                     f"Recommended Action: {r['recommended_action']}")
             return ChatAgentResponse(
                 messages=[ChatAgentMessage(role="assistant", content=text, id=str(uuid.uuid4()))],
-                custom_outputs={"mode": "fraud", **r},
-            )
+                custom_outputs={"mode": "fraud", **r})
 
         use_reranker = bool(custom_inputs.get("use_reranker", USE_RERANKER))
         r = self.answer_policy_question(question, use_reranker=use_reranker)
@@ -1171,53 +1122,15 @@ class BankingAssistant(ChatAgent):
             custom_outputs={"mode": "rag", "guard": r["guard"], "reranked": r["reranked"],
                             "citations": r["citations"],
                             "invalid_citations": r["invalid_citations"],
-                            "retrieved_chunks": r["retrieved_chunks"]},
-        )
+                            "retrieved_chunks": r["retrieved_chunks"]})
 
 
 AGENT = BankingAssistant()
-mlflow.models.set_model(AGENT)'''
-
-Path(AGENT_PATH).write_text(AGENT_CODE)
-print(f"{AGENT_PATH}  ({len(AGENT_CODE.splitlines())} dong)")
-
-# COMMAND ----------
-
-# DBTITLE 1,Assert agent.py khong lech config
-import ast
-
-agent_src = Path(AGENT_PATH).read_text()
-expected = {
-    "VS_ENDPOINT": VS_ENDPOINT, "VS_INDEX": VS_INDEX, "LLM_ENDPOINT": LLM_ENDPOINT,
-    "TOP_K": TOP_K, "USE_RERANKER": USE_RERANKER, "RERANK_COLUMNS": RERANK_COLUMNS,
-    "MIN_SCORE_HYBRID": MIN_SCORE_HYBRID, "MIN_SCORE_RERANK": MIN_SCORE_RERANK,
-    "MAX_QUESTION_CHARS": MAX_QUESTION_CHARS, "FALLBACK_ANSWER": FALLBACK_ANSWER,
-}
-drift = []
-for name, val in expected.items():
-    m = re.search(rf"^{name} = (.+)$", agent_src, re.M)
-    got = ast.literal_eval(m.group(1)) if m else "<khong co>"
-    if got != val:                          # so sanh gia tri, 0.0030 == 0.003
-        drift.append(f"{name}: agent.py={got!r} notebook={val!r}")
-
-assert not drift, "Config drift - sua trong cell %%writefile roi chay lai:\n" + "\n".join(drift)
-print("[OK] agent.py khop config")
+print("AGENT san sang")
 
 # COMMAND ----------
 
 # DBTITLE 1,Test local - cau trong pham vi
-import importlib
-import sys
-
-import mlflow
-from mlflow.types.agent import ChatAgentMessage
-
-if AGENT_DIR not in sys.path:
-    sys.path.insert(0, AGENT_DIR)
-import agent as agent_module
-importlib.reload(agent_module)          # nap lai sau moi lan sua cell ghi agent.py
-AGENT = agent_module.AGENT
-
 mlflow.openai.autolog()
 
 
@@ -1399,7 +1312,7 @@ mlflow.set_registry_uri("databricks-uc")
 
 with mlflow.start_run(run_name="log_banking_assistant"):
     logged = mlflow.pyfunc.log_model(
-        python_model=AGENT_PATH,
+        python_model=AGENT,
         name="agent",
         resources=[
             DatabricksVectorSearchIndex(index_name=VS_INDEX),
@@ -1644,7 +1557,6 @@ print(f"6. Registered Model  : {host}/explore/data/models/{REGISTERED_MODEL.repl
 # MAGIC - EVAL_IN_SCOPE da sua cho khop tai lieu that (5 cau cuoi la placeholder).
 # MAGIC - BUDGET_POLICY_ID da dien, endpoint va index deu hien dung policy do (cell Chan doan).
 # MAGIC - Khong co token hardcode trong notebook.
-# MAGIC - Cell assert agent.py pass.
 
 # COMMAND ----------
 
