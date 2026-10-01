@@ -1,0 +1,1265 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cheatsheet LangChain · LangGraph · Guardrails</title>
+<style>
+:root{--bg:#fbfaf7;--card:#ffffff;--ink:#1d1d1b;--muted:#6b6a65;--line:#e6e3dc;--axis:#9a978e;--tint:#efece5;
+--accent:#2f6fd6;--accent-bg:rgba(47,111,214,.12);--code-bg:#f4f2ec;--inline:#ece9e1;--row:#f8f7f3}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#18181a;--card:#1f1f22;--ink:#ecebe7;--muted:#a3a19b;--line:#33332f;--axis:#7d7b74;--tint:#2a2a2d;
+--accent:#6aa0ff;--accent-bg:rgba(106,160,255,.16);--code-bg:#141416;--inline:#2c2c30;--row:#232326}}
+:root[data-theme="dark"]{--bg:#18181a;--card:#1f1f22;--ink:#ecebe7;--muted:#a3a19b;--line:#33332f;--axis:#7d7b74;--tint:#2a2a2d;
+--accent:#6aa0ff;--accent-bg:rgba(106,160,255,.16);--code-bg:#141416;--inline:#2c2c30;--row:#232326}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:16px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+.layout{display:grid;grid-template-columns:260px minmax(0,1fr);max-width:1240px;margin:0 auto}
+nav{position:sticky;top:0;height:100vh;overflow:auto;padding:28px 20px;border-right:1px solid var(--line)}
+nav .brand{font-weight:700;font-size:15px;margin-bottom:4px}
+nav .sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+nav ul{list-style:none;padding:0;margin:0}
+nav li a{display:block;padding:6px 10px;border-radius:6px;color:var(--muted);text-decoration:none;font-size:14px}
+nav li a:hover,nav li a.on{background:var(--accent-bg);color:var(--ink)}
+.tools{margin-top:18px;display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+button:hover{border-color:var(--axis)}
+main{padding:32px 48px 80px;min-width:0}
+header h1{font-size:30px;line-height:1.25;margin:0 0 6px}
+header p{color:var(--muted);margin:0 0 28px}
+h2{font-size:22px;margin:48px 0 12px;padding-top:12px;border-top:1px solid var(--line)}
+h3{font-size:17px;margin:28px 0 8px}
+p,ul,ol{margin:10px 0}
+li{margin:3px 0}
+a{color:var(--accent)}
+code{font-family:"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;font-size:.86em}
+:not(pre)>code{background:var(--inline);padding:1px 5px;border-radius:4px}
+.hl{background:var(--code-bg)!important;border:1px solid var(--line);border-radius:8px;margin:12px 0;position:relative}
+.hl pre{margin:0;padding:14px 16px;overflow-x:auto;line-height:1.5;background:transparent!important}
+.hl pre span{background:transparent!important}
+pre:not(.hl pre){background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto}
+.copy{position:absolute;top:8px;right:8px;opacity:0;transition:opacity .15s;font-size:12px;padding:3px 8px}
+.hl:hover .copy,.copy:focus{opacity:1}
+.tw{overflow-x:auto;margin:12px 0;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{padding:8px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+th{background:var(--tint);font-weight:600}
+tr:last-child td{border-bottom:0}
+tbody tr:nth-child(even){background:var(--row)}
+.diagram{margin:16px 0;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+.diagram svg{width:100%;height:auto;display:block}
+.diagram figcaption{color:var(--muted);font-size:13px;text-align:center;padding:4px 0 6px}
+.quiz details{border:1px solid var(--line);border-radius:8px;background:var(--card);margin:8px 0;padding:0 14px}
+.quiz summary{cursor:pointer;padding:10px 0;font-weight:500;list-style:none;display:flex;gap:10px}
+.quiz summary::-webkit-details-marker{display:none}
+.quiz .qn{flex:none;width:24px;height:24px;border-radius:50%;background:var(--accent-bg);color:var(--accent);font-size:13px;display:grid;place-items:center;font-weight:700}
+.quiz details[open] summary{border-bottom:1px dashed var(--line)}
+.quiz details p{margin:10px 0 12px 34px}
+pre { line-height: 125%; }
+td.linenos .normal { color: #666666; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #666666; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.hl .hll { background-color: #ffffcc }
+.hl { background: #f0f0f0; }
+.hl .c { color: #60A0B0; font-style: italic } /* Comment */
+.hl .err { border: 1px solid #F00 } /* Error */
+.hl .k { color: #007020; font-weight: bold } /* Keyword */
+.hl .o { color: #666 } /* Operator */
+.hl .ch { color: #60A0B0; font-style: italic } /* Comment.Hashbang */
+.hl .cm { color: #60A0B0; font-style: italic } /* Comment.Multiline */
+.hl .cp { color: #007020 } /* Comment.Preproc */
+.hl .cpf { color: #60A0B0; font-style: italic } /* Comment.PreprocFile */
+.hl .c1 { color: #60A0B0; font-style: italic } /* Comment.Single */
+.hl .cs { color: #60A0B0; background-color: #FFF0F0 } /* Comment.Special */
+.hl .gd { color: #A00000 } /* Generic.Deleted */
+.hl .ge { font-style: italic } /* Generic.Emph */
+.hl .ges { font-weight: bold; font-style: italic } /* Generic.EmphStrong */
+.hl .gr { color: #F00 } /* Generic.Error */
+.hl .gh { color: #000080; font-weight: bold } /* Generic.Heading */
+.hl .gi { color: #00A000 } /* Generic.Inserted */
+.hl .go { color: #888 } /* Generic.Output */
+.hl .gp { color: #C65D09; font-weight: bold } /* Generic.Prompt */
+.hl .gs { font-weight: bold } /* Generic.Strong */
+.hl .gu { color: #800080; font-weight: bold } /* Generic.Subheading */
+.hl .gt { color: #04D } /* Generic.Traceback */
+.hl .kc { color: #007020; font-weight: bold } /* Keyword.Constant */
+.hl .kd { color: #007020; font-weight: bold } /* Keyword.Declaration */
+.hl .kn { color: #007020; font-weight: bold } /* Keyword.Namespace */
+.hl .kp { color: #007020 } /* Keyword.Pseudo */
+.hl .kr { color: #007020; font-weight: bold } /* Keyword.Reserved */
+.hl .kt { color: #902000 } /* Keyword.Type */
+.hl .m { color: #40A070 } /* Literal.Number */
+.hl .s { color: #4070A0 } /* Literal.String */
+.hl .na { color: #4070A0 } /* Name.Attribute */
+.hl .nb { color: #007020 } /* Name.Builtin */
+.hl .nc { color: #0E84B5; font-weight: bold } /* Name.Class */
+.hl .no { color: #60ADD5 } /* Name.Constant */
+.hl .nd { color: #555; font-weight: bold } /* Name.Decorator */
+.hl .ni { color: #D55537; font-weight: bold } /* Name.Entity */
+.hl .ne { color: #007020 } /* Name.Exception */
+.hl .nf { color: #06287E } /* Name.Function */
+.hl .nl { color: #002070; font-weight: bold } /* Name.Label */
+.hl .nn { color: #0E84B5; font-weight: bold } /* Name.Namespace */
+.hl .nt { color: #062873; font-weight: bold } /* Name.Tag */
+.hl .nv { color: #BB60D5 } /* Name.Variable */
+.hl .ow { color: #007020; font-weight: bold } /* Operator.Word */
+.hl .w { color: #BBB } /* Text.Whitespace */
+.hl .mb { color: #40A070 } /* Literal.Number.Bin */
+.hl .mf { color: #40A070 } /* Literal.Number.Float */
+.hl .mh { color: #40A070 } /* Literal.Number.Hex */
+.hl .mi { color: #40A070 } /* Literal.Number.Integer */
+.hl .mo { color: #40A070 } /* Literal.Number.Oct */
+.hl .sa { color: #4070A0 } /* Literal.String.Affix */
+.hl .sb { color: #4070A0 } /* Literal.String.Backtick */
+.hl .sc { color: #4070A0 } /* Literal.String.Char */
+.hl .dl { color: #4070A0 } /* Literal.String.Delimiter */
+.hl .sd { color: #4070A0; font-style: italic } /* Literal.String.Doc */
+.hl .s2 { color: #4070A0 } /* Literal.String.Double */
+.hl .se { color: #4070A0; font-weight: bold } /* Literal.String.Escape */
+.hl .sh { color: #4070A0 } /* Literal.String.Heredoc */
+.hl .si { color: #70A0D0; font-style: italic } /* Literal.String.Interpol */
+.hl .sx { color: #C65D09 } /* Literal.String.Other */
+.hl .sr { color: #235388 } /* Literal.String.Regex */
+.hl .s1 { color: #4070A0 } /* Literal.String.Single */
+.hl .ss { color: #517918 } /* Literal.String.Symbol */
+.hl .bp { color: #007020 } /* Name.Builtin.Pseudo */
+.hl .fm { color: #06287E } /* Name.Function.Magic */
+.hl .vc { color: #BB60D5 } /* Name.Variable.Class */
+.hl .vg { color: #BB60D5 } /* Name.Variable.Global */
+.hl .vi { color: #BB60D5 } /* Name.Variable.Instance */
+.hl .vm { color: #BB60D5 } /* Name.Variable.Magic */
+.hl .il { color: #40A070 } /* Literal.Number.Integer.Long */
+@media (prefers-color-scheme:dark){
+pre { line-height: 125%; }
+td.linenos .normal { color: #6e7681; background-color: #0d1117; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #6e7681; background-color: #0d1117; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #e6edf3; background-color: #6e7681; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #e6edf3; background-color: #6e7681; padding-left: 5px; padding-right: 5px; }
+:root:not([data-theme="light"]) .hl .hll { background-color: #6e7681 }
+:root:not([data-theme="light"]) .hl { background: #0d1117; color: #E6EDF3 }
+:root:not([data-theme="light"]) .hl .c { color: #8B949E; font-style: italic } /* Comment */
+:root:not([data-theme="light"]) .hl .err { color: #F85149 } /* Error */
+:root:not([data-theme="light"]) .hl .esc { color: #E6EDF3 } /* Escape */
+:root:not([data-theme="light"]) .hl .g { color: #E6EDF3 } /* Generic */
+:root:not([data-theme="light"]) .hl .k { color: #FF7B72 } /* Keyword */
+:root:not([data-theme="light"]) .hl .l { color: #A5D6FF } /* Literal */
+:root:not([data-theme="light"]) .hl .n { color: #E6EDF3 } /* Name */
+:root:not([data-theme="light"]) .hl .o { color: #FF7B72; font-weight: bold } /* Operator */
+:root:not([data-theme="light"]) .hl .x { color: #E6EDF3 } /* Other */
+:root:not([data-theme="light"]) .hl .p { color: #E6EDF3 } /* Punctuation */
+:root:not([data-theme="light"]) .hl .ch { color: #8B949E; font-style: italic } /* Comment.Hashbang */
+:root:not([data-theme="light"]) .hl .cm { color: #8B949E; font-style: italic } /* Comment.Multiline */
+:root:not([data-theme="light"]) .hl .cp { color: #8B949E; font-weight: bold; font-style: italic } /* Comment.Preproc */
+:root:not([data-theme="light"]) .hl .cpf { color: #8B949E; font-style: italic } /* Comment.PreprocFile */
+:root:not([data-theme="light"]) .hl .c1 { color: #8B949E; font-style: italic } /* Comment.Single */
+:root:not([data-theme="light"]) .hl .cs { color: #8B949E; font-weight: bold; font-style: italic } /* Comment.Special */
+:root:not([data-theme="light"]) .hl .gd { color: #FFA198; background-color: #490202 } /* Generic.Deleted */
+:root:not([data-theme="light"]) .hl .ge { color: #E6EDF3; font-style: italic } /* Generic.Emph */
+:root:not([data-theme="light"]) .hl .ges { color: #E6EDF3; font-weight: bold; font-style: italic } /* Generic.EmphStrong */
+:root:not([data-theme="light"]) .hl .gr { color: #FFA198 } /* Generic.Error */
+:root:not([data-theme="light"]) .hl .gh { color: #79C0FF; font-weight: bold } /* Generic.Heading */
+:root:not([data-theme="light"]) .hl .gi { color: #56D364; background-color: #0F5323 } /* Generic.Inserted */
+:root:not([data-theme="light"]) .hl .go { color: #8B949E } /* Generic.Output */
+:root:not([data-theme="light"]) .hl .gp { color: #8B949E } /* Generic.Prompt */
+:root:not([data-theme="light"]) .hl .gs { color: #E6EDF3; font-weight: bold } /* Generic.Strong */
+:root:not([data-theme="light"]) .hl .gu { color: #79C0FF } /* Generic.Subheading */
+:root:not([data-theme="light"]) .hl .gt { color: #FF7B72 } /* Generic.Traceback */
+:root:not([data-theme="light"]) .hl .g-Underline { color: #E6EDF3; text-decoration: underline } /* Generic.Underline */
+:root:not([data-theme="light"]) .hl .kc { color: #79C0FF } /* Keyword.Constant */
+:root:not([data-theme="light"]) .hl .kd { color: #FF7B72 } /* Keyword.Declaration */
+:root:not([data-theme="light"]) .hl .kn { color: #FF7B72 } /* Keyword.Namespace */
+:root:not([data-theme="light"]) .hl .kp { color: #79C0FF } /* Keyword.Pseudo */
+:root:not([data-theme="light"]) .hl .kr { color: #FF7B72 } /* Keyword.Reserved */
+:root:not([data-theme="light"]) .hl .kt { color: #FF7B72 } /* Keyword.Type */
+:root:not([data-theme="light"]) .hl .ld { color: #79C0FF } /* Literal.Date */
+:root:not([data-theme="light"]) .hl .m { color: #A5D6FF } /* Literal.Number */
+:root:not([data-theme="light"]) .hl .s { color: #A5D6FF } /* Literal.String */
+:root:not([data-theme="light"]) .hl .na { color: #E6EDF3 } /* Name.Attribute */
+:root:not([data-theme="light"]) .hl .nb { color: #E6EDF3 } /* Name.Builtin */
+:root:not([data-theme="light"]) .hl .nc { color: #F0883E; font-weight: bold } /* Name.Class */
+:root:not([data-theme="light"]) .hl .no { color: #79C0FF; font-weight: bold } /* Name.Constant */
+:root:not([data-theme="light"]) .hl .nd { color: #D2A8FF; font-weight: bold } /* Name.Decorator */
+:root:not([data-theme="light"]) .hl .ni { color: #FFA657 } /* Name.Entity */
+:root:not([data-theme="light"]) .hl .ne { color: #F0883E; font-weight: bold } /* Name.Exception */
+:root:not([data-theme="light"]) .hl .nf { color: #D2A8FF; font-weight: bold } /* Name.Function */
+:root:not([data-theme="light"]) .hl .nl { color: #79C0FF; font-weight: bold } /* Name.Label */
+:root:not([data-theme="light"]) .hl .nn { color: #FF7B72 } /* Name.Namespace */
+:root:not([data-theme="light"]) .hl .nx { color: #E6EDF3 } /* Name.Other */
+:root:not([data-theme="light"]) .hl .py { color: #79C0FF } /* Name.Property */
+:root:not([data-theme="light"]) .hl .nt { color: #7EE787 } /* Name.Tag */
+:root:not([data-theme="light"]) .hl .nv { color: #79C0FF } /* Name.Variable */
+:root:not([data-theme="light"]) .hl .ow { color: #FF7B72; font-weight: bold } /* Operator.Word */
+:root:not([data-theme="light"]) .hl .pm { color: #E6EDF3 } /* Punctuation.Marker */
+:root:not([data-theme="light"]) .hl .w { color: #6E7681 } /* Text.Whitespace */
+:root:not([data-theme="light"]) .hl .mb { color: #A5D6FF } /* Literal.Number.Bin */
+:root:not([data-theme="light"]) .hl .mf { color: #A5D6FF } /* Literal.Number.Float */
+:root:not([data-theme="light"]) .hl .mh { color: #A5D6FF } /* Literal.Number.Hex */
+:root:not([data-theme="light"]) .hl .mi { color: #A5D6FF } /* Literal.Number.Integer */
+:root:not([data-theme="light"]) .hl .mo { color: #A5D6FF } /* Literal.Number.Oct */
+:root:not([data-theme="light"]) .hl .sa { color: #79C0FF } /* Literal.String.Affix */
+:root:not([data-theme="light"]) .hl .sb { color: #A5D6FF } /* Literal.String.Backtick */
+:root:not([data-theme="light"]) .hl .sc { color: #A5D6FF } /* Literal.String.Char */
+:root:not([data-theme="light"]) .hl .dl { color: #79C0FF } /* Literal.String.Delimiter */
+:root:not([data-theme="light"]) .hl .sd { color: #A5D6FF } /* Literal.String.Doc */
+:root:not([data-theme="light"]) .hl .s2 { color: #A5D6FF } /* Literal.String.Double */
+:root:not([data-theme="light"]) .hl .se { color: #79C0FF } /* Literal.String.Escape */
+:root:not([data-theme="light"]) .hl .sh { color: #79C0FF } /* Literal.String.Heredoc */
+:root:not([data-theme="light"]) .hl .si { color: #A5D6FF } /* Literal.String.Interpol */
+:root:not([data-theme="light"]) .hl .sx { color: #A5D6FF } /* Literal.String.Other */
+:root:not([data-theme="light"]) .hl .sr { color: #79C0FF } /* Literal.String.Regex */
+:root:not([data-theme="light"]) .hl .s1 { color: #A5D6FF } /* Literal.String.Single */
+:root:not([data-theme="light"]) .hl .ss { color: #A5D6FF } /* Literal.String.Symbol */
+:root:not([data-theme="light"]) .hl .bp { color: #E6EDF3 } /* Name.Builtin.Pseudo */
+:root:not([data-theme="light"]) .hl .fm { color: #D2A8FF; font-weight: bold } /* Name.Function.Magic */
+:root:not([data-theme="light"]) .hl .vc { color: #79C0FF } /* Name.Variable.Class */
+:root:not([data-theme="light"]) .hl .vg { color: #79C0FF } /* Name.Variable.Global */
+:root:not([data-theme="light"]) .hl .vi { color: #79C0FF } /* Name.Variable.Instance */
+:root:not([data-theme="light"]) .hl .vm { color: #79C0FF } /* Name.Variable.Magic */
+:root:not([data-theme="light"]) .hl .il { color: #A5D6FF } /* Literal.Number.Integer.Long */
+}
+pre { line-height: 125%; }
+td.linenos .normal { color: #6e7681; background-color: #0d1117; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: #6e7681; background-color: #0d1117; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #e6edf3; background-color: #6e7681; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #e6edf3; background-color: #6e7681; padding-left: 5px; padding-right: 5px; }
+[data-theme="dark"] .hl .hll { background-color: #6e7681 }
+[data-theme="dark"] .hl { background: #0d1117; color: #E6EDF3 }
+[data-theme="dark"] .hl .c { color: #8B949E; font-style: italic } /* Comment */
+[data-theme="dark"] .hl .err { color: #F85149 } /* Error */
+[data-theme="dark"] .hl .esc { color: #E6EDF3 } /* Escape */
+[data-theme="dark"] .hl .g { color: #E6EDF3 } /* Generic */
+[data-theme="dark"] .hl .k { color: #FF7B72 } /* Keyword */
+[data-theme="dark"] .hl .l { color: #A5D6FF } /* Literal */
+[data-theme="dark"] .hl .n { color: #E6EDF3 } /* Name */
+[data-theme="dark"] .hl .o { color: #FF7B72; font-weight: bold } /* Operator */
+[data-theme="dark"] .hl .x { color: #E6EDF3 } /* Other */
+[data-theme="dark"] .hl .p { color: #E6EDF3 } /* Punctuation */
+[data-theme="dark"] .hl .ch { color: #8B949E; font-style: italic } /* Comment.Hashbang */
+[data-theme="dark"] .hl .cm { color: #8B949E; font-style: italic } /* Comment.Multiline */
+[data-theme="dark"] .hl .cp { color: #8B949E; font-weight: bold; font-style: italic } /* Comment.Preproc */
+[data-theme="dark"] .hl .cpf { color: #8B949E; font-style: italic } /* Comment.PreprocFile */
+[data-theme="dark"] .hl .c1 { color: #8B949E; font-style: italic } /* Comment.Single */
+[data-theme="dark"] .hl .cs { color: #8B949E; font-weight: bold; font-style: italic } /* Comment.Special */
+[data-theme="dark"] .hl .gd { color: #FFA198; background-color: #490202 } /* Generic.Deleted */
+[data-theme="dark"] .hl .ge { color: #E6EDF3; font-style: italic } /* Generic.Emph */
+[data-theme="dark"] .hl .ges { color: #E6EDF3; font-weight: bold; font-style: italic } /* Generic.EmphStrong */
+[data-theme="dark"] .hl .gr { color: #FFA198 } /* Generic.Error */
+[data-theme="dark"] .hl .gh { color: #79C0FF; font-weight: bold } /* Generic.Heading */
+[data-theme="dark"] .hl .gi { color: #56D364; background-color: #0F5323 } /* Generic.Inserted */
+[data-theme="dark"] .hl .go { color: #8B949E } /* Generic.Output */
+[data-theme="dark"] .hl .gp { color: #8B949E } /* Generic.Prompt */
+[data-theme="dark"] .hl .gs { color: #E6EDF3; font-weight: bold } /* Generic.Strong */
+[data-theme="dark"] .hl .gu { color: #79C0FF } /* Generic.Subheading */
+[data-theme="dark"] .hl .gt { color: #FF7B72 } /* Generic.Traceback */
+[data-theme="dark"] .hl .g-Underline { color: #E6EDF3; text-decoration: underline } /* Generic.Underline */
+[data-theme="dark"] .hl .kc { color: #79C0FF } /* Keyword.Constant */
+[data-theme="dark"] .hl .kd { color: #FF7B72 } /* Keyword.Declaration */
+[data-theme="dark"] .hl .kn { color: #FF7B72 } /* Keyword.Namespace */
+[data-theme="dark"] .hl .kp { color: #79C0FF } /* Keyword.Pseudo */
+[data-theme="dark"] .hl .kr { color: #FF7B72 } /* Keyword.Reserved */
+[data-theme="dark"] .hl .kt { color: #FF7B72 } /* Keyword.Type */
+[data-theme="dark"] .hl .ld { color: #79C0FF } /* Literal.Date */
+[data-theme="dark"] .hl .m { color: #A5D6FF } /* Literal.Number */
+[data-theme="dark"] .hl .s { color: #A5D6FF } /* Literal.String */
+[data-theme="dark"] .hl .na { color: #E6EDF3 } /* Name.Attribute */
+[data-theme="dark"] .hl .nb { color: #E6EDF3 } /* Name.Builtin */
+[data-theme="dark"] .hl .nc { color: #F0883E; font-weight: bold } /* Name.Class */
+[data-theme="dark"] .hl .no { color: #79C0FF; font-weight: bold } /* Name.Constant */
+[data-theme="dark"] .hl .nd { color: #D2A8FF; font-weight: bold } /* Name.Decorator */
+[data-theme="dark"] .hl .ni { color: #FFA657 } /* Name.Entity */
+[data-theme="dark"] .hl .ne { color: #F0883E; font-weight: bold } /* Name.Exception */
+[data-theme="dark"] .hl .nf { color: #D2A8FF; font-weight: bold } /* Name.Function */
+[data-theme="dark"] .hl .nl { color: #79C0FF; font-weight: bold } /* Name.Label */
+[data-theme="dark"] .hl .nn { color: #FF7B72 } /* Name.Namespace */
+[data-theme="dark"] .hl .nx { color: #E6EDF3 } /* Name.Other */
+[data-theme="dark"] .hl .py { color: #79C0FF } /* Name.Property */
+[data-theme="dark"] .hl .nt { color: #7EE787 } /* Name.Tag */
+[data-theme="dark"] .hl .nv { color: #79C0FF } /* Name.Variable */
+[data-theme="dark"] .hl .ow { color: #FF7B72; font-weight: bold } /* Operator.Word */
+[data-theme="dark"] .hl .pm { color: #E6EDF3 } /* Punctuation.Marker */
+[data-theme="dark"] .hl .w { color: #6E7681 } /* Text.Whitespace */
+[data-theme="dark"] .hl .mb { color: #A5D6FF } /* Literal.Number.Bin */
+[data-theme="dark"] .hl .mf { color: #A5D6FF } /* Literal.Number.Float */
+[data-theme="dark"] .hl .mh { color: #A5D6FF } /* Literal.Number.Hex */
+[data-theme="dark"] .hl .mi { color: #A5D6FF } /* Literal.Number.Integer */
+[data-theme="dark"] .hl .mo { color: #A5D6FF } /* Literal.Number.Oct */
+[data-theme="dark"] .hl .sa { color: #79C0FF } /* Literal.String.Affix */
+[data-theme="dark"] .hl .sb { color: #A5D6FF } /* Literal.String.Backtick */
+[data-theme="dark"] .hl .sc { color: #A5D6FF } /* Literal.String.Char */
+[data-theme="dark"] .hl .dl { color: #79C0FF } /* Literal.String.Delimiter */
+[data-theme="dark"] .hl .sd { color: #A5D6FF } /* Literal.String.Doc */
+[data-theme="dark"] .hl .s2 { color: #A5D6FF } /* Literal.String.Double */
+[data-theme="dark"] .hl .se { color: #79C0FF } /* Literal.String.Escape */
+[data-theme="dark"] .hl .sh { color: #79C0FF } /* Literal.String.Heredoc */
+[data-theme="dark"] .hl .si { color: #A5D6FF } /* Literal.String.Interpol */
+[data-theme="dark"] .hl .sx { color: #A5D6FF } /* Literal.String.Other */
+[data-theme="dark"] .hl .sr { color: #79C0FF } /* Literal.String.Regex */
+[data-theme="dark"] .hl .s1 { color: #A5D6FF } /* Literal.String.Single */
+[data-theme="dark"] .hl .ss { color: #A5D6FF } /* Literal.String.Symbol */
+[data-theme="dark"] .hl .bp { color: #E6EDF3 } /* Name.Builtin.Pseudo */
+[data-theme="dark"] .hl .fm { color: #D2A8FF; font-weight: bold } /* Name.Function.Magic */
+[data-theme="dark"] .hl .vc { color: #79C0FF } /* Name.Variable.Class */
+[data-theme="dark"] .hl .vg { color: #79C0FF } /* Name.Variable.Global */
+[data-theme="dark"] .hl .vi { color: #79C0FF } /* Name.Variable.Instance */
+[data-theme="dark"] .hl .vm { color: #79C0FF } /* Name.Variable.Magic */
+[data-theme="dark"] .hl .il { color: #A5D6FF } /* Literal.Number.Integer.Long */
+@media (max-width:900px){.layout{display:block}nav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:16px}main{padding:20px 16px 60px}header h1{font-size:24px}}
+@media print{nav{display:none}.layout{display:block}main{padding:0}.copy{display:none}.quiz details{break-inside:avoid}h2{break-before:auto}}
+</style></head>
+<body><div class="layout">
+<nav><div class="brand">Cheatsheet</div><div class="sub">LangChain · LangGraph · Guardrails</div>
+
+<ul>
+<li><a href="#1-tong-quan-ai-lam-gi">1. Tổng quan: ai làm gì</a></li>
+<li><a href="#2-langchain-core">2. LangChain core</a></li>
+<li><a href="#3-langchain-agents-create_agent-middleware">3. LangChain agents (create_agent + middleware)</a></li>
+<li><a href="#4-rag-trong-langchain">4. RAG trong LangChain</a></li>
+<li><a href="#5-langgraph-state-node-edge">5. LangGraph: State, Node, Edge</a></li>
+<li><a href="#6-langgraph-persistence-human-in-the-loop-multi-agent">6. LangGraph: persistence, human-in-the-loop, multi-agent</a></li>
+<li><a href="#7-guardrails-khai-niem">7. Guardrails: khái niệm</a></li>
+<li><a href="#8-guardrails-trien-khai">8. Guardrails: triển khai</a></li>
+<li><a href="#9-bay-hay-gap-on-tap-nhanh">9. Bẫy hay gặp &amp; ôn tập nhanh</a></li>
+</ul>
+
+<div class="tools"><button id="theme">Đổi giao diện sáng/tối</button><button id="ans">Mở tất cả đáp án</button></div></nav>
+<main><header><h1>Cheatsheet LangChain · LangGraph · Guardrails</h1><p>Cập nhật 01/10/2026 · LangChain/LangGraph 1.x</p></header>
+<h2 id="1-tong-quan-ai-lam-gi">1. Tổng quan: ai làm gì</h2>
+<p>LangChain dựng app/agent nhanh; LangGraph điều phối luồng có trạng thái; Guardrails chặn input/output không an toàn. Từ bản 1.0 (10/2025), agent của LangChain chạy trên nền LangGraph.</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Thành phần</th>
+<th>Vai trò</th>
+<th>Từ khóa phải nhớ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>langchain-core</td>
+<td>Abstraction chung: Runnable, messages, prompts, tools</td>
+<td><code>Runnable</code>, <code>invoke</code>, toán tử pipe</td>
+</tr>
+<tr>
+<td>langchain (1.x)</td>
+<td>API cấp cao để dựng agent</td>
+<td><code>create_agent</code>, <code>init_chat_model</code>, middleware</td>
+</tr>
+<tr>
+<td>langchain-classic</td>
+<td>Code cũ (0.x) chuyển sang đây</td>
+<td><code>LLMChain</code>, <code>RetrievalQA</code>, memory cũ</td>
+</tr>
+<tr>
+<td>langchain-openai, -anthropic…</td>
+<td>Package tích hợp theo nhà cung cấp</td>
+<td><code>ChatOpenAI</code>, <code>ChatAnthropic</code></td>
+</tr>
+<tr>
+<td>langgraph</td>
+<td>Runtime đồ thị có state, bền vững</td>
+<td><code>StateGraph</code>, checkpointer, <code>interrupt</code></td>
+</tr>
+<tr>
+<td>LangSmith</td>
+<td>Tracing, đánh giá, monitor</td>
+<td><code>LANGSMITH_TRACING=true</code></td>
+</tr>
+<tr>
+<td>Guardrails</td>
+<td>Kiểm soát an toàn input/output/tool</td>
+<td>PII, prompt injection, HITL</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>Dùng LangChain khi cần agent chuẩn (vòng lặp model ↔ tool) nhanh, ít code.</li>
+<li>Dùng LangGraph khi cần kiểm soát luồng: rẽ nhánh, vòng lặp tùy biến, nhiều agent, tạm dừng chờ người duyệt.</li>
+<li><code>create_react_agent</code> (langgraph.prebuilt) bị thay bằng <code>langchain.agents.create_agent</code> ở bản 1.0.</li>
+</ul>
+<h2 id="2-langchain-core">2. LangChain core</h2>
+<p>Mọi thành phần (model, prompt, parser, retriever, chain) đều là Runnable, nên ghép được bằng toán tử <code>|</code> (LCEL).</p>
+<h3 id="model-messages">Model &amp; messages</h3>
+<div class="hl"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.chat_models</span><span class="w"> </span><span class="kn">import</span> <span class="n">init_chat_model</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">init_chat_model</span><span class="p">(</span><span class="s2">&quot;openai:gpt-4o&quot;</span><span class="p">,</span> <span class="n">temperature</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># &quot;provider:model&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain.messages</span><span class="w"> </span><span class="kn">import</span> <span class="n">SystemMessage</span><span class="p">,</span> <span class="n">HumanMessage</span><span class="p">,</span> <span class="n">AIMessage</span><span class="p">,</span> <span class="n">ToolMessage</span>
+<span class="n">model</span><span class="o">.</span><span class="n">invoke</span><span class="p">([</span><span class="n">SystemMessage</span><span class="p">(</span><span class="s2">&quot;Bạn là trợ lý&quot;</span><span class="p">),</span> <span class="n">HumanMessage</span><span class="p">(</span><span class="s2">&quot;Xin chào&quot;</span><span class="p">)])</span>
+<span class="c1"># hoặc dạng dict: [{&quot;role&quot;: &quot;user&quot;, &quot;content&quot;: &quot;Xin chào&quot;}]</span>
+</code></pre></div>
+
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Message</th>
+<th>Vai trò (role)</th>
+<th>Ghi chú</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SystemMessage</code></td>
+<td>system</td>
+<td>Chỉ dẫn hành vi cho model</td>
+</tr>
+<tr>
+<td><code>HumanMessage</code></td>
+<td>user</td>
+<td>Input người dùng</td>
+</tr>
+<tr>
+<td><code>AIMessage</code></td>
+<td>assistant</td>
+<td>Có <code>.content</code>, <code>.tool_calls</code>, <code>.usage_metadata</code></td>
+</tr>
+<tr>
+<td><code>ToolMessage</code></td>
+<td>tool</td>
+<td>Kết quả tool, bắt buộc có <code>tool_call_id</code></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="runnable-interface-lcel">Runnable interface (LCEL)</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Phương thức</th>
+<th>Dùng khi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>invoke(x)</code> / <code>ainvoke</code></td>
+<td>1 input → 1 output</td>
+</tr>
+<tr>
+<td><code>batch([x1, x2])</code> / <code>abatch</code></td>
+<td>Nhiều input song song</td>
+</tr>
+<tr>
+<td><code>stream(x)</code> / <code>astream</code></td>
+<td>Nhận output từng chunk</td>
+</tr>
+<tr>
+<td><code>with_retry()</code>, <code>with_fallbacks([...])</code></td>
+<td>Thử lại / model dự phòng</td>
+</tr>
+<tr>
+<td><code>with_config({"tags":…})</code></td>
+<td>Gắn tag, callbacks, run_name</td>
+</tr>
+</tbody>
+</table></div>
+<div class="hl"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.prompts</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChatPromptTemplate</span><span class="p">,</span> <span class="n">MessagesPlaceholder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.output_parsers</span><span class="w"> </span><span class="kn">import</span> <span class="n">StrOutputParser</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.runnables</span><span class="w"> </span><span class="kn">import</span> <span class="n">RunnablePassthrough</span><span class="p">,</span> <span class="n">RunnableParallel</span><span class="p">,</span> <span class="n">RunnableLambda</span>
+
+<span class="n">prompt</span> <span class="o">=</span> <span class="n">ChatPromptTemplate</span><span class="o">.</span><span class="n">from_messages</span><span class="p">([</span>
+    <span class="p">(</span><span class="s2">&quot;system&quot;</span><span class="p">,</span> <span class="s2">&quot;Trả lời ngắn gọn bằng </span><span class="si">{lang}</span><span class="s2">&quot;</span><span class="p">),</span>
+    <span class="n">MessagesPlaceholder</span><span class="p">(</span><span class="s2">&quot;history&quot;</span><span class="p">),</span>   <span class="c1"># chèn list message</span>
+    <span class="p">(</span><span class="s2">&quot;human&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{question}</span><span class="s2">&quot;</span><span class="p">),</span>
+<span class="p">])</span>
+<span class="n">chain</span> <span class="o">=</span> <span class="n">prompt</span> <span class="o">|</span> <span class="n">model</span> <span class="o">|</span> <span class="n">StrOutputParser</span><span class="p">()</span>
+<span class="n">chain</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;lang&quot;</span><span class="p">:</span> <span class="s2">&quot;tiếng Việt&quot;</span><span class="p">,</span> <span class="s2">&quot;history&quot;</span><span class="p">:</span> <span class="p">[],</span> <span class="s2">&quot;question&quot;</span><span class="p">:</span> <span class="s2">&quot;LCEL là gì?&quot;</span><span class="p">})</span>
+</code></pre></div>
+
+<ul>
+<li><code>RunnablePassthrough()</code>: chuyển input đi nguyên vẹn; <code>.assign(k=...)</code> thêm khóa mới.</li>
+<li><code>RunnableParallel({"a": r1, "b": r2})</code>: chạy song song, trả dict. Một dict literal trong chain tự thành RunnableParallel.</li>
+<li><code>RunnableLambda(f)</code>: bọc hàm Python thành Runnable.</li>
+<li>Output parser: <code>StrOutputParser</code>, <code>JsonOutputParser</code>, <code>PydanticOutputParser</code> (có <code>get_format_instructions()</code>).</li>
+</ul>
+<h3 id="structured-output-tools">Structured output &amp; tools</h3>
+<div class="hl"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">Field</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Movie</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;Tên phim&quot;</span><span class="p">)</span>
+    <span class="n">year</span><span class="p">:</span> <span class="nb">int</span>
+<span class="n">model</span><span class="o">.</span><span class="n">with_structured_output</span><span class="p">(</span><span class="n">Movie</span><span class="p">)</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="s2">&quot;Phim Inception?&quot;</span><span class="p">)</span>  <span class="c1"># -&gt; Movie(...)</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain.tools</span><span class="w"> </span><span class="kn">import</span> <span class="n">tool</span>
+<span class="nd">@tool</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_weather</span><span class="p">(</span><span class="n">city</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Lấy thời tiết của một thành phố.&quot;&quot;&quot;</span>   <span class="c1"># docstring = mô tả cho model</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">city</span><span class="si">}</span><span class="s2">: 30°C&quot;</span>
+
+<span class="n">msg</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">bind_tools</span><span class="p">([</span><span class="n">get_weather</span><span class="p">])</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="s2">&quot;Thời tiết Hà Nội?&quot;</span><span class="p">)</span>
+<span class="n">msg</span><span class="o">.</span><span class="n">tool_calls</span>  <span class="c1"># [{&#39;name&#39;: &#39;get_weather&#39;, &#39;args&#39;: {&#39;city&#39;: &#39;Hà Nội&#39;}, &#39;id&#39;: &#39;...&#39;}]</span>
+</code></pre></div>
+
+<ul>
+<li><code>bind_tools</code> chỉ để model đề xuất gọi tool; model không tự chạy tool. Code (hoặc agent/ToolNode) phải chạy và trả <code>ToolMessage</code>.</li>
+<li>Tên hàm, docstring và type hint quyết định schema tool mà model nhìn thấy.</li>
+<li><code>with_structured_output</code> dùng tool calling hoặc JSON mode của provider để ép output theo schema.</li>
+</ul>
+<h2 id="3-langchain-agents-create_agent-middleware">3. LangChain agents (create_agent + middleware)</h2>
+<p><code>create_agent</code> dựng sẵn vòng lặp ReAct: model → (gọi tool → model)* → trả lời khi không còn tool call. Nó trả về một LangGraph đã compile.</p>
+<div class="hl"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.agents</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_agent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langgraph.checkpoint.memory</span><span class="w"> </span><span class="kn">import</span> <span class="n">InMemorySaver</span>
+
+<span class="n">agent</span> <span class="o">=</span> <span class="n">create_agent</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;openai:gpt-4o&quot;</span><span class="p">,</span>          <span class="c1"># chuỗi hoặc object chat model</span>
+    <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="n">get_weather</span><span class="p">],</span>
+    <span class="n">system_prompt</span><span class="o">=</span><span class="s2">&quot;Bạn là trợ lý thời tiết.&quot;</span><span class="p">,</span>
+    <span class="n">middleware</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">],</span>                <span class="c1"># guardrail, summarize, HITL...</span>
+    <span class="n">response_format</span><span class="o">=</span><span class="n">Movie</span><span class="p">,</span>           <span class="c1"># structured output (tùy chọn)</span>
+    <span class="n">checkpointer</span><span class="o">=</span><span class="n">InMemorySaver</span><span class="p">(),</span>    <span class="c1"># bộ nhớ ngắn hạn</span>
+<span class="p">)</span>
+<span class="n">config</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;configurable&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;thread_id&quot;</span><span class="p">:</span> <span class="s2">&quot;user-1&quot;</span><span class="p">}}</span>
+<span class="n">res</span> <span class="o">=</span> <span class="n">agent</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Hà Nội?&quot;</span><span class="p">}]},</span> <span class="n">config</span><span class="p">)</span>
+<span class="n">res</span><span class="p">[</span><span class="s2">&quot;messages&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">content</span>       <span class="c1"># câu trả lời cuối</span>
+<span class="n">res</span><span class="p">[</span><span class="s2">&quot;structured_response&quot;</span><span class="p">]</span>        <span class="c1"># nếu có response_format</span>
+</code></pre></div>
+
+<h3 id="middleware-hooks-thu-tu-chay">Middleware hooks (thứ tự chạy)</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Hook</th>
+<th>Chạy khi</th>
+<th>Dùng cho</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>before_agent</code></td>
+<td>1 lần, đầu mỗi invoke</td>
+<td>Kiểm tra input, auth, chặn sớm</td>
+</tr>
+<tr>
+<td><code>before_model</code></td>
+<td>Trước mỗi lần gọi model</td>
+<td>Cắt/tóm tắt history, đổi state</td>
+</tr>
+<tr>
+<td><code>wrap_model_call</code></td>
+<td>Bao quanh lời gọi model</td>
+<td>Retry, fallback, đổi model/tools động</td>
+</tr>
+<tr>
+<td><code>wrap_tool_call</code></td>
+<td>Bao quanh lời gọi tool</td>
+<td>Retry tool, kiểm tra args, xử lý lỗi</td>
+</tr>
+<tr>
+<td><code>after_model</code></td>
+<td>Sau mỗi lần gọi model</td>
+<td>Kiểm tra output, HITL</td>
+</tr>
+<tr>
+<td><code>after_agent</code></td>
+<td>1 lần, cuối invoke</td>
+<td>Kiểm tra câu trả lời cuối</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>Viết bằng class <code>AgentMiddleware</code> hoặc decorator <code>@before_agent</code>, <code>@after_model</code>, <code>@wrap_model_call</code>, <code>@dynamic_prompt</code>…</li>
+<li>Hook trả <code>None</code> = không đổi gì; trả <code>dict</code> = cập nhật state.</li>
+<li>Muốn dừng sớm: khai báo <code>can_jump_to=["end"]</code> rồi trả <code>{"jump_to": "end"}</code>. Đích hợp lệ: <code>"model"</code>, <code>"tools"</code>, <code>"end"</code>.</li>
+<li>Nhiều middleware: hook <code>before_*</code> chạy theo thứ tự list, <code>after_*</code> chạy ngược lại, <code>wrap_*</code> lồng nhau (cái đầu bọc ngoài cùng).</li>
+</ul>
+<h3 id="middleware-co-san-hay-hoi">Middleware có sẵn hay hỏi</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Middleware</th>
+<th>Tác dụng</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SummarizationMiddleware</code></td>
+<td>Tóm tắt history khi gần chạm giới hạn token</td>
+</tr>
+<tr>
+<td><code>HumanInTheLoopMiddleware</code></td>
+<td>Tạm dừng chờ duyệt trước khi chạy tool nhạy cảm</td>
+</tr>
+<tr>
+<td><code>PIIMiddleware</code></td>
+<td>Phát hiện và xử lý PII (redact/mask/hash/block)</td>
+</tr>
+<tr>
+<td><code>ModelCallLimitMiddleware</code> / <code>ToolCallLimitMiddleware</code></td>
+<td>Giới hạn số lần gọi, chống vòng lặp vô hạn</td>
+</tr>
+<tr>
+<td><code>ModelFallbackMiddleware</code></td>
+<td>Chuyển sang model dự phòng khi lỗi</td>
+</tr>
+<tr>
+<td><code>ToolRetryMiddleware</code></td>
+<td>Thử lại tool lỗi</td>
+</tr>
+<tr>
+<td><code>LLMToolSelectorMiddleware</code></td>
+<td>Dùng LLM chọn bớt tool liên quan</td>
+</tr>
+<tr>
+<td><code>TodoListMiddleware</code></td>
+<td>Cho agent tool lập kế hoạch dạng todo</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="memory-context-streaming">Memory, context, streaming</h3>
+<ul>
+<li>Bộ nhớ ngắn hạn (trong 1 hội thoại) = <code>checkpointer</code> + <code>thread_id</code>. Bộ nhớ dài hạn (xuyên thread) = <code>store</code>.</li>
+<li>State tùy biến: <code>state_schema</code> kế thừa <code>AgentState</code>. Dữ liệu tĩnh mỗi lần chạy (user_id, DB conn): <code>context_schema</code> + <code>agent.invoke(..., context=...)</code>, đọc qua <code>runtime.context</code>.</li>
+<li>Structured output: <code>ToolStrategy(Schema)</code> (qua tool calling, mọi model hỗ trợ tool) hoặc <code>ProviderStrategy(Schema)</code> (structured output gốc của provider).</li>
+<li>Streaming: <code>agent.stream(input, stream_mode=...)</code> với <code>"updates"</code> (thay đổi sau mỗi bước), <code>"messages"</code> (token LLM), <code>"values"</code> (toàn bộ state), <code>"custom"</code> (dữ liệu tự phát).</li>
+</ul>
+<h2 id="4-rag-trong-langchain">4. RAG trong LangChain</h2>
+<p>RAG = lấy đoạn tài liệu liên quan rồi đưa vào prompt, để model trả lời dựa trên dữ liệu thật thay vì trí nhớ.</p>
+<ol>
+<li><strong>Indexing (offline):</strong> Load → Split → Embed → Store.</li>
+<li><strong>Retrieval &amp; generation (online):</strong> Query → Retrieve top-k → Nhét vào prompt → LLM trả lời.</li>
+</ol>
+<div class="hl"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain_community.document_loaders</span><span class="w"> </span><span class="kn">import</span> <span class="n">WebBaseLoader</span>   <span class="c1"># PyPDFLoader, CSVLoader...</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_text_splitters</span><span class="w"> </span><span class="kn">import</span> <span class="n">RecursiveCharacterTextSplitter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_openai</span><span class="w"> </span><span class="kn">import</span> <span class="n">OpenAIEmbeddings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.vectorstores</span><span class="w"> </span><span class="kn">import</span> <span class="n">InMemoryVectorStore</span>       <span class="c1"># FAISS, Chroma, PGVector...</span>
+
+<span class="n">docs</span> <span class="o">=</span> <span class="n">WebBaseLoader</span><span class="p">(</span><span class="s2">&quot;https://...&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">load</span><span class="p">()</span>                  <span class="c1"># list[Document]</span>
+<span class="n">splits</span> <span class="o">=</span> <span class="n">RecursiveCharacterTextSplitter</span><span class="p">(</span>
+    <span class="n">chunk_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span> <span class="n">chunk_overlap</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span><span class="o">.</span><span class="n">split_documents</span><span class="p">(</span><span class="n">docs</span><span class="p">)</span>
+<span class="n">vs</span> <span class="o">=</span> <span class="n">InMemoryVectorStore</span><span class="o">.</span><span class="n">from_documents</span><span class="p">(</span><span class="n">splits</span><span class="p">,</span> <span class="n">OpenAIEmbeddings</span><span class="p">())</span>
+<span class="n">retriever</span> <span class="o">=</span> <span class="n">vs</span><span class="o">.</span><span class="n">as_retriever</span><span class="p">(</span><span class="n">search_type</span><span class="o">=</span><span class="s2">&quot;mmr&quot;</span><span class="p">,</span> <span class="n">search_kwargs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;k&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">})</span>
+
+<span class="n">rag_chain</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="p">{</span><span class="s2">&quot;context&quot;</span><span class="p">:</span> <span class="n">retriever</span><span class="p">,</span> <span class="s2">&quot;question&quot;</span><span class="p">:</span> <span class="n">RunnablePassthrough</span><span class="p">()}</span>
+    <span class="o">|</span> <span class="n">prompt</span> <span class="o">|</span> <span class="n">model</span> <span class="o">|</span> <span class="n">StrOutputParser</span><span class="p">()</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Khái niệm</th>
+<th>Cần nhớ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Document</code></td>
+<td>Có <code>page_content</code> và <code>metadata</code></td>
+</tr>
+<tr>
+<td><code>chunk_size</code> / <code>chunk_overlap</code></td>
+<td>Kích thước mỗi đoạn / phần chồng lấn giữ ngữ cảnh ở ranh giới</td>
+</tr>
+<tr>
+<td><code>RecursiveCharacterTextSplitter</code></td>
+<td>Tách theo thứ tự <code>\n\n</code> → <code>\n</code> → khoảng trắng; splitter mặc định nên dùng</td>
+</tr>
+<tr>
+<td><code>search_type="similarity"</code></td>
+<td>Lấy k đoạn gần nhất (cosine)</td>
+</tr>
+<tr>
+<td><code>search_type="mmr"</code></td>
+<td>Max Marginal Relevance: vừa liên quan vừa đa dạng, giảm trùng lặp</td>
+</tr>
+<tr>
+<td><code>similarity_score_threshold</code></td>
+<td>Chỉ lấy đoạn vượt ngưỡng điểm</td>
+</tr>
+<tr>
+<td><code>MultiQueryRetriever</code></td>
+<td>LLM sinh nhiều biến thể câu hỏi để tăng recall</td>
+</tr>
+<tr>
+<td><code>ParentDocumentRetriever</code></td>
+<td>Tìm bằng chunk nhỏ, trả về đoạn cha lớn hơn</td>
+</tr>
+<tr>
+<td><code>EnsembleRetriever</code></td>
+<td>Kết hợp BM25 (từ khóa) + vector (ngữ nghĩa) = hybrid search</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>Agentic RAG: bọc retriever thành tool (<code>@tool</code> hoặc <code>create_retriever_tool</code>), để agent tự quyết khi nào cần tra cứu.</li>
+<li>Rủi ro bảo mật của RAG: tài liệu truy xuất có thể chứa prompt injection gián tiếp → coi nội dung retrieve là dữ liệu, không phải chỉ dẫn.</li>
+</ul>
+<h2 id="5-langgraph-state-node-edge">5. LangGraph: State, Node, Edge</h2>
+<p>Một graph LangGraph = State (dữ liệu chung) + Node (hàm xử lý) + Edge (luồng đi). Node nhận state, trả về phần state cần cập nhật; reducer quyết định cách gộp.</p>
+<div class="hl"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span><span class="p">,</span> <span class="n">TypedDict</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">operator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langgraph.graph</span><span class="w"> </span><span class="kn">import</span> <span class="n">StateGraph</span><span class="p">,</span> <span class="n">START</span><span class="p">,</span> <span class="n">END</span><span class="p">,</span> <span class="n">MessagesState</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langgraph.graph.message</span><span class="w"> </span><span class="kn">import</span> <span class="n">add_messages</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langgraph.prebuilt</span><span class="w"> </span><span class="kn">import</span> <span class="n">ToolNode</span><span class="p">,</span> <span class="n">tools_condition</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">State</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">):</span>
+    <span class="n">messages</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">list</span><span class="p">,</span> <span class="n">add_messages</span><span class="p">]</span>  <span class="c1"># reducer: nối thêm, gộp theo id</span>
+    <span class="n">steps</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">operator</span><span class="o">.</span><span class="n">add</span><span class="p">]</span>      <span class="c1"># reducer: cộng dồn</span>
+    <span class="n">topic</span><span class="p">:</span> <span class="nb">str</span>                               <span class="c1"># không reducer: ghi đè</span>
+
+<span class="n">llm_with_tools</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">bind_tools</span><span class="p">([</span><span class="n">get_weather</span><span class="p">])</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">call_model</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">State</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">llm_with_tools</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s2">&quot;messages&quot;</span><span class="p">])],</span> <span class="s2">&quot;steps&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
+
+<span class="n">builder</span> <span class="o">=</span> <span class="n">StateGraph</span><span class="p">(</span><span class="n">State</span><span class="p">)</span>
+<span class="n">builder</span><span class="o">.</span><span class="n">add_node</span><span class="p">(</span><span class="s2">&quot;agent&quot;</span><span class="p">,</span> <span class="n">call_model</span><span class="p">)</span>
+<span class="n">builder</span><span class="o">.</span><span class="n">add_node</span><span class="p">(</span><span class="s2">&quot;tools&quot;</span><span class="p">,</span> <span class="n">ToolNode</span><span class="p">([</span><span class="n">get_weather</span><span class="p">]))</span>
+<span class="n">builder</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="n">START</span><span class="p">,</span> <span class="s2">&quot;agent&quot;</span><span class="p">)</span>
+<span class="n">builder</span><span class="o">.</span><span class="n">add_conditional_edges</span><span class="p">(</span><span class="s2">&quot;agent&quot;</span><span class="p">,</span> <span class="n">tools_condition</span><span class="p">)</span>  <span class="c1"># có tool_calls -&gt; &quot;tools&quot;, không -&gt; END</span>
+<span class="n">builder</span><span class="o">.</span><span class="n">add_edge</span><span class="p">(</span><span class="s2">&quot;tools&quot;</span><span class="p">,</span> <span class="s2">&quot;agent&quot;</span><span class="p">)</span>                       <span class="c1"># vòng lặp ReAct</span>
+<span class="n">graph</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">checkpointer</span><span class="o">=</span><span class="n">InMemorySaver</span><span class="p">())</span>
+</code></pre></div>
+
+<figure class="diagram"><svg viewBox="0 0 760 252" role="img" aria-label="Agent lặp model và tools cho đến khi hết tool_calls" font-size="13" font-family="inherit">
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--axis)"/></marker></defs>
+<text x="24" y="34" font-size="15" font-weight="600" fill="var(--ink)">Agent lặp model ↔ tools cho đến khi hết tool_calls</text>
+<g fill="none" stroke="var(--axis)" stroke-width="1.25">
+<path d="M128 100H185" marker-end="url(#arr)"/><path d="M335 100H390" marker-end="url(#arr)"/>
+<path d="M550 100H612" marker-end="url(#arr)"/><path d="M470 140V176" marker-end="url(#arr)"/>
+<path d="M395 200H260V124" marker-end="url(#arr)"/></g>
+<rect x="32" y="80" width="96" height="40" rx="20" fill="var(--tint)" stroke="var(--axis)" stroke-width="1.25"/>
+<text x="80" y="104" text-anchor="middle" font-weight="600" fill="var(--ink)">START</text>
+<rect x="185" y="76" width="150" height="48" rx="8" fill="var(--accent-bg)" stroke="var(--accent)" stroke-width="2"/>
+<text x="260" y="104" text-anchor="middle" font-weight="600" fill="var(--ink)">agent (call_model)</text>
+<polygon points="390,100 470,60 550,100 470,140" fill="none" stroke="var(--axis)" stroke-width="1.25"/>
+<text x="470" y="104" text-anchor="middle" font-size="12" fill="var(--ink)">tools_condition</text>
+<rect x="612" y="80" width="96" height="40" rx="20" fill="var(--tint)" stroke="var(--axis)" stroke-width="1.25"/>
+<text x="660" y="104" text-anchor="middle" font-weight="600" fill="var(--ink)">END</text>
+<rect x="395" y="176" width="150" height="48" rx="8" fill="none" stroke="var(--axis)" stroke-width="1.25"/>
+<text x="470" y="204" text-anchor="middle" fill="var(--ink)">tools (ToolNode)</text>
+<text x="581" y="90" text-anchor="middle" font-size="11.5" fill="var(--muted)">không</text>
+<text x="480" y="162" font-size="11.5" fill="var(--muted)">có tool_calls</text>
+<text x="327" y="190" text-anchor="middle" font-size="11.5" fill="var(--muted)">ToolMessage</text>
+</svg><figcaption>Graph ReAct trong code trên · 2 node, 1 router</figcaption></figure>
+
+<p>Model trả tool_calls thì đi sang ToolNode rồi quay lại; không còn tool_calls thì tới END. Đây cũng chính là graph mà <code>create_agent</code> dựng sẵn.</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Khái niệm</th>
+<th>Ý nghĩa</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>StateGraph(State)</code></td>
+<td>Builder; phải <code>.compile()</code> mới chạy được</td>
+</tr>
+<tr>
+<td><code>START</code>, <code>END</code></td>
+<td>Node ảo bắt đầu / kết thúc</td>
+</tr>
+<tr>
+<td><code>add_edge(a, b)</code></td>
+<td>Luôn đi a → b</td>
+</tr>
+<tr>
+<td><code>add_conditional_edges(a, fn, path_map)</code></td>
+<td><code>fn(state)</code> trả tên node kế tiếp (hoặc list tên)</td>
+</tr>
+<tr>
+<td>Reducer</td>
+<td>Mặc định ghi đè; <code>add_messages</code> cho chat; <code>operator.add</code> cho list/số</td>
+</tr>
+<tr>
+<td><code>MessagesState</code></td>
+<td>State có sẵn khóa <code>messages</code> với <code>add_messages</code></td>
+</tr>
+<tr>
+<td><code>ToolNode</code></td>
+<td>Node chạy các <code>tool_calls</code> của AIMessage cuối, trả <code>ToolMessage</code></td>
+</tr>
+<tr>
+<td><code>tools_condition</code></td>
+<td>Router: có tool call → <code>"tools"</code>, không → <code>END</code></td>
+</tr>
+<tr>
+<td><code>recursion_limit</code></td>
+<td>Giới hạn số super-step (mặc định 25) → <code>GraphRecursionError</code></td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="command-va-send">Command và Send</h3>
+<div class="hl"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">langgraph.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">Command</span><span class="p">,</span> <span class="n">Send</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">router</span><span class="p">(</span><span class="n">state</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Command</span><span class="p">[</span><span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;billing&quot;</span><span class="p">,</span> <span class="s2">&quot;support&quot;</span><span class="p">]]:</span>
+    <span class="k">return</span> <span class="n">Command</span><span class="p">(</span><span class="n">update</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;topic&quot;</span><span class="p">:</span> <span class="s2">&quot;bill&quot;</span><span class="p">},</span> <span class="n">goto</span><span class="o">=</span><span class="s2">&quot;billing&quot;</span><span class="p">)</span>  <span class="c1"># cập nhật + điều hướng trong 1 bước</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">fan_out</span><span class="p">(</span><span class="n">state</span><span class="p">):</span>   <span class="c1"># map-reduce: tạo số nhánh động lúc chạy</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">Send</span><span class="p">(</span><span class="s2">&quot;summarize&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;doc&quot;</span><span class="p">:</span> <span class="n">d</span><span class="p">})</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">state</span><span class="p">[</span><span class="s2">&quot;docs&quot;</span><span class="p">]]</span>
+<span class="n">builder</span><span class="o">.</span><span class="n">add_conditional_edges</span><span class="p">(</span><span class="s2">&quot;split&quot;</span><span class="p">,</span> <span class="n">fan_out</span><span class="p">,</span> <span class="p">[</span><span class="s2">&quot;summarize&quot;</span><span class="p">])</span>
+</code></pre></div>
+
+<ul>
+<li><code>Command(goto=..., update=...)</code>: node vừa đổi state vừa chọn node kế tiếp, không cần conditional edge. <code>Command(graph=Command.PARENT)</code> để nhảy ra graph cha (handoff giữa agent).</li>
+<li><code>Send(node, arg)</code>: gửi state riêng cho mỗi nhánh song song; số nhánh chỉ biết lúc chạy.</li>
+<li>Node chạy song song trong cùng super-step; mọi update gộp qua reducer, nên khóa bị nhiều nhánh ghi cùng lúc phải có reducer (nếu không → <code>InvalidUpdateError</code>).</li>
+<li>Subgraph: graph đã compile có thể làm node trong graph khác; chung khóa state thì truyền thẳng.</li>
+</ul>
+<h2 id="6-langgraph-persistence-human-in-the-loop-multi-agent">6. LangGraph: persistence, human-in-the-loop, multi-agent</h2>
+<p>Checkpointer lưu snapshot state sau mỗi super-step theo <code>thread_id</code>; đây là nền tảng cho memory, interrupt, time travel và chịu lỗi.</p>
+<h3 id="checkpointer-va-store">Checkpointer và Store</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th></th>
+<th>Checkpointer</th>
+<th>Store</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Phạm vi</td>
+<td>1 thread (1 hội thoại)</td>
+<td>Xuyên thread, xuyên user</td>
+</tr>
+<tr>
+<td>Dùng cho</td>
+<td>Memory ngắn hạn, HITL, resume, time travel</td>
+<td>Memory dài hạn (sở thích user, fact)</td>
+</tr>
+<tr>
+<td>Class</td>
+<td><code>InMemorySaver</code>, <code>SqliteSaver</code>, <code>PostgresSaver</code></td>
+<td><code>InMemoryStore</code>, <code>PostgresStore</code></td>
+</tr>
+<tr>
+<td>Khai báo</td>
+<td><code>compile(checkpointer=...)</code></td>
+<td><code>compile(store=...)</code>; truy cập <code>store.put/get/search(namespace, key)</code></td>
+</tr>
+<tr>
+<td>Khóa</td>
+<td><code>config["configurable"]["thread_id"]</code></td>
+<td><code>namespace</code> tuple, ví dụ <code>("memories", user_id)</code></td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li><code>InMemorySaver</code> chỉ để dev/test (mất khi tắt process); production dùng Postgres/SQLite.</li>
+<li><code>graph.get_state(config)</code> → snapshot hiện tại (<code>.values</code>, <code>.next</code>); <code>get_state_history(config)</code> → các checkpoint cũ; <code>update_state(config, values)</code> → sửa state thủ công.</li>
+<li><strong>Time travel:</strong> lấy <code>checkpoint_id</code> cũ, gọi <code>graph.invoke(None, {"configurable": {"thread_id": ..., "checkpoint_id": ...}})</code> để replay hoặc rẽ nhánh (fork).</li>
+</ul>
+<h3 id="human-in-the-loop-voi-interrupt">Human-in-the-loop với interrupt</h3>
+<div class="hl"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">langgraph.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">interrupt</span><span class="p">,</span> <span class="n">Command</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">approve</span><span class="p">(</span><span class="n">state</span><span class="p">):</span>
+    <span class="n">decision</span> <span class="o">=</span> <span class="n">interrupt</span><span class="p">({</span><span class="s2">&quot;question&quot;</span><span class="p">:</span> <span class="s2">&quot;Duyệt gửi email?&quot;</span><span class="p">,</span> <span class="s2">&quot;draft&quot;</span><span class="p">:</span> <span class="n">state</span><span class="p">[</span><span class="s2">&quot;draft&quot;</span><span class="p">]})</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;approved&quot;</span><span class="p">:</span> <span class="n">decision</span> <span class="o">==</span> <span class="s2">&quot;yes&quot;</span><span class="p">}</span>
+
+<span class="n">graph</span> <span class="o">=</span> <span class="n">builder</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="n">checkpointer</span><span class="o">=</span><span class="n">InMemorySaver</span><span class="p">())</span>  <span class="c1"># BẮT BUỘC có checkpointer</span>
+<span class="n">config</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;configurable&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;thread_id&quot;</span><span class="p">:</span> <span class="s2">&quot;t1&quot;</span><span class="p">}}</span>
+<span class="n">graph</span><span class="o">.</span><span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;draft&quot;</span><span class="p">:</span> <span class="s2">&quot;...&quot;</span><span class="p">},</span> <span class="n">config</span><span class="p">)</span>            <span class="c1"># dừng, kết quả có &quot;__interrupt__&quot;</span>
+<span class="n">graph</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">Command</span><span class="p">(</span><span class="n">resume</span><span class="o">=</span><span class="s2">&quot;yes&quot;</span><span class="p">),</span> <span class="n">config</span><span class="p">)</span>       <span class="c1"># chạy tiếp với cùng thread_id</span>
+</code></pre></div>
+
+<ul>
+<li><code>interrupt()</code> dừng graph, lưu state; resume bằng <code>Command(resume=value)</code> và giá trị đó thành giá trị trả về của <code>interrupt()</code>.</li>
+<li>Khi resume, node chứa <code>interrupt</code> chạy lại <strong>từ đầu node</strong> → code trước <code>interrupt</code> phải idempotent (không side-effect lặp).</li>
+<li>Cách tĩnh (cũ hơn, dùng để debug): <code>compile(interrupt_before=["tools"])</code> hoặc <code>interrupt_after=[...]</code>.</li>
+<li>Bốn mẫu HITL: approve/reject, edit state, review tool call, validate input người dùng.</li>
+</ul>
+<h3 id="streaming">Streaming</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th><code>stream_mode</code></th>
+<th>Trả về</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"values"</code></td>
+<td>Toàn bộ state sau mỗi bước</td>
+</tr>
+<tr>
+<td><code>"updates"</code></td>
+<td>Chỉ phần node vừa cập nhật</td>
+</tr>
+<tr>
+<td><code>"messages"</code></td>
+<td>Token LLM + metadata (node nào phát ra)</td>
+</tr>
+<tr>
+<td><code>"custom"</code></td>
+<td>Dữ liệu tự phát qua <code>get_stream_writer()</code></td>
+</tr>
+<tr>
+<td><code>"debug"</code></td>
+<td>Thông tin chi tiết từng bước</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="multi-agent">Multi-agent</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Kiến trúc</th>
+<th>Cách hoạt động</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Supervisor</td>
+<td>Một agent điều phối chọn agent con nào làm tiếp; agent con báo lại supervisor</td>
+</tr>
+<tr>
+<td>Network / Swarm</td>
+<td>Agent tự chuyển quyền (handoff) cho nhau bằng <code>Command(goto=..., graph=Command.PARENT)</code></td>
+</tr>
+<tr>
+<td>Hierarchical</td>
+<td>Supervisor của các supervisor (team lồng nhau)</td>
+</tr>
+<tr>
+<td>Tool-calling</td>
+<td>Agent con được bọc thành tool cho agent chính gọi</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>Functional API (thay cho Graph API): <code>@entrypoint(checkpointer=...)</code> cho workflow, <code>@task</code> cho đơn vị công việc; vẫn có persistence và interrupt.</li>
+<li>Durability mode khi chạy: <code>"exit"</code>, <code>"async"</code>, <code>"sync"</code> (đánh đổi tốc độ và độ bền dữ liệu checkpoint).</li>
+</ul>
+<h2 id="7-guardrails-khai-niem">7. Guardrails: khái niệm</h2>
+<p>Guardrail là lớp kiểm tra đặt ở các điểm then chốt (input, output, tool call, retrieval) để chặn, sửa hoặc đánh dấu nội dung không an toàn. Không có guardrail nào đủ một mình → phòng thủ nhiều lớp (defense in depth).</p>
+<h3 id="at-guardrail-o-au">Đặt guardrail ở đâu</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Vị trí</th>
+<th>Kiểm tra gì</th>
+<th>Ví dụ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Input rail</td>
+<td>Trước khi vào LLM</td>
+<td>Prompt injection, jailbreak, PII, off-topic, độc hại</td>
+</tr>
+<tr>
+<td>Retrieval rail</td>
+<td>Đoạn văn RAG lấy về</td>
+<td>Injection gián tiếp, tài liệu không được phép đọc</td>
+</tr>
+<tr>
+<td>Execution / tool rail</td>
+<td>Trước khi chạy tool</td>
+<td>Duyệt bởi người (HITL), kiểm tra args, giới hạn quyền</td>
+</tr>
+<tr>
+<td>Output rail</td>
+<td>Trước khi trả user</td>
+<td>Lộ PII/secret, độc hại, hallucination, sai format</td>
+</tr>
+<tr>
+<td>Dialog rail</td>
+<td>Luồng hội thoại</td>
+<td>Giữ đúng chủ đề, kịch bản cố định</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="deterministic-vs-model-based">Deterministic vs model-based</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th></th>
+<th>Deterministic (rule)</th>
+<th>Model-based (LLM/classifier)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cách làm</td>
+<td>Regex, keyword, schema, allow/deny list</td>
+<td>LLM-as-judge, Llama Guard, moderation API</td>
+</tr>
+<tr>
+<td>Ưu</td>
+<td>Nhanh, rẻ, dự đoán được</td>
+<td>Hiểu ngữ nghĩa, bắt vi phạm tinh vi</td>
+</tr>
+<tr>
+<td>Nhược</td>
+<td>Dễ bị né, bỏ sót ngữ cảnh</td>
+<td>Chậm, tốn tiền, có thể sai (false positive/negative)</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="hanh-ong-khi-phat-hien-vi-pham">Hành động khi phát hiện vi phạm</h3>
+<ul>
+<li><strong>Block / refuse:</strong> dừng và trả lời từ chối.</li>
+<li><strong>Redact / mask / hash:</strong> che dữ liệu nhạy cảm rồi xử lý tiếp.</li>
+<li><strong>Fix / re-ask:</strong> sửa output hoặc yêu cầu LLM tạo lại.</li>
+<li><strong>Escalate:</strong> chuyển cho người duyệt.</li>
+<li><strong>Log / flag:</strong> cho qua nhưng ghi lại để monitor.</li>
+</ul>
+<h3 id="owasp-top-10-cho-llm-ban-2025">OWASP Top 10 cho LLM (bản 2025)</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Mã</th>
+<th>Rủi ro</th>
+<th>Guardrail tiêu biểu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>LLM01</td>
+<td>Prompt Injection (trực tiếp và gián tiếp)</td>
+<td>Input rail, tách dữ liệu khỏi chỉ dẫn, least privilege</td>
+</tr>
+<tr>
+<td>LLM02</td>
+<td>Sensitive Information Disclosure</td>
+<td>PII redaction, output filter</td>
+</tr>
+<tr>
+<td>LLM03</td>
+<td>Supply Chain</td>
+<td>Kiểm tra nguồn model, package, plugin</td>
+</tr>
+<tr>
+<td>LLM04</td>
+<td>Data and Model Poisoning</td>
+<td>Kiểm soát dữ liệu train/fine-tune/RAG</td>
+</tr>
+<tr>
+<td>LLM05</td>
+<td>Improper Output Handling</td>
+<td>Coi output là không tin cậy: escape, validate trước khi chạy/hiển thị</td>
+</tr>
+<tr>
+<td>LLM06</td>
+<td>Excessive Agency</td>
+<td>Giới hạn tool, quyền tối thiểu, HITL</td>
+</tr>
+<tr>
+<td>LLM07</td>
+<td>System Prompt Leakage</td>
+<td>Không để secret trong system prompt</td>
+</tr>
+<tr>
+<td>LLM08</td>
+<td>Vector and Embedding Weaknesses</td>
+<td>Phân quyền vector store, lọc theo tenant</td>
+</tr>
+<tr>
+<td>LLM09</td>
+<td>Misinformation</td>
+<td>Grounding bằng RAG, kiểm tra trích dẫn</td>
+</tr>
+<tr>
+<td>LLM10</td>
+<td>Unbounded Consumption</td>
+<td>Rate limit, giới hạn token, giới hạn số lần gọi</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>Prompt injection trực tiếp: user gõ "bỏ qua mọi chỉ dẫn trước…". Gián tiếp: chỉ dẫn độc giấu trong web/tài liệu/email mà agent đọc.</li>
+<li>Jailbreak là một dạng prompt injection nhằm vượt qua chính sách an toàn của model.</li>
+</ul>
+<h2 id="8-guardrails-trien-khai">8. Guardrails: triển khai</h2>
+<p>Trong LangChain 1.x, guardrail = middleware gắn vào <code>create_agent</code>; ngoài ra có hai thư viện chuyên dụng là Guardrails AI và NVIDIA NeMo Guardrails.</p>
+<h3 id="langchain-middleware">LangChain middleware</h3>
+<div class="hl"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">langchain.agents</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_agent</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain.agents.middleware</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">PIIMiddleware</span><span class="p">,</span> <span class="n">HumanInTheLoopMiddleware</span><span class="p">,</span> <span class="n">before_agent</span><span class="p">,</span> <span class="n">AgentState</span><span class="p">)</span>
+
+<span class="nd">@before_agent</span><span class="p">(</span><span class="n">can_jump_to</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;end&quot;</span><span class="p">])</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">block_keywords</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">AgentState</span><span class="p">,</span> <span class="n">runtime</span><span class="p">):</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="n">state</span><span class="p">[</span><span class="s2">&quot;messages&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">content</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">if</span> <span class="s2">&quot;hack&quot;</span> <span class="ow">in</span> <span class="n">text</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;messages&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;assistant&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Không thể hỗ trợ.&quot;</span><span class="p">}],</span>
+                <span class="s2">&quot;jump_to&quot;</span><span class="p">:</span> <span class="s2">&quot;end&quot;</span><span class="p">}</span>          <span class="c1"># dừng sớm, không gọi model</span>
+    <span class="k">return</span> <span class="kc">None</span>
+
+<span class="n">agent</span> <span class="o">=</span> <span class="n">create_agent</span><span class="p">(</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;openai:gpt-4o&quot;</span><span class="p">,</span> <span class="n">tools</span><span class="o">=</span><span class="p">[</span><span class="n">send_email</span><span class="p">,</span> <span class="n">search</span><span class="p">],</span>
+    <span class="n">middleware</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">block_keywords</span><span class="p">,</span>                                          <span class="c1"># lớp 1: rule</span>
+        <span class="n">PIIMiddleware</span><span class="p">(</span><span class="s2">&quot;email&quot;</span><span class="p">,</span> <span class="n">strategy</span><span class="o">=</span><span class="s2">&quot;redact&quot;</span><span class="p">,</span> <span class="n">apply_to_input</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="n">PIIMiddleware</span><span class="p">(</span><span class="s2">&quot;api_key&quot;</span><span class="p">,</span> <span class="n">detector</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;sk-[a-zA-Z0-9]</span><span class="si">{32}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">strategy</span><span class="o">=</span><span class="s2">&quot;block&quot;</span><span class="p">),</span>
+        <span class="n">HumanInTheLoopMiddleware</span><span class="p">(</span><span class="n">interrupt_on</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;send_email&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;search&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}),</span>
+    <span class="p">],</span>
+    <span class="n">checkpointer</span><span class="o">=</span><span class="n">InMemorySaver</span><span class="p">(),</span>   <span class="c1"># HITL cần checkpointer + thread_id</span>
+<span class="p">)</span>
+<span class="c1"># resume sau khi duyệt:</span>
+<span class="n">agent</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">Command</span><span class="p">(</span><span class="n">resume</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;decisions&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;approve&quot;</span><span class="p">}]}),</span> <span class="n">config</span><span class="p">)</span>
+</code></pre></div>
+
+<div class="tw"><table>
+<thead>
+<tr>
+<th><code>PIIMiddleware</code> strategy</th>
+<th>Kết quả</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>redact</code> (mặc định)</td>
+<td>Thay bằng <code>[REDACTED_EMAIL]</code></td>
+</tr>
+<tr>
+<td><code>mask</code></td>
+<td>Che một phần, ví dụ <code>****-****-****-1234</code></td>
+</tr>
+<tr>
+<td><code>hash</code></td>
+<td>Thay bằng hash cố định (vẫn so khớp được)</td>
+</tr>
+<tr>
+<td><code>block</code></td>
+<td>Ném exception</td>
+</tr>
+</tbody>
+</table></div>
+<ul>
+<li>PII có sẵn: <code>email</code>, <code>credit_card</code> (kiểm Luhn), <code>ip</code>, <code>mac_address</code>, <code>url</code>; loại khác tự định nghĩa qua <code>detector</code> (regex hoặc hàm).</li>
+<li>Tham số: <code>apply_to_input</code> (mặc định <code>True</code>), <code>apply_to_output</code> (<code>False</code>), <code>apply_to_tool_results</code> (<code>False</code>).</li>
+<li>HITL quyết định: <code>approve</code>, <code>edit</code> (sửa args), <code>reject</code> (kèm lý do).</li>
+<li>Guardrail đầu vào → <code>before_agent</code>; kiểm tra câu trả lời cuối → <code>after_agent</code>; kiểm tra từng bước → <code>before_model</code> / <code>after_model</code>.</li>
+</ul>
+<h3 id="guardrails-ai-thu-vien-guardrails-ai">Guardrails AI (thư viện <code>guardrails-ai</code>)</h3>
+<div class="hl"><pre><span></span><code><span class="c1"># guardrails hub install hub://guardrails/toxic_language</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">guardrails</span><span class="w"> </span><span class="kn">import</span> <span class="n">Guard</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">guardrails.hub</span><span class="w"> </span><span class="kn">import</span> <span class="n">ToxicLanguage</span><span class="p">,</span> <span class="n">DetectPII</span>
+
+<span class="n">guard</span> <span class="o">=</span> <span class="n">Guard</span><span class="p">()</span><span class="o">.</span><span class="n">use_many</span><span class="p">(</span>
+    <span class="n">ToxicLanguage</span><span class="p">(</span><span class="n">threshold</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">on_fail</span><span class="o">=</span><span class="s2">&quot;exception&quot;</span><span class="p">),</span>
+    <span class="n">DetectPII</span><span class="p">(</span><span class="n">pii_entities</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;EMAIL_ADDRESS&quot;</span><span class="p">],</span> <span class="n">on_fail</span><span class="o">=</span><span class="s2">&quot;fix&quot;</span><span class="p">),</span>
+<span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">guard</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="s2">&quot;văn bản cần kiểm&quot;</span><span class="p">)</span>
+<span class="n">result</span><span class="o">.</span><span class="n">validation_passed</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">validated_output</span>
+
+<span class="n">guard</span> <span class="o">=</span> <span class="n">Guard</span><span class="o">.</span><span class="n">for_pydantic</span><span class="p">(</span><span class="n">Movie</span><span class="p">)</span>   <span class="c1"># ép output khớp schema</span>
+</code></pre></div>
+
+<ul>
+<li>Validator lấy từ <strong>Guardrails Hub</strong>; ghép với LCEL: <code>chain = prompt | model | guard.to_runnable()</code>.</li>
+<li><code>on_fail</code>: <code>exception</code>, <code>fix</code> (tự sửa), <code>reask</code> (hỏi lại LLM), <code>filter</code> (bỏ trường lỗi), <code>refrain</code> (trả rỗng), <code>noop</code> (chỉ ghi log), <code>fix_reask</code>.</li>
+</ul>
+<h3 id="nvidia-nemo-guardrails">NVIDIA NeMo Guardrails</h3>
+<div class="hl"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">nemoguardrails</span><span class="w"> </span><span class="kn">import</span> <span class="n">RailsConfig</span><span class="p">,</span> <span class="n">LLMRails</span>
+<span class="n">config</span> <span class="o">=</span> <span class="n">RailsConfig</span><span class="o">.</span><span class="n">from_path</span><span class="p">(</span><span class="s2">&quot;./config&quot;</span><span class="p">)</span>   <span class="c1"># config.yml + *.co (Colang) + prompts.yml</span>
+<span class="n">rails</span> <span class="o">=</span> <span class="n">LLMRails</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<span class="n">rails</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;...&quot;</span><span class="p">}])</span>
+
+<span class="c1"># Tích hợp LangChain</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">nemoguardrails.integrations.langchain.runnable_rails</span><span class="w"> </span><span class="kn">import</span> <span class="n">RunnableRails</span>
+<span class="n">chain_with_rails</span> <span class="o">=</span> <span class="n">RunnableRails</span><span class="p">(</span><span class="n">config</span><span class="p">)</span> <span class="o">|</span> <span class="n">chain</span>
+</code></pre></div>
+
+<div class="hl"><pre><span></span><code><span class="c1"># config.yml</span>
+<span class="nt">rails</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">input</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">flows</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">self check input</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">output</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">flows</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">self check output</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+
+<ul>
+<li>Rails gồm: input, dialog, retrieval, execution, output.</li>
+<li>Dialog rail viết bằng <strong>Colang</strong>: khai báo mẫu câu user (<code>define user ...</code>), câu bot (<code>define bot ...</code>) và luồng (<code>define flow</code>).</li>
+</ul>
+<div class="tw"><table>
+<thead>
+<tr>
+<th></th>
+<th>LangChain middleware</th>
+<th>Guardrails AI</th>
+<th>NeMo Guardrails</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Thế mạnh</td>
+<td>Gắn thẳng vào agent loop, HITL</td>
+<td>Validator có sẵn, kiểm schema/format output</td>
+<td>Điều khiển hội thoại, chủ đề</td>
+</tr>
+<tr>
+<td>Cấu hình</td>
+<td>Code Python</td>
+<td>Python + Hub</td>
+<td>YAML + Colang</td>
+</tr>
+<tr>
+<td>Hành động</td>
+<td>jump_to end, sửa state, interrupt</td>
+<td>on_fail (fix, reask, exception…)</td>
+<td>Chặn, trả câu bot định sẵn</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="9-bay-hay-gap-on-tap-nhanh">9. Bẫy hay gặp &amp; ôn tập nhanh</h2>
+<h3 id="bay-hay-gap">Bẫy hay gặp</h3>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Phát biểu sai</th>
+<th>Đúng là</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>bind_tools</code> làm model tự chạy tool</td>
+<td>Model chỉ trả <code>tool_calls</code>; code/ToolNode/agent mới chạy tool</td>
+</tr>
+<tr>
+<td><code>interrupt</code> dùng được không cần checkpointer</td>
+<td>Bắt buộc có checkpointer và cùng <code>thread_id</code> khi resume</td>
+</tr>
+<tr>
+<td>Resume chạy tiếp từ dòng sau <code>interrupt</code></td>
+<td>Node chạy lại từ đầu; giá trị resume được trả về tại <code>interrupt()</code></td>
+</tr>
+<tr>
+<td>State mặc định nối thêm (append)</td>
+<td>Mặc định ghi đè; muốn append phải có reducer (<code>add_messages</code>, <code>operator.add</code>)</td>
+</tr>
+<tr>
+<td>Checkpointer = memory dài hạn</td>
+<td>Checkpointer theo thread; dài hạn xuyên thread dùng Store</td>
+</tr>
+<tr>
+<td>Có thể gọi <code>invoke</code> trên <code>StateGraph</code></td>
+<td>Phải <code>compile()</code> trước</td>
+</tr>
+<tr>
+<td><code>recursion_limit</code> mặc định vô hạn</td>
+<td>Mặc định 25 super-step, vượt → <code>GraphRecursionError</code></td>
+</tr>
+<tr>
+<td><code>create_react_agent</code> là API khuyến nghị ở v1</td>
+<td>Dùng <code>langchain.agents.create_agent</code></td>
+</tr>
+<tr>
+<td><code>LLMChain</code>/<code>RetrievalQA</code> vẫn nằm trong <code>langchain</code> 1.x</td>
+<td>Đã chuyển sang <code>langchain-classic</code>; thay bằng LCEL hoặc agent</td>
+</tr>
+<tr>
+<td>Chỉ cần system prompt mạnh là chống được injection</td>
+<td>Cần nhiều lớp: input rail, quyền tối thiểu, HITL, output rail</td>
+</tr>
+<tr>
+<td>Output của LLM an toàn để chạy/hiển thị trực tiếp</td>
+<td>Coi là input không tin cậy (OWASP LLM05)</td>
+</tr>
+<tr>
+<td><code>PIIMiddleware</code> mặc định kiểm cả output</td>
+<td>Mặc định chỉ input; output và tool result phải bật</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="cau-hoi-tu-kiem-tra">Câu hỏi tự kiểm tra</h3>
+<div class="quiz"><details><summary><span class="qn">1</span>Khác nhau giữa <code>add_edge</code> và <code>add_conditional_edges</code>?</summary><p>Edge thường luôn đi cố định; conditional gọi hàm router đọc state để chọn node kế tiếp.</p></details><details><summary><span class="qn">2</span>Khi nào dùng <code>Send</code> thay vì conditional edge?</summary><p>Khi số nhánh song song chỉ biết lúc chạy (map-reduce), mỗi nhánh nhận state riêng.</p></details><details><summary><span class="qn">3</span><code>Command</code> giải quyết vấn đề gì?</summary><p>Cho node vừa cập nhật state vừa điều hướng trong một lần trả về; dùng cho handoff giữa agent.</p></details><details><summary><span class="qn">4</span>Bốn chế độ stream chính?</summary><p><code>values</code>, <code>updates</code>, <code>messages</code>, <code>custom</code>.</p></details><details><summary><span class="qn">5</span>Hook middleware nào để chặn request trước khi gọi model lần nào?</summary><p><code>before_agent</code> với <code>can_jump_to=["end"]</code> và trả <code>{"jump_to": "end"}</code>.</p></details><details><summary><span class="qn">6</span>Vì sao dùng MMR trong retriever?</summary><p>Cân bằng độ liên quan và độ đa dạng, tránh lấy nhiều chunk trùng ý.</p></details><details><summary><span class="qn">7</span><code>chunk_overlap</code> để làm gì?</summary><p>Giữ ngữ cảnh ở ranh giới giữa hai chunk.</p></details><details><summary><span class="qn">8</span>Prompt injection gián tiếp là gì? Cách giảm thiểu?</summary><p>Chỉ dẫn độc nằm trong dữ liệu agent đọc (web, PDF, email). Giảm bằng cách coi dữ liệu là dữ liệu, lọc retrieval, giới hạn quyền tool, HITL cho hành động nhạy cảm.</p></details><details><summary><span class="qn">9</span>Deterministic hay model-based guardrail cho phát hiện số thẻ tín dụng?</summary><p>Deterministic (regex + Luhn): nhanh, chính xác, rẻ.</p></details><details><summary><span class="qn">10</span>Excessive Agency (LLM06) phòng thế nào?</summary><p>Ít tool nhất có thể, quyền tối thiểu, giới hạn số lần gọi, người duyệt trước hành động không đảo ngược được.</p></details></div>
+
+<p>Nguồn đối chiếu: <a href="https://docs.langchain.com/oss/python/langchain/guardrails" target="_blank" rel="noopener">LangChain Guardrails docs</a>.</p>
+</main></div>
+<script>
+document.querySelectorAll('.hl').forEach(b=>{const btn=document.createElement('button');btn.className='copy';btn.textContent='Copy';
+btn.onclick=()=>{const t=b.querySelector('pre').innerText;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>{btn.textContent='Đã copy';setTimeout(()=>btn.textContent='Copy',1200)}).catch(()=>{})};b.appendChild(btn)});
+const root=document.documentElement;
+document.getElementById('theme').onclick=()=>{const d=root.dataset.theme?root.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;root.dataset.theme=d?'light':'dark'};
+const ans=document.getElementById('ans');ans.onclick=()=>{const ds=[...document.querySelectorAll('.quiz details')];const open=!ds.every(d=>d.open);ds.forEach(d=>d.open=open);ans.textContent=open?'Đóng tất cả đáp án':'Mở tất cả đáp án'};
+const links=[...document.querySelectorAll('nav a')];const hs=links.map(a=>document.getElementById(decodeURIComponent(a.hash.slice(1)))).filter(Boolean);
+addEventListener('scroll',()=>{let i=0;hs.forEach((h,k)=>{if(h.getBoundingClientRect().top<120)i=k});links.forEach((a,k)=>a.classList.toggle('on',k===i))},{passive:true});
+</script></body></html>
