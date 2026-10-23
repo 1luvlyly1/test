@@ -1,0 +1,1120 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Radar AI Agents</title>
+<style>
+:root{
+  --bg:#f3f5f9; --panel:#ffffff; --panel2:#f8fafc; --ink:#0f1b2d; --muted:#5b6b82; --line:#e2e8f0;
+  --accent:#0b5cab; --accent-soft:#e6f0fb;
+  --red:#b71c1c; --red-soft:#fdecec; --orange:#d4570f; --orange-soft:#fdeee4; --amber:#a86500; --amber-soft:#fff4e0;
+  --blue:#2a6fb0; --blue-soft:#e8f1fb; --green:#1b7f4b; --green-soft:#e6f6ee; --grey-soft:#eef1f5;
+  --vio:#6b3fb5; --vio-soft:#f1ebfb;
+  --term:#0d1626; --term-ink:#cfe3ff; --shadow:0 1px 2px rgba(15,27,45,.06),0 4px 14px rgba(15,27,45,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b1220; --panel:#121b2c; --panel2:#0f1726; --ink:#e6edf7; --muted:#93a3ba; --line:#22304a;
+    --accent:#5aa2ef; --accent-soft:#16294a;
+    --red:#ff6b6b; --red-soft:#3a1717; --orange:#ff9a5c; --orange-soft:#3a2312; --amber:#f2b04b; --amber-soft:#3a2a10;
+    --blue:#6aa8e8; --blue-soft:#132a45; --green:#4cc98a; --green-soft:#11301f; --grey-soft:#1a2436;
+    --vio:#b597f0; --vio-soft:#231a38;
+    --term:#070d18; --term-ink:#bcd6ff; --shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+button{font:inherit;cursor:pointer}
+code{font-family:ui-monospace,Menlo,Consolas,monospace}
+.wrap{max-width:1440px;margin:0 auto;padding:16px}
+header.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:40px;height:40px;border-radius:10px;background:var(--ink);display:grid;place-items:center;color:var(--bg);font-weight:700}
+.brand h1{font-size:18px;margin:0}
+.brand p{margin:0;color:var(--muted);font-size:12.5px}
+.controls,.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.toolbar{margin-bottom:10px}
+.toolbar .grow{flex:1}
+.clock{font-variant-numeric:tabular-nums;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-weight:600}
+.clock small{color:var(--muted);font-weight:400}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:7px 12px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+select.btn,input.btn{padding:6px 8px}
+.banner{background:var(--amber-soft);color:var(--amber);border-radius:8px;padding:6px 12px;font-size:12.5px;margin-bottom:12px}
+.mods{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.mod{flex:1;min-width:260px;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:10px 14px;color:var(--ink);display:flex;gap:12px;align-items:center}
+.mod .ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;flex:0 0 34px}
+.mod[data-m="oi"] .ic{background:#0b5cab}.mod[data-m="io"] .ic{background:#6b3fb5}
+.mod b{display:block;font-size:15px}.mod small{color:var(--muted)}
+.mod.on[data-m="oi"]{border-color:#0b5cab;box-shadow:inset 0 0 0 1px #0b5cab}
+.mod.on[data-m="io"]{border-color:#6b3fb5;box-shadow:inset 0 0 0 1px #6b3fb5}
+.module{display:none}.module.on{display:block}
+#m-io{--accent:var(--vio);--accent-soft:var(--vio-soft)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:14px;overflow-x:auto}
+.tab{border:0;background:none;color:var(--muted);padding:10px 14px;border-bottom:2px solid transparent;white-space:nowrap}
+.tab.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:var(--red);color:#fff;font-size:11px;line-height:18px;text-align:center;margin-left:6px}
+.view{display:none}.view.on{display:block}
+.grid3{display:grid;grid-template-columns:270px minmax(0,1fr) 360px;gap:14px}
+@media (max-width:1100px){.grid3{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+.card h3,.sec-title{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0;padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sec-title{padding:14px 18px 10px;border-bottom:0}
+.pad{padding:12px 14px}
+.note{color:var(--muted);font-size:12px}
+.empty{color:var(--muted);text-align:center;padding:40px 16px}
+.hidden{display:none!important}
+/* agents */
+.agent{display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);transition:background .2s}
+.agent:last-child{border-bottom:0}
+.agent .dot{width:28px;height:28px;flex:0 0 28px;border-radius:50%;display:grid;place-items:center;background:var(--grey-soft);color:var(--muted);font-size:12px;font-weight:700}
+.agent.run{background:var(--accent-soft)}
+.agent.run .dot{background:var(--accent);color:#fff;animation:pulse 1s infinite}
+.agent.done .dot{background:var(--green);color:#fff}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+.agent b{display:block;font-size:13.5px}
+.agent span{color:var(--muted);font-size:12px}
+.agent .met{color:var(--accent);font-weight:600;font-size:12px}
+/* feed */
+.feed{max-height:640px;overflow:auto}
+.item{display:grid;grid-template-columns:48px minmax(0,1fr);gap:10px;padding:8px 14px;border-bottom:1px solid var(--line);animation:fadein .3s}
+@keyframes fadein{from{opacity:0;transform:translateY(-4px)}to{opacity:1}}
+.item .t{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12.5px;padding-top:1px}
+.item .ttl{font-weight:500}
+.item.out .ttl{color:var(--muted);text-decoration:line-through;text-decoration-color:rgba(127,127,127,.5)}
+.item.hide{display:none}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.chip{font-size:11px;border-radius:5px;padding:1px 6px;background:var(--grey-soft);color:var(--muted)}
+.chip.src{background:transparent;border:1px solid var(--line)}
+.chip.ev{background:var(--red-soft);color:var(--red);font-weight:600}
+.chip.cl{background:var(--orange-soft);color:var(--orange);font-weight:600}
+.chip.keep{background:var(--blue-soft);color:var(--blue)}
+.chip.rt{background:var(--green-soft);color:var(--green)}
+.chip.trap{background:var(--amber-soft);color:var(--amber)}
+/* log */
+.term{background:var(--term);color:var(--term-ink);font:12px/1.55 ui-monospace,Menlo,Consolas,monospace;height:640px;overflow:auto;padding:10px 12px;border-radius:0 0 12px 12px}
+.term div{white-space:pre-wrap;word-break:break-word}
+.term .a{color:#7fd1ff}.term .w{color:#ffc46b}.term .e{color:#ff8a8a}.term .ok{color:#7ee2a8}.term .m{color:#6f86a8}
+/* event card */
+.event{border:1px solid var(--red);background:var(--red-soft);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:none}
+.event.on{display:block;animation:fadein .4s}
+.event h4{margin:0 0 4px;color:var(--red);font-size:15px}
+.event .row{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end}
+.event p{margin:0;font-size:13px}
+.bars{display:flex;gap:4px;align-items:flex-end;height:60px}
+.bars div{width:22px;background:var(--red);border-radius:3px 3px 0 0;position:relative}
+.bars div span{position:absolute;bottom:-17px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--muted)}
+.bars div i{position:absolute;top:-15px;left:50%;transform:translateX(-50%);font-size:10px;font-style:normal;color:var(--red)}
+.clus{margin-top:22px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px}
+details.arch{margin-top:14px}
+details.arch summary{cursor:pointer;color:var(--accent);font-weight:600}
+details.arch ol{margin:8px 0 0;padding-left:18px;color:var(--muted)}
+/* brief */
+.brief-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:flex-start;padding:16px 18px;border-bottom:1px solid var(--line)}
+.brief-head h2{margin:0;font-size:19px}
+.brief-head .meta{color:var(--muted);font-size:12.5px}
+.alert{border-radius:8px;padding:6px 12px;font-weight:700;font-size:13px;background:var(--red-soft);color:var(--red)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;padding:14px 18px}
+.kpi{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.kpi b{font-size:22px;display:block;font-variant-numeric:tabular-nums}
+.kpi span{color:var(--muted);font-size:12px}
+.summary{padding:0 18px 6px}
+.summary p{margin:0 0 8px}
+.summary ol{margin:0 0 8px;padding-left:20px}
+.mx{overflow-x:auto;padding:0 18px 12px}
+table{border-collapse:collapse;width:100%}
+.mx th,.mx td{border-bottom:1px solid var(--line);padding:6px 8px;font-size:12.5px;text-align:center}
+.mx th.l,.mx td.l{text-align:left}
+.mx th{color:var(--muted);font-weight:600;font-size:11.5px;vertical-align:bottom}
+.mx tr[data-go]{cursor:pointer}.mx tbody tr:hover{background:var(--panel2)}
+.cell{display:inline-block;width:16px;height:16px;border-radius:4px}
+.s4{background:var(--red)}.s3{background:var(--orange)}.s2{background:var(--amber)}.s1{background:var(--blue)}.op{background:var(--green)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);padding:0 18px 12px}
+.legend .cell{width:12px;height:12px;vertical-align:-2px;margin-right:4px}
+.ins{border:1px solid var(--line);border-left:5px solid var(--blue);border-radius:10px;padding:12px 14px;margin:0 18px 12px;background:var(--panel);scroll-margin-top:12px}
+.ins.sev4{border-left-color:var(--red);background:linear-gradient(90deg,var(--red-soft),var(--panel) 40%)}
+.ins.sev3{border-left-color:var(--orange)}.ins.sev2{border-left-color:var(--amber)}.ins.opp{border-left-color:var(--green)}
+.ins-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.ins h4{margin:0;font-size:15px}
+.rank{display:inline-grid;place-items:center;min-width:26px;height:22px;border-radius:6px;background:var(--ink);color:var(--bg);font-size:12px;font-weight:700;margin-right:6px;padding:0 5px}
+.tag{font-size:11.5px;font-weight:600;border-radius:5px;padding:1px 7px;white-space:nowrap}
+.tag.s4{background:var(--red);color:#fff}.tag.s3{background:var(--orange-soft);color:var(--orange)}.tag.s2{background:var(--amber-soft);color:var(--amber)}.tag.s1{background:var(--blue-soft);color:var(--blue)}.tag.op{background:var(--green-soft);color:var(--green)}
+.chain{margin:8px 0;font-size:13px}
+.chain .arr{color:var(--muted);margin:0 4px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px 16px;font-size:12.5px;margin:6px 0}
+.facts div span{color:var(--muted)}
+.score{font-variant-numeric:tabular-nums;font-weight:700}
+.nl{list-style:none;margin:8px 0 0;padding:0;border-top:1px dashed var(--line)}
+.nl li{padding:5px 0;border-bottom:1px dashed var(--line);font-size:13px}
+.nl label{display:flex;gap:8px;align-items:baseline;cursor:pointer}
+.nl .nt{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px;flex:0 0 38px}
+.ins details{font-size:12.5px;margin-top:6px}
+.ins details summary{cursor:pointer;color:var(--accent)}
+.ins details ul{margin:6px 0 0;padding-left:18px}
+.decide{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.decide .btn{padding:5px 10px;font-size:13px}
+.decide .btn.sel-dl{background:var(--green);border-color:var(--green);color:#fff}
+.decide .btn.sel-watch{background:var(--amber);border-color:var(--amber);color:#fff}
+.decide .btn.sel-skip{background:var(--muted);border-color:var(--muted);color:#fff}
+.decide input{flex:1;min-width:180px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:8px;padding:5px 10px;font:inherit;font-size:13px}
+.sticky{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:12px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-radius:0 0 12px 12px;z-index:2}
+/* downloads */
+.deep{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:14px;box-shadow:var(--shadow)}
+.deep .hd{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}
+.deep .hd h4{margin:0;font-size:15px}
+.deep .bd{padding:12px 16px}
+.steps div{font-size:13px;padding:3px 0;color:var(--muted)}
+.steps div.ok{color:var(--ink)}
+.steps div.ok::before{content:"✓ ";color:var(--green);font-weight:700}
+.steps div.run::before{content:"◌ ";color:var(--accent)}
+.files{margin-top:10px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.file{display:flex;gap:10px;align-items:center;padding:7px 10px;border-bottom:1px solid var(--line);font-size:13px}
+.file:last-child{border-bottom:0}
+.file code{flex:1;font-size:12px;word-break:break-all}
+.file .sz{color:var(--muted);font-size:12px;white-space:nowrap}
+.file .btn{padding:3px 9px;font-size:12px}
+.dlbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.modal{position:fixed;inset:0;background:rgba(5,10,20,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:20}
+.modal.on{display:flex}
+.mbox{background:var(--panel);border-radius:12px;width:min(860px,100%);max-height:88vh;display:flex;flex-direction:column;border:1px solid var(--line)}
+.mhd{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.mhd b{font-size:13px;word-break:break-all}
+.mbox pre{margin:0;padding:14px;overflow:auto;font:12.5px/1.55 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;color:var(--ink)}
+/* inside-out */
+.chart{width:100%;height:auto;display:block}
+.chart .gl{stroke:var(--line)} .chart .ax{fill:var(--muted);font-size:10px}
+.chart .band{fill:var(--green);opacity:.13}
+.chart .ln{fill:none;stroke:var(--vio);stroke-width:2}
+.chart .ln2{fill:none;stroke:var(--red);stroke-width:2;stroke-dasharray:4 3}
+.chart .pt{fill:var(--vio)} .chart .bad{fill:var(--red)}
+.chart .lbl{fill:var(--red);font-size:11px;font-weight:700} .chart .bl{fill:var(--green);font-size:10px}
+.fchk{width:100%}
+.fchk td,.fchk th{border-bottom:1px solid var(--line);padding:6px 8px;font-size:12.5px;text-align:right;white-space:nowrap}
+.fchk td:first-child,.fchk th:first-child{text-align:left;white-space:normal}
+.fchk th{color:var(--muted);font-weight:600;font-size:11.5px}
+.fchk code{font-size:11px;color:var(--muted)}
+.fchk tr{animation:fadein .3s}
+.st-ok{color:var(--green)} .st-warn{color:var(--amber);font-weight:600} .st-alert{color:var(--red);font-weight:700}
+.iosec{padding:14px 18px;border-bottom:1px solid var(--line)}
+.iosec:last-child{border-bottom:0}
+.iosec h5{margin:0 0 8px;font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.iosec ul{margin:0;padding-left:18px;font-size:13px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:800px){.cols{grid-template-columns:1fr}}
+.sig{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel2)}
+.sig h6{margin:0 0 6px;font-size:13px}
+.ticket{border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--panel)}
+.ticket .hd{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+.ticket ul{list-style:none;padding:0;margin:6px 0 0}
+.ticket li{font-size:13px;padding:2px 0}
+.ticket li::before{content:"☐ ";color:var(--muted)}
+.ticket.ok li::before{content:"☑ ";color:var(--green)}
+.status{font-size:11.5px;font-weight:600;border-radius:5px;padding:1px 7px;background:var(--blue-soft);color:var(--blue);white-space:nowrap}
+.status.done{background:var(--green-soft);color:var(--green)} .status.esc{background:var(--red-soft);color:var(--red)} .status.closed{background:var(--grey-soft);color:var(--muted)}
+.qbox{border:1px solid var(--amber);background:var(--amber-soft);border-radius:10px;padding:10px 12px;font-size:13px}
+.qbox.off{border-color:var(--green);background:var(--green-soft)}
+.outcome{margin-top:12px;padding:12px 14px;border-radius:10px;border:1px dashed var(--vio);background:var(--vio-soft)}
+.toast{position:fixed;right:16px;bottom:16px;max-width:380px;background:var(--ink);color:var(--bg);padding:12px 14px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.25);transform:translateY(160%);transition:transform .3s;z-index:30;font-size:13px}
+.toast.on{transform:none}
+@media print{
+  header.top,.mods,.banner,.toolbar,.tabs,.decide,.sticky,.toast,.modal,.noprint{display:none!important}
+  body{background:#fff} .card,.ins{box-shadow:none;break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">AI</div>
+      <div>
+        <h1>Radar AI Agents · Ngân hàng ABC</h1>
+        <p>Hai module độc lập: theo dõi tin tức bên ngoài (Outside-In) và giám sát dữ liệu nội bộ (Inside-Out)</p>
+      </div>
+    </div>
+    <div class="controls">
+      <label class="note">Ngày giả định (đêm crawl / T-1) <input type="date" id="dateIn" class="btn"></label>
+      <select id="speed" class="btn" title="Tốc độ mô phỏng">
+        <option value="1">Tốc độ 1×</option><option value="2" selected>2×</option><option value="4">4×</option><option value="10">10×</option>
+      </select>
+    </div>
+  </header>
+  <div class="banner">Prototype · Tên báo, tiêu đề, nội dung bài, khách hàng và số liệu đều là <b>dữ liệu giả lập</b>, viết sẵn theo kịch bản để trình diễn luồng nghiệp vụ. Chạy hoàn toàn offline.</div>
+
+  <div class="mods">
+    <button class="mod on" data-m="oi"><span class="ic">OI</span><span><b>Outside-In Radar</b><small>Crawl tiêu đề báo hàng đêm → tác động tới ngân hàng → Line Manager duyệt tải tin</small></span></button>
+    <button class="mod" data-m="io"><span class="ic">IO</span><span><b>Inside-Out Monitor</b><small>Giám sát feature dữ liệu nội bộ sau ETL → cảnh báo Kỹ thuật & Kinh doanh</small></span></button>
+  </div>
+
+  <!-- ===================== MODULE OUTSIDE-IN ===================== -->
+  <section class="module on" id="m-oi">
+    <div class="toolbar">
+      <div class="clock" id="oiClock"></div>
+      <button class="btn primary" id="oiRun">▶ Chạy phiên crawl đêm</button>
+      <button class="btn" id="oiReset">↺ Đặt lại</button>
+      <span class="grow"></span>
+      <span class="note">Line Manager: Trưởng phòng Phân tích Kinh tế & Thị trường</span>
+    </div>
+    <nav class="tabs">
+      <button class="tab on" data-v="oi1">1 · Pipeline đêm (22:00 → 06:30)</button>
+      <button class="tab" data-v="oi2">2 · Bản tin sáng: xếp theo mức nghiêm trọng<span class="badge hidden" id="oiB2">1</span></button>
+      <button class="tab" data-v="oi3">3 · Tin đã duyệt (.md)<span class="badge hidden" id="oiB3">0</span></button>
+    </nav>
+
+    <section class="view on" id="oi1">
+      <div class="grid3">
+        <div>
+          <div class="card"><h3>Agents</h3><div id="oiAgents"></div></div>
+          <details class="arch card pad">
+            <summary>Kiến trúc & cách làm bản thật</summary>
+            <ol>
+              <li>Crawler chạy theo lịch 22:00–06:00, chỉ lấy tiêu đề, URL và giờ đăng (nhẹ, ít rủi ro bản quyền).</li>
+              <li>Lọc nhiễu: phân loại chủ đề bằng mô hình, không chỉ khớp từ khóa (tránh bẫy "Iran" trong tin thể thao, "ngân hàng" trong tin PR).</li>
+              <li>Gộp trùng bằng embedding; phát hiện cụm sự kiện so với mức nền 30 ngày.</li>
+              <li>Ánh xạ tác động theo "bản đồ kênh truyền dẫn" do khối Rủi ro duyệt; chấm điểm và xếp hạng.</li>
+              <li>Line Manager duyệt → agent mới tải toàn văn các bài được chọn, lưu Markdown kèm metadata vào kho phân tích.</li>
+            </ol>
+            <p class="note" style="margin:8px 0 0">Trong file này, mỗi agent là một hàm JS chạy kịch bản. Thay bằng lời gọi mô hình nội bộ khi làm bản thật.</p>
+          </details>
+        </div>
+        <div>
+          <div class="event" id="oiEvent">
+            <div class="row">
+              <div style="flex:1;min-width:240px">
+                <h4>⚠ Sự kiện bất thường chính: Xung đột quân sự Mỹ – Iran</h4>
+                <p id="oiEventText"></p>
+              </div>
+              <div><div class="bars" id="oiBars"></div><div class="note" style="margin-top:18px">Số tin về sự kiện theo giờ</div></div>
+            </div>
+            <div class="clus" id="oiClus"></div>
+          </div>
+          <div class="card">
+            <h3><span>Luồng tiêu đề thu thập <span id="oiCount" style="text-transform:none">(0)</span></span>
+              <label style="text-transform:none;font-weight:400;letter-spacing:0"><input type="checkbox" id="oiHide"> Ẩn tin bị loại</label></h3>
+            <div class="feed" id="oiFeed"></div>
+          </div>
+        </div>
+        <div class="card"><h3>Nhật ký agent</h3><div class="term" id="oiTerm"></div></div>
+      </div>
+    </section>
+    <section class="view" id="oi2"><div class="card" id="oiBrief"></div></section>
+    <section class="view" id="oi3"><div id="oiDl"></div></section>
+  </section>
+
+  <!-- ===================== MODULE INSIDE-OUT ===================== -->
+  <section class="module" id="m-io">
+    <div class="toolbar">
+      <div class="clock" id="ioClock"></div>
+      <button class="btn primary" id="ioRun">▶ Chạy kiểm tra dữ liệu sau ETL</button>
+      <button class="btn" id="ioReset">↺ Đặt lại</button>
+      <span class="grow"></span>
+      <span class="note">Dữ liệu kiểm tra: số liệu chốt ngày T-1 trong kho dữ liệu nội bộ</span>
+    </div>
+    <nav class="tabs">
+      <button class="tab on" data-v="io1">1 · Pipeline kiểm tra dữ liệu</button>
+      <button class="tab" data-v="io2">2 · Cảnh báo & phiếu xử lý<span class="badge hidden" id="ioB2">2</span></button>
+    </nav>
+    <section class="view on" id="io1">
+      <div class="grid3">
+        <div class="card"><h3>Agents</h3><div id="ioAgents"></div></div>
+        <div class="card">
+          <h3>Kiểm tra feature: T-1 so với T-2, T-7</h3>
+          <div class="pad hidden" id="ioChartBox"></div>
+          <div style="overflow-x:auto"><table class="fchk"><thead><tr><th>Feature</th><th>T-1</th><th>T-2</th><th>T-7</th><th>Biến động</th><th>Trạng thái</th></tr></thead><tbody id="ioRows"></tbody></table></div>
+          <div class="empty" id="ioEmpty">Bấm <b>▶ Chạy kiểm tra dữ liệu sau ETL</b> để bắt đầu.</div>
+        </div>
+        <div class="card"><h3>Nhật ký agent</h3><div class="term" id="ioTerm"></div></div>
+      </div>
+    </section>
+    <section class="view" id="io2"><div class="card" id="ioArea"></div></section>
+  </section>
+</div>
+
+<div class="modal" id="modal"><div class="mbox"><div class="mhd"><b id="mTitle"></b><div style="display:flex;gap:6px"><button class="btn" id="mDl">⬇ Tải</button><button class="btn" id="mClose">✕</button></div></div><pre id="mBody"></pre></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== TIỆN ÍCH CHUNG ===================== */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pad2=n=>String(n).padStart(2,"0");
+const S={speed:2};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms/S.speed));
+const BANK="Ngân hàng ABC", MANAGER="Trưởng phòng Phân tích Kinh tế & Thị trường";
+(()=>{const d=new Date();d.setDate(d.getDate()-180);$("#dateIn").value=`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;})();
+function baseDate(off=0){const d=new Date(($("#dateIn").value||"2026-04-01")+"T00:00:00");d.setDate(d.getDate()+off);return d;}
+function dLabel(off=0){return baseDate(off).toLocaleDateString("vi-VN",{day:"2-digit",month:"2-digit",year:"numeric"});}
+function ymd(off=0){const d=baseDate(off);return `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}`;}
+function isoAt(t){const d=baseDate(+t.slice(0,2)<12?1:0);return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${t}:00+07:00`;}
+function setClock(el,t){const m=+t.slice(0,2)<12;el.dataset.t=t;el.innerHTML=`<small>${m?"Sáng":"Đêm"} ${dLabel(m?1:0)}</small> ${t}`;}
+function mkLog(term,clock){return (tag,msg,cls="")=>{const d=document.createElement("div");d.innerHTML=`<span class="m">${clock.dataset.t||"--:--"}</span> <span class="a">[${tag}]</span> <span class="${cls}">${esc(msg)}</span>`;term.appendChild(d);term.scrollTop=term.scrollHeight;};}
+function renderAgents(box,list,pre){box.innerHTML=list.map((a,i)=>`<div class="agent" id="${pre}-${a.id}"><div class="dot">${i+1}</div><div><b>${a.n}</b><span>${a.d}</span><div class="met" id="${pre}-m-${a.id}"></div></div></div>`).join("");}
+function setAg(pre,id,st,met){const el=$(`#${pre}-${id}`);el.classList.remove("run","done");if(st)el.classList.add(st);if(met!==undefined)$(`#${pre}-m-${id}`).textContent=met;}
+function toast(msg){const t=$("#toast");t.innerHTML=msg;t.classList.add("on");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("on"),5000);}
+function slug(s){return s.normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/đ/g,"d").replace(/Đ/g,"D").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");}
+function download(name,blob){const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},800);}
+const mdBlob=t=>new Blob([t],{type:"text/markdown;charset=utf-8"});
+// ZIP tối giản (không nén), hỗ trợ tên file UTF-8
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(u){let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRC_T[(c^u[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function makeZip(files){
+  const enc=new TextEncoder(),parts=[],cen=[];let off=0;const now=new Date();
+  const dt=((now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1))&0xFFFF, dd=(((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate())&0xFFFF;
+  for(const f of files){
+    const nm=enc.encode(f.path),data=enc.encode(f.text),crc=crc32(data);
+    const l=new DataView(new ArrayBuffer(30));
+    l.setUint32(0,0x04034b50,true);l.setUint16(4,20,true);l.setUint16(6,0x0800,true);l.setUint16(8,0,true);l.setUint16(10,dt,true);l.setUint16(12,dd,true);
+    l.setUint32(14,crc,true);l.setUint32(18,data.length,true);l.setUint32(22,data.length,true);l.setUint16(26,nm.length,true);l.setUint16(28,0,true);
+    parts.push(new Uint8Array(l.buffer),nm,data);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(10,0,true);c.setUint16(12,dt,true);c.setUint16(14,dd,true);
+    c.setUint32(16,crc,true);c.setUint32(20,data.length,true);c.setUint32(24,data.length,true);c.setUint16(28,nm.length,true);c.setUint32(42,off,true);
+    cen.push(new Uint8Array(c.buffer),nm);off+=30+nm.length+data.length;
+  }
+  const cs=cen.reduce((a,b)=>a+b.length,0),e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cs,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...cen,new Uint8Array(e.buffer)],{type:"application/zip"});
+}
+let modalFile=null;
+function openModal(f){modalFile=f;$("#mTitle").textContent=f.path;$("#mBody").textContent=f.text;$("#modal").classList.add("on");}
+$("#mClose").onclick=()=>$("#modal").classList.remove("on");
+$("#modal").onclick=e=>{if(e.target.id==="modal")$("#modal").classList.remove("on");};
+$("#mDl").onclick=()=>modalFile&&download(modalFile.name,mdBlob(modalFile.text));
+
+/* ======================================================================
+   MODULE 1: OUTSIDE-IN RADAR
+   ====================================================================== */
+const SRC={
+  VN1:{n:"Nhật báo Kinh tế",r:"VN"},VN2:{n:"Thời báo Tài chính",r:"VN"},VN3:{n:"Tin nhanh 24h",r:"VN"},VN4:{n:"Đời sống Số",r:"VN"},
+  INT1:{n:"Global Wire",r:"Quốc tế"},INT2:{n:"Market Daily",r:"Quốc tế"},INT3:{n:"World Desk",r:"Quốc tế"},
+  INT4:{n:"FX & Rates Monitor",r:"Quốc tế"},INT5:{n:"Asia Business",r:"Quốc tế"},INT6:{n:"Tech Times",r:"Quốc tế"}
+};
+const CL={war:"Mỹ–Iran",rumor:"Tin đồn về ABC",storm:"Bão số 7",bond:"Trái phiếu Hưng Phát",phish:"Lừa đảo mạo danh ABC",reg:"Chính sách NHNN",rate:"Lãi suất huy động",tariff:"Thuế quan Mỹ",cloud:"Sự cố cloud",textile:"DN dệt may"};
+// k: noise | trap (khớp từ khóa nhưng không liên quan) | routine | event (cụm Mỹ–Iran) | rel (chủ đề ảnh hưởng khác) | dup
+const H=[
+ {id:"n01",t:"22:01",s:"VN1",k:"noise",why:"Thể thao",title:"Đội tuyển Việt Nam chốt danh sách 26 cầu thủ cho vòng loại châu Á"},
+ {id:"n02",t:"22:04",s:"VN3",k:"noise",why:"Đời sống",title:"5 món ăn sáng giúp giảm cân hiệu quả mùa thu"},
+ {id:"n03",t:"22:08",s:"VN2",k:"noise",why:"Giao thông đô thị",title:"Hà Nội phân luồng giao thông phục vụ sửa chữa cầu Chương Dương"},
+ {id:"n04",t:"22:12",s:"VN3",k:"rel",c:"storm",title:"Bão số 7 mạnh cấp 12 hướng vào các tỉnh miền Trung",
+  b:"Trung tâm dự báo cho biết bão có thể đổ bộ vào khu vực Quảng Ngãi – Bình Định trong 36 giờ tới, kèm mưa rất lớn 300–500 mm. Các tỉnh đã lên phương án sơ tán dân ở vùng trũng thấp và ven biển, đồng thời yêu cầu tàu thuyền vào nơi tránh trú."},
+ {id:"n05",t:"22:15",s:"INT6",k:"noise",why:"Công nghệ tiêu dùng",title:"Tech giant unveils new foldable smartphone lineup"},
+ {id:"n06",t:"22:19",s:"VN1",k:"noise",why:"Giải trí",title:"Ca sĩ nổi tiếng công bố tour diễn xuyên Việt dịp cuối năm"},
+ {id:"n07",t:"22:24",s:"VN4",k:"rel",c:"rumor",title:"Xuất hiện tin đồn thất thiệt về thanh khoản Ngân hàng ABC trên mạng xã hội",
+  b:"Từ chiều tối, một số tài khoản trên mạng xã hội chia sẻ bài viết cho rằng Ngân hàng ABC đang gặp khó khăn thanh khoản và sẽ hạn chế rút tiền. Bài viết không dẫn nguồn nhưng đã thu hút hàng nghìn lượt chia sẻ chỉ trong vài giờ."},
+ {id:"n08",t:"22:27",s:"VN3",k:"routine",title:"Giá cà phê xuất khẩu giảm nhẹ tuần thứ hai liên tiếp"},
+ {id:"n09",t:"22:31",s:"VN1",k:"trap",why:"Khớp từ khóa “ngân hàng” nhưng là tin PR",title:"Ngân hàng XYZ tổ chức giải chạy marathon vì cộng đồng"},
+ {id:"n10",t:"22:36",s:"INT3",k:"noise",why:"Giải trí",title:"Royal wedding draws thousands to European capital"},
+ {id:"n11",t:"22:40",s:"VN2",k:"rel",c:"bond",title:"Tập đoàn Địa ốc Hưng Phát xin lùi hạn trả lãi 3 lô trái phiếu",
+  b:"Tập đoàn Địa ốc Hưng Phát đã gửi văn bản đề nghị trái chủ đồng ý lùi thời hạn thanh toán lãi của 3 lô trái phiếu, tổng mệnh giá khoảng 4.500 tỷ đồng, thêm 12 tháng. Lý do được nêu là dòng tiền từ các dự án chưa về như kế hoạch."},
+ {id:"n12",t:"22:45",s:"VN3",k:"noise",why:"Chiêm tinh / giải trí",title:"Tử vi cuối tuần cho 12 cung hoàng đạo"},
+ {id:"n13",t:"22:49",s:"INT2",k:"routine",title:"Oil steady as traders await OPEC+ meeting next week"},
+ {id:"n14",t:"22:53",s:"VN2",k:"routine",title:"NHNN giữ ổn định tỷ giá trung tâm, thanh khoản hệ thống dồi dào"},
+ {id:"n15",t:"22:58",s:"VN1",k:"rel",c:"phish",title:"Cảnh báo tin nhắn giả mạo Ngân hàng ABC dẫn link chiếm đoạt tài khoản",
+  b:"Nhiều người dân phản ánh nhận được tin nhắn mạo danh Ngân hàng ABC thông báo tài khoản bị khóa, kèm đường link yêu cầu đăng nhập để xác thực. Cơ quan chức năng khuyến cáo người dùng không bấm vào link lạ và không cung cấp mã OTP cho bất kỳ ai."},
+ {id:"n16",t:"23:03",s:"VN3",k:"noise",why:"Mạng xã hội giật tít",title:"Clip cãi vã trên phố đi bộ gây xôn xao mạng xã hội"},
+ {id:"n17",t:"23:07",s:"INT1",k:"noise",why:"Chính trị quốc tế, không có kênh tác động",title:"Election results in small Pacific nation spark debate"},
+ {id:"n18",t:"23:12",s:"VN2",k:"rel",c:"reg",title:"NHNN lấy ý kiến dự thảo thông tư giảm tỷ lệ vốn ngắn hạn cho vay trung, dài hạn",
+  b:"Dự thảo đề xuất giảm dần tỷ lệ tối đa nguồn vốn ngắn hạn được dùng để cho vay trung, dài hạn theo lộ trình 2 năm. Các ngân hàng đang ở mức cao sẽ phải tăng huy động dài hạn hoặc phát hành giấy tờ có giá để đáp ứng."},
+ {id:"n19",t:"23:18",s:"VN1",k:"noise",why:"Quảng cáo bất động sản",title:"Căn hộ ven sông chỉ từ 30 triệu/m², chiết khấu đến 10%"},
+ {id:"n20",t:"23:22",s:"INT5",k:"rel",c:"tariff",title:"US weighs new tariffs on Southeast Asian exports",
+  b:"US trade officials are reviewing proposals for additional tariffs on selected imports from Southeast Asia, including electronics, textiles and furniture. A decision could come within 60 days."},
+ {id:"n21",t:"23:28",s:"VN3",k:"trap",why:"Khớp từ khóa “Iran” nhưng là thể thao",title:"Đội tuyển futsal Iran vô địch giải châu Á"},
+ {id:"n22",t:"23:33",s:"VN2",k:"rel",c:"rate",title:"Một ngân hàng tư nhân tăng lãi suất huy động thêm 0,5 điểm % kỳ hạn 6–12 tháng",
+  b:"Từ ngày mai, một ngân hàng tư nhân quy mô vừa nâng lãi suất tiết kiệm kỳ hạn 6–12 tháng thêm 0,5 điểm phần trăm, lên mức cao nhất nhóm. Giới phân tích cho rằng cạnh tranh huy động cuối năm đang nóng lên."},
+ {id:"n23",t:"23:40",s:"INT1",k:"event",c:"war",title:"Pentagon confirms additional carrier group heading to the Gulf",
+  b:"The US Department of Defense confirmed that an additional carrier strike group has been ordered to the Gulf region amid rising tensions with Iran."},
+ {id:"n24",t:"23:46",s:"VN3",k:"noise",why:"Thời tiết thông thường",title:"Trời se lạnh, mưa nhỏ tại Hà Nội cuối tuần"},
+ {id:"n25",t:"23:52",s:"INT6",k:"rel",c:"cloud",title:"Global cloud outage disrupts payment apps across Asia",
+  b:"A multi-hour outage at a major cloud provider disrupted payment apps, e-wallets and some online banking services in several Asian markets. Services were gradually restored after midnight."},
+ {id:"n26",t:"00:05",s:"VN1",k:"noise",why:"Giải trí",title:"Phim Việt cán mốc 100 tỷ đồng doanh thu phòng vé"},
+ {id:"n27",t:"00:12",s:"VN3",k:"rel",c:"textile",title:"Doanh nghiệp dệt may lớn ở Bình Dương đóng cửa 2 nhà máy, cắt giảm 3.000 lao động",
+  b:"Doanh nghiệp cho biết đơn hàng xuất khẩu sang Mỹ và EU giảm hơn 40% so với cùng kỳ, buộc phải tạm đóng cửa 2 nhà máy và chấm dứt hợp đồng với khoảng 3.000 lao động từ tháng tới."},
+ {id:"n28",t:"00:20",s:"VN4",k:"rel",c:"rumor",title:"Ngân hàng ABC bác bỏ tin đồn, khẳng định hoạt động bình thường",
+  b:"Trong thông báo phát đi gần nửa đêm, Ngân hàng ABC khẳng định thông tin trên mạng xã hội là sai sự thật, các chỉ số thanh khoản đảm bảo theo quy định. Ngân hàng đã đề nghị cơ quan chức năng xác minh và xử lý nguồn phát tán."},
+ {id:"n29",t:"00:30",s:"VN3",k:"noise",why:"Đời sống",title:"Mẹo bảo quản rau củ trong tủ lạnh được lâu"},
+ {id:"n30",t:"00:48",s:"INT1",k:"event",c:"war",title:"BREAKING: US launches strikes on military targets inside Iran",
+  b:"US forces carried out strikes on several military sites inside Iran overnight, according to officials. Iran's government condemned the attack and said it reserved the right to respond."},
+ {id:"n31",t:"00:52",s:"INT3",k:"dup",of:"n30",title:"US strikes Iranian military sites; Tehran vows forceful response"},
+ {id:"n32",t:"01:05",s:"VN3",k:"dup",of:"n30",title:"Mỹ tấn công các mục tiêu quân sự trên lãnh thổ Iran"},
+ {id:"n33",t:"01:09",s:"VN1",k:"trap",why:"Giật tít, không có thông tin mới so với tin gốc",title:"SỐC: Thế chiến thứ 3 sắp nổ ra?"},
+ {id:"n34",t:"01:20",s:"INT2",k:"event",c:"war",title:"Brent crude jumps 9% in Asian trade on Middle East escalation",
+  b:"Brent crude futures rose as much as 9% in early Asian trading as investors priced in the risk of supply disruptions from the Gulf."},
+ {id:"n35",t:"01:34",s:"INT3",k:"event",c:"war",title:"Iran threatens to close the Strait of Hormuz",
+  b:"Iranian officials warned that shipping through the Strait of Hormuz, a route for roughly a fifth of global oil supply, could be halted if attacks continue."},
+ {id:"n36",t:"01:41",s:"VN3",k:"noise",why:"Giải trí",title:"Hot girl phòng gym chia sẻ bí quyết giữ dáng"},
+ {id:"n37",t:"01:50",s:"INT2",k:"event",c:"war",title:"Gold hits record high as investors rush to safe havens",
+  b:"Spot gold climbed to a record as investors sought safe-haven assets following the overnight strikes."},
+ {id:"n38",t:"02:05",s:"INT4",k:"event",c:"war",title:"Dollar index surges, Asian currencies under pressure",
+  b:"The US dollar index rose sharply, while regional currencies including the won and the baht weakened against the greenback."},
+ {id:"n39",t:"02:12",s:"VN1",k:"noise",why:"Xổ số",title:"Kết quả xổ số miền Bắc"},
+ {id:"n40",t:"02:20",s:"INT2",k:"event",c:"war",title:"US stock futures tumble more than 2%",
+  b:"Futures on major US stock indexes fell more than 2% in overnight trading, signalling a weak open."},
+ {id:"n41",t:"02:40",s:"INT4",k:"event",c:"war",title:"Major shipping lines suspend Gulf transits as war-risk premiums spike",
+  b:"Several of the world's largest container lines said they would pause transits through Gulf waters, while insurers raised war-risk premiums for vessels in the region."},
+ {id:"n42",t:"02:55",s:"INT1",k:"event",c:"war",title:"US Treasury unveils sweeping new sanctions on Iran-linked entities and shipping networks",
+  b:"The US Treasury announced sanctions on dozens of entities, vessels and individuals linked to Iran's military and oil trade, including companies registered in third countries."},
+ {id:"n43",t:"03:02",s:"INT6",k:"trap",why:"Tài sản đầu cơ, không có kênh tác động trực tiếp",title:"Meme coin soars 300% after celebrity post"},
+ {id:"n44",t:"03:10",s:"INT5",k:"event",c:"war",title:"Asian airlines reroute flights to avoid Middle East airspace",
+  b:"Several Asian carriers said they would reroute flights to avoid Middle East airspace, adding flight time and fuel costs."},
+ {id:"n45",t:"03:25",s:"INT4",k:"event",c:"war",title:"Fed officials signal caution on rate cuts as energy prices spike",
+  b:"Two Federal Reserve officials said a spike in energy prices could delay planned rate cuts, citing renewed inflation risks."},
+ {id:"n46",t:"03:40",s:"INT1",k:"event",c:"war",title:"Cyber agencies warn of retaliatory attacks on financial institutions",
+  b:"Cybersecurity agencies issued an advisory warning that state-linked groups may target banks and payment systems in retaliation."},
+ {id:"n47",t:"03:52",s:"INT3",k:"noise",why:"Giải trí",title:"Hollywood blockbuster tops global box office for third week"},
+ {id:"n48",t:"04:00",s:"VN1",k:"noise",why:"Thể thao",title:"Kết quả vòng 8 Ngoại hạng Anh: các đội mạnh tiếp tục gây thất vọng"},
+ {id:"n49",t:"04:08",s:"VN3",k:"rel",c:"storm",title:"Bão số 7: sơ tán hơn 200.000 dân, nhiều tuyến đường bị chia cắt",
+  b:"Theo báo cáo nhanh, các tỉnh miền Trung đã sơ tán hơn 200.000 người. Nhiều tuyến quốc lộ bị ngập, một số khu công nghiệp tạm dừng hoạt động để đảm bảo an toàn."},
+ {id:"n50",t:"04:15",s:"VN2",k:"event",c:"war",title:"Giá xăng dầu kỳ điều hành tới có thể tăng mạnh theo giá thế giới",
+  b:"Theo tính toán của một số doanh nghiệp đầu mối, nếu giá dầu thế giới giữ ở mức hiện nay, giá xăng trong nước kỳ điều hành tới có thể tăng 1.500–2.000 đồng/lít."},
+ {id:"n51",t:"04:22",s:"VN4",k:"rel",c:"rumor",title:"Tin đồn về Ngân hàng ABC tiếp tục lan rộng trên các hội nhóm trong đêm",
+  b:"Đến rạng sáng, bài viết gốc và các bản chia sẻ lại đã xuất hiện trong nhiều hội nhóm lớn. Một số bình luận kêu gọi rút tiền ngay khi ngân hàng mở cửa, dù ngân hàng đã phát thông báo bác bỏ."},
+ {id:"n52",t:"04:30",s:"VN3",k:"event",c:"war",title:"Doanh nghiệp xuất khẩu sang Trung Đông lo gián đoạn đơn hàng và thanh toán",
+  b:"Một số doanh nghiệp thủy sản, nông sản xuất khẩu sang Trung Đông cho biết lo ngại lô hàng bị kẹt và đối tác chậm thanh toán qua ngân hàng."},
+ {id:"n53",t:"04:45",s:"INT3",k:"event",c:"war",title:"Urea and fertilizer prices climb on Gulf supply fears",
+  b:"Prices of urea and other nitrogen fertilizers rose on concerns that exports from Gulf producers could be disrupted."},
+ {id:"n54",t:"05:00",s:"VN1",k:"event",c:"war",title:"Khuyến cáo người lao động Việt Nam tại Trung Đông theo dõi sát tình hình an ninh",
+  b:"Cơ quan chức năng khuyến cáo người lao động Việt Nam đang làm việc tại một số nước Trung Đông theo dõi thông tin an ninh và giữ liên lạc với cơ quan đại diện."},
+ {id:"n55",t:"05:10",s:"VN2",k:"event",c:"war",title:"Cổ phiếu dầu khí được kỳ vọng hưởng lợi khi giá dầu tăng mạnh",
+  b:"Một số công ty chứng khoán nhận định nhóm cổ phiếu khai thác, dịch vụ dầu khí có thể hưởng lợi trong ngắn hạn khi giá dầu tăng."},
+ {id:"n56",t:"05:15",s:"VN3",k:"noise",why:"Thông báo dân sinh",title:"Lịch cắt điện khu vực ngoại thành cuối tuần"},
+ {id:"n57",t:"05:20",s:"VN3",k:"noise",why:"Quảng cáo / khuyến mại",title:"Siêu thị điện máy giảm giá đến 50% dịp cuối tuần"},
+ {id:"n58",t:"05:30",s:"INT5",k:"event",c:"war",title:"Nikkei opens down 3%, KOSPI slides as risk-off grips Asia",
+  b:"Japan's Nikkei fell 3% at the open and South Korea's KOSPI also slid as investors moved away from risky assets."},
+ {id:"n59",t:"05:35",s:"VN1",k:"event",c:"war",title:"Giá vàng miếng trong nước dự báo tăng mạnh khi mở cửa",
+  b:"Các doanh nghiệp kinh doanh vàng dự báo giá vàng miếng trong nước sẽ tăng mạnh khi mở cửa, theo đà tăng của giá thế giới."},
+ {id:"n60",t:"05:42",s:"VN2",k:"event",c:"war",title:"Hàng không Việt xem xét tăng phụ thu nhiên liệu",
+  b:"Một số hãng hàng không trong nước cho biết đang tính toán điều chỉnh phụ thu nhiên liệu do giá nhiên liệu bay tăng nhanh."},
+ {id:"n61",t:"05:50",s:"VN2",k:"rel",c:"bond",title:"Trái phiếu Hưng Phát: trái chủ phản đối phương án lùi hạn, cổ phiếu giảm sàn",
+  b:"Đại diện nhóm trái chủ cho biết không đồng ý phương án lùi hạn và đề nghị doanh nghiệp công bố kế hoạch trả nợ cụ thể. Cổ phiếu của tập đoàn giảm sàn trong phiên giao dịch gần nhất."}
+];
+const HM=Object.fromEntries(H.map(h=>[h.id,h]));
+const LINES=[{c:"TRS",n:"Nguồn vốn & KD tiền tệ"},{c:"CIB",n:"KH Doanh nghiệp"},{c:"TF",n:"Tài trợ TM & TTQT"},{c:"RTL",n:"KH Cá nhân"},
+  {c:"RISK",n:"Quản trị rủi ro"},{c:"CMP",n:"Tuân thủ / AML"},{c:"IT",n:"CNTT & ATTT"},{c:"COM",n:"Truyền thông & Pháp chế"}];
+const LN=Object.fromEntries(LINES.map(l=>[l.c,l.n]));
+// sev: 4 Nghiêm trọng · 3 Cao · 2 Trung bình · 1 Thấp
+const INS=[
+ {id:"R1",short:"Tin đồn thanh khoản về ABC",title:"Tin đồn thanh khoản về Ngân hàng ABC lan rộng trên mạng xã hội",sev:4,conf:.8,hz:"Tức thì (trước giờ mở cửa)",
+  src:["n07","n28","n51"],lines:["RTL","TRS","COM","RISK"],
+  chain:["Tin đồn thanh khoản lan trên mạng xã hội","Lượt chia sẻ tăng mạnh, có lời kêu gọi rút tiền","Nguy cơ rút tiền tập trung khi mở cửa","Áp lực thanh khoản và uy tín ngân hàng"],
+  kpi:"Lượt chia sẻ/bình luận; lượng rút tiền theo giờ; số dư tiền gửi không kỳ hạn; tồn quỹ tiền mặt chi nhánh",
+  q:["Nguồn phát tán ban đầu là tài khoản nào, đã báo cáo cơ quan chức năng chưa?","Có cần thông cáo bổ sung và kịch bản trả lời khách hàng cho chi nhánh trước 07:30?","Tồn quỹ tiền mặt các chi nhánh lớn có đủ cho kịch bản rút tiền gấp 3 lần bình thường?","Mức dự trữ thanh khoản và hạn mức liên ngân hàng sẵn sàng sử dụng?"],
+  owner:"Ban Truyền thông + Khối Nguồn vốn + Pháp chế",eta:"Trước 07:30, trước giờ mở cửa",watch:"Lượng rút tiền 2 giờ đầu phiên > 2 lần bình thường"},
+ {id:"I5",short:"Lệnh trừng phạt mới liên quan Iran",title:"Mỹ mở rộng lệnh trừng phạt liên quan Iran: cập nhật sàng lọc ngay",sev:3,conf:.9,hz:"Tức thì (trong ngày)",
+  src:["n42","n30"],lines:["CMP","TF","IT"],
+  chain:["Mỹ mở rộng danh sách trừng phạt (tổ chức, tàu, mạng lưới vận tải biển)","Danh sách sàng lọc nội bộ có thể chưa cập nhật","Rủi ro xử lý giao dịch với đối tượng bị cấm vận","Rủi ro bị phạt, ngân hàng đại lý USD từ chối giao dịch"],
+  kpi:"Phiên bản danh sách cấm vận; số cảnh báo khớp tên; giao dịch treo",
+  q:["Danh sách mới đã được nạp vào hệ thống sàng lọc chưa?","Có giao dịch/KH/tàu nào trong 90 ngày qua khớp danh sách mới?","Có giao dịch đang chờ xử lý qua trung gian ở nước thứ ba?"],
+  owner:"Khối Tuân thủ / AML",eta:"Ngay trong buổi sáng",watch:"Có thêm thông báo bổ sung danh sách trừng phạt"},
+ {id:"I1",short:"Tỷ giá & thanh khoản ngoại tệ",title:"Áp lực tỷ giá USD/VND và thanh khoản ngoại tệ",sev:3,conf:.85,hz:"Tức thì (0–7 ngày)",
+  src:["n38","n37","n40","n58"],lines:["TRS","RISK","CIB"],
+  chain:["Xung đột leo thang","Dòng tiền trú ẩn vào USD, vàng","DXY tăng, tiền châu Á mất giá","Áp lực USD/VND, DN nhập khẩu tăng mua USD"],
+  kpi:"USD/VND liên ngân hàng & tự do; trạng thái ngoại tệ (NOP); lãi suất USD/VND qua đêm",
+  q:["Trạng thái ngoại tệ mở hiện tại và hạn mức còn lại?","Top khách hàng nhập khẩu có nhu cầu USD lớn trong 2 tuần tới?","Thu nhập KD ngoại tệ thay đổi thế nào nếu USD/VND +1% / +2,5% / +4%?"],
+  owner:"Khối Nguồn vốn (ALM/Treasury)",eta:"Trước 10:00 hôm nay",watch:"USD/VND liên ngân hàng tăng > 1% trong 3 phiên"},
+ {id:"P1",short:"Lừa đảo mạo danh ABC",title:"Chiến dịch SMS mạo danh Ngân hàng ABC chiếm đoạt tài khoản",sev:3,conf:.85,hz:"Tức thì",
+  src:["n15"],lines:["RTL","IT","COM"],
+  chain:["SMS mạo danh ABC kèm link giả","Khách hàng nhập thông tin đăng nhập, OTP","Tài khoản bị chiếm đoạt","Tổn thất của khách hàng, khiếu nại, rủi ro uy tín"],
+  kpi:"Số khiếu nại giao dịch lạ; số domain giả phát hiện; giao dịch bị hệ thống chống gian lận chặn",
+  q:["Đã yêu cầu gỡ các domain giả chưa?","Có giao dịch bất thường nào khớp mẫu lừa đảo trong đêm?","Có cần gửi cảnh báo chủ động tới khách hàng qua app/SMS chính thức?"],
+  owner:"CNTT (ATTT) + Phòng chống gian lận + Truyền thông",eta:"Trong buổi sáng",watch:"Số khiếu nại giao dịch lạ > 20 trong ngày"},
+ {id:"I2",short:"Giá dầu → lạm phát → lãi suất",title:"Giá dầu tăng đẩy lạm phát, thu hẹp dư địa giảm lãi suất",sev:3,conf:.75,hz:"1–3 tháng",
+  src:["n34","n35","n45","n50"],lines:["TRS","RISK","RTL"],
+  chain:["Brent +9%, đe dọa phong tỏa Hormuz","Giá xăng trong nước tăng","CPI tăng, Fed trì hoãn cắt giảm","Dư địa nới lỏng của NHNN hẹp lại; chi phí vốn và NIM chịu áp lực"],
+  kpi:"Giá Brent; giá xăng kỳ điều hành; CPI tháng; lợi suất TPCP 10 năm",
+  q:["Độ nhạy NIM với lãi suất huy động +50 bps?","Danh mục trái phiếu sẵn sàng để bán bị ảnh hưởng thế nào nếu lợi suất tăng?","Có cần điều chỉnh kế hoạch giảm lãi suất cho vay quý tới?"],
+  owner:"Quản trị rủi ro thị trường & ALCO",eta:"Trong tuần",watch:"Brent > 100 USD/thùng 5 phiên liên tiếp"},
+ {id:"B1",short:"Trái phiếu Hưng Phát",title:"Tập đoàn Địa ốc Hưng Phát chậm trả lãi trái phiếu: rủi ro tín dụng lan truyền",sev:3,conf:.7,hz:"1–4 tuần",
+  src:["n11","n61"],lines:["CIB","RISK","TRS","RTL"],
+  chain:["Hưng Phát xin lùi trả lãi 3 lô trái phiếu","Trái chủ phản đối, cổ phiếu giảm sàn","Nguy cơ mất khả năng trả nợ lan sang khoản vay ngân hàng","Rủi ro nợ xấu nếu ABC có dư nợ, trái phiếu nắm giữ hoặc TSBĐ liên quan"],
+  kpi:"Dư nợ, trái phiếu nắm giữ, bảo lãnh với nhóm Hưng Phát; giá trị TSBĐ là cổ phiếu",
+  q:["ABC có dư nợ trực tiếp/gián tiếp với nhóm Hưng Phát không, bao nhiêu?","Có khách hàng cá nhân dùng cổ phiếu Hưng Phát làm tài sản bảo đảm?","ABC có từng phân phối trái phiếu Hưng Phát cho khách hàng cá nhân (rủi ro khiếu nại)?"],
+  owner:"Quản trị rủi ro tín dụng + Khối KHDN",eta:"Trong ngày",watch:"Hưng Phát công bố chính thức chậm trả lãi"},
+ {id:"G1",short:"Dự thảo thông tư NHNN",title:"Dự thảo siết tỷ lệ vốn ngắn hạn cho vay trung, dài hạn",sev:2,conf:.8,hz:"6–24 tháng (theo lộ trình)",
+  src:["n18"],lines:["TRS","RISK","COM"],
+  chain:["Dự thảo giảm tỷ lệ vốn ngắn hạn cho vay trung, dài hạn","Phải tăng nguồn vốn dài hạn","Chi phí vốn tăng","NIM giảm, hạn chế tăng trưởng cho vay trung, dài hạn"],
+  kpi:"Tỷ lệ vốn ngắn hạn cho vay trung, dài hạn hiện tại so với lộ trình dự thảo",
+  q:["Tỷ lệ hiện tại của ABC so với từng mốc lộ trình?","Chi phí nếu phải phát hành thêm giấy tờ có giá dài hạn?","Có cần góp ý dự thảo qua Hiệp hội Ngân hàng?"],
+  owner:"Khối Nguồn vốn (ALM) + Pháp chế",eta:"Trong tuần, trước hạn góp ý",watch:"NHNN ban hành chính thức"},
+ {id:"S1",short:"Bão số 7 miền Trung",title:"Bão số 7 đổ bộ miền Trung: rủi ro khách hàng vay và vận hành chi nhánh",sev:2,conf:.75,hz:"0–3 tháng",
+  src:["n04","n49"],lines:["RTL","CIB","RISK"],
+  chain:["Bão mạnh đổ bộ miền Trung","Thiệt hại nông nghiệp, thủy sản; khu công nghiệp tạm dừng","Khách hàng vay mất nguồn trả nợ","Nhu cầu cơ cấu nợ; chi nhánh, ATM cần phương án dự phòng"],
+  kpi:"Dư nợ tại các tỉnh vùng bão; chi nhánh/ATM bị ảnh hưởng",
+  q:["Dư nợ của ABC tại các tỉnh vùng bão, theo ngành nông nghiệp, thủy sản?","Chi nhánh, phòng giao dịch, ATM nào cần phương án dự phòng?","Có cần gói hỗ trợ/cơ cấu nợ cho khách hàng bị thiệt hại?"],
+  owner:"Quản trị rủi ro + Khối Vận hành + chi nhánh khu vực",eta:"Trước khi bão đổ bộ",watch:"Có thống kê thiệt hại chính thức"},
+ {id:"I3",short:"Tín dụng ngành nhạy nhiên liệu",title:"Rủi ro tín dụng ở các ngành nhạy cảm với giá nhiên liệu",sev:2,conf:.7,hz:"1–3 tháng",
+  src:["n44","n60","n41","n53","n50"],lines:["CIB","RISK"],
+  chain:["Giá nhiên liệu, cước và bảo hiểm tăng","Biên lợi nhuận hàng không, vận tải, logistics, hóa chất giảm","Dòng tiền trả nợ yếu đi","Xác suất vỡ nợ tăng ở nhóm ngành này"],
+  kpi:"Dư nợ theo ngành; tỷ lệ nợ nhóm 2; hạn mức chưa giải ngân của KH ngành nhạy cảm",
+  q:["Dư nợ và hạn mức với hàng không, vận tải, logistics, hóa chất – nhựa, phân bón?","Top 20 KH chịu ảnh hưởng lớn nhất và tình trạng TSBĐ?","Có cần tạm siết hạn mức mới cho nhóm ngành này?"],
+  owner:"Khối KHDN + Quản trị rủi ro tín dụng",eta:"Trong 3 ngày làm việc",watch:"Cước container tuyến Á–Âu/Trung Đông tăng > 30% so với tuần trước"},
+ {id:"I4",short:"Tài trợ thương mại vùng Vịnh",title:"Gián đoạn tài trợ thương mại & thanh toán với vùng Vịnh",sev:2,conf:.7,hz:"1–4 tuần",
+  src:["n41","n52","n35"],lines:["TF","CIB","RISK"],
+  chain:["Hãng tàu dừng đi qua vùng Vịnh","Hàng và bộ chứng từ chậm, phí bảo hiểm chiến tranh tăng","L/C quá hạn, tranh chấp chứng từ","Rủi ro ngân hàng đại lý và rủi ro quốc gia tăng"],
+  kpi:"Số L/C/nhờ thu đang mở với đối tác vùng Vịnh; hạn mức ngân hàng đại lý",
+  q:["Số L/C, nhờ thu đang mở liên quan cảng/đối tác vùng Vịnh?","Hạn mức rủi ro với ngân hàng đại lý tại khu vực?","KH xuất khẩu nào có khoản phải thu lớn từ Trung Đông?"],
+  owner:"Trung tâm Tài trợ thương mại",eta:"Trước cuối ngày",watch:"Ngân hàng đại lý vùng Vịnh thông báo tạm dừng/giới hạn giao dịch"},
+ {id:"I7",short:"Chứng khoán, vàng & dòng tiền",title:"Dòng tiền rời chứng khoán sang vàng: rủi ro cầm cố cổ phiếu & dịch chuyển tiền gửi",sev:2,conf:.7,hz:"0–2 tuần",
+  src:["n37","n59","n40","n58","n55"],lines:["RTL","TRS","RISK"],
+  chain:["Chứng khoán toàn cầu giảm, vàng lập đỉnh","Chứng khoán VN có thể giảm mạnh khi mở cửa","Khoản vay cầm cố cổ phiếu chạm ngưỡng xử lý","Khách hàng rút tiền gửi mua vàng"],
+  kpi:"VN-Index phiên sáng; tỷ lệ TSBĐ/dư nợ của khoản vay cầm cố cổ phiếu; tất toán tiền gửi trước hạn",
+  q:["Dư nợ cầm cố cổ phiếu và số khoản dưới ngưỡng nếu VN-Index −5%?","Xu hướng tất toán tiền gửi trước hạn trong 3 ngày tới?","Kịch bản tư vấn cho khách hàng cá nhân tại chi nhánh?"],
+  owner:"Khối KH Cá nhân + Rủi ro thị trường",eta:"Trước 09:30",watch:"VN-Index giảm > 3% trong một phiên"},
+ {id:"D1",short:"Cạnh tranh lãi suất huy động",title:"Đối thủ tăng lãi suất huy động: nguy cơ dịch chuyển tiền gửi",sev:2,conf:.7,hz:"0–1 tháng",
+  src:["n22"],lines:["TRS","RTL"],
+  chain:["Đối thủ tăng lãi suất +0,5 điểm %","Khách hàng nhạy lãi suất chuyển tiền gửi","Tỷ lệ tái tục tiền gửi đáo hạn giảm","Chi phí vốn tăng nếu phải điều chỉnh theo"],
+  kpi:"Tiền gửi đáo hạn 30 ngày tới; tỷ lệ tái tục; chênh lệch lãi suất so với nhóm ngân hàng cùng quy mô",
+  q:["Bao nhiêu tiền gửi kỳ hạn 6–12 tháng đáo hạn trong 30 ngày tới?","Chênh lệch lãi suất của ABC so với đối thủ hiện là bao nhiêu?","Có nên điều chỉnh có chọn lọc cho khách hàng ưu tiên?"],
+  owner:"Khối KH Cá nhân + ALM",eta:"Trong tuần",watch:"Thêm ≥ 2 ngân hàng cùng nhóm tăng lãi suất"},
+ {id:"I6",short:"An ninh mạng",title:"Nguy cơ tấn công mạng trả đũa nhắm vào tổ chức tài chính",sev:2,conf:.6,hz:"Tức thì – 2 tuần",
+  src:["n46"],lines:["IT","RISK"],
+  chain:["Cảnh báo tấn công mạng trả đũa","Tổ chức tài chính là mục tiêu ưu tiên","Nguy cơ DDoS, lừa đảo, mã độc","Gián đoạn kênh số và rủi ro dữ liệu"],
+  kpi:"Cảnh báo SOC; lưu lượng bất thường; email lừa đảo bị chặn",
+  q:["Mức cảnh báo SOC hiện tại?","Đã cập nhật IOC từ các cơ quan an ninh mạng chưa?","Phương án chống DDoS cho Internet/Mobile Banking đã sẵn sàng?"],
+  owner:"Khối CNTT – Trung tâm An ninh thông tin",eta:"Trong ngày",watch:"SOC nâng mức cảnh báo hoặc phát hiện IOC khớp"},
+ {id:"C1",short:"Sự cố cloud thanh toán",title:"Sự cố cloud toàn cầu làm gián đoạn ứng dụng thanh toán",sev:2,conf:.6,hz:"Tức thì",
+  src:["n25"],lines:["IT","RTL"],
+  chain:["Sự cố tại nhà cung cấp cloud lớn","Ví điện tử, cổng thanh toán đối tác gián đoạn","Giao dịch thẻ/QR qua đối tác lỗi hoặc treo","Khiếu nại khách hàng, rủi ro vận hành"],
+  kpi:"Giao dịch treo cần đối soát; khiếu nại kênh số trong đêm",
+  q:["Hệ thống ABC hoặc đối tác thanh toán có phụ thuộc nhà cung cấp bị sự cố?","Có giao dịch treo cần đối soát và hoàn tiền?","Kế hoạch dự phòng đa nhà cung cấp đã được kiểm thử chưa?"],
+  owner:"Khối CNTT + Trung tâm Thẻ",eta:"Trong ngày",watch:"Sự cố tái diễn trong 7 ngày"},
+ {id:"T1",short:"Thuế quan Mỹ với hàng ĐNA",title:"Mỹ cân nhắc thuế mới với hàng xuất khẩu Đông Nam Á",sev:2,conf:.55,hz:"1–6 tháng",
+  src:["n20"],lines:["CIB","TF"],
+  chain:["Mỹ cân nhắc thuế mới với điện tử, dệt may, đồ gỗ","Đơn hàng xuất khẩu sang Mỹ giảm","Dòng tiền DN xuất khẩu yếu đi","Rủi ro tín dụng KH xuất khẩu; giảm doanh số TTQT"],
+  kpi:"Dư nợ KH xuất khẩu sang Mỹ theo ngành; doanh số TTQT với Mỹ",
+  q:["Dư nợ của KH xuất khẩu chủ yếu sang Mỹ theo ngành?","KH nào có tỷ trọng doanh thu từ Mỹ trên 50%?","Doanh số TTQT có thể giảm bao nhiêu?"],
+  owner:"Khối KHDN + Tài trợ thương mại",eta:"Trong tháng",watch:"Mỹ công bố danh sách mặt hàng chịu thuế"},
+ {id:"X1",short:"DN dệt may cắt giảm",title:"Doanh nghiệp dệt may đóng cửa nhà máy, cắt giảm 3.000 lao động",sev:1,conf:.6,hz:"1–3 tháng",
+  src:["n27"],lines:["CIB","RTL"],
+  chain:["DN dệt may đóng 2 nhà máy","Doanh thu DN và chuỗi cung ứng suy giảm","Rủi ro tín dụng DN và nhà cung cấp","Lao động mất việc: rủi ro khoản vay tiêu dùng, thẻ"],
+  kpi:"Dư nợ ngành dệt may tại Bình Dương; KH cá nhân nhận lương qua ABC từ DN này",
+  q:["ABC có quan hệ tín dụng hoặc chi lương với DN này?","Dư nợ tiêu dùng của người lao động nhận lương qua ABC?"],
+  owner:"Khối KHDN + KH Cá nhân",eta:"Trong tuần",watch:"Thêm DN cùng ngành cắt giảm lao động"},
+ {id:"I8",short:"Kiều hối Trung Đông",title:"Kiều hối và lao động Việt Nam tại Trung Đông",sev:1,conf:.5,hz:"1–3 tháng",
+  src:["n54"],lines:["RTL"],
+  chain:["Bất ổn an ninh khu vực","Lao động có thể phải về nước","Kiều hối từ Trung Đông giảm","Ảnh hưởng nhỏ tới doanh số chuyển tiền & tiền gửi"],
+  kpi:"Doanh số kiều hối theo quốc gia gửi",
+  q:["Tỷ trọng kiều hối từ Trung Đông trong tổng kiều hối?","Có KH vay có nguồn trả nợ từ kiều hối khu vực này?"],
+  owner:"Khối KH Cá nhân",eta:"Trong tuần",watch:"Có thông báo sơ tán lao động chính thức"},
+ {id:"I9",short:"Cơ hội: ngành hưởng lợi",opp:true,title:"Cơ hội tín dụng với ngành dầu khí và phân bón trong nước",sev:1,conf:.6,hz:"1–3 tháng",
+  src:["n55","n34","n53"],lines:["CIB"],
+  chain:["Giá dầu, phân bón tăng","Doanh thu DN khai thác dầu khí, phân bón nội địa tăng","Nhu cầu vốn lưu động và đầu tư tăng","Cơ hội tăng dư nợ có chất lượng"],
+  kpi:"Nhu cầu vốn của KH ngành dầu khí, phân bón",
+  q:["KH hiện hữu nào thuộc ngành hưởng lợi và còn dư địa hạn mức?","Có cần chương trình sản phẩm riêng?"],
+  owner:"Khối KHDN",eta:"Trong tuần",watch:"Brent duy trì > 90 USD trong 2 tuần"}
+];
+INS.forEach(i=>{i.score=Math.round(i.sev/4*65+i.conf*35);});
+const TOP=[...INS].sort((a,b)=>(a.opp?1:0)-(b.opp?1:0)||b.sev-a.sev||b.score-a.score);
+TOP.forEach((x,i)=>x.rank=i+1);
+const SEVN=["","Thấp","Trung bình","Cao","Nghiêm trọng"];
+const sevName=x=>x.opp?"Cơ hội":SEVN[x.sev];
+const sevCls=x=>x.opp?"op":"s"+x.sev;
+const sevTag=x=>`<span class="tag ${sevCls(x)}">${sevName(x)}</span>`;
+const recOf=x=>x.sev>=3?"dl":(x.sev===2||x.opp)?"watch":"skip";
+const REC={dl:"Đồng ý tải tin (.md)",watch:"Theo dõi",skip:"Bỏ qua"};
+
+const OI={runId:0,done:false,dec:{},pick:{},note:{},sent:false,files:[]};
+const oiLog=mkLog($("#oiTerm"),$("#oiClock"));
+const OIAG=[
+ {id:"crawl",n:"Crawler Agent",d:"Thu thập tiêu đề từ 10 nguồn"},
+ {id:"filter",n:"Lọc nhiễu & gộp trùng",d:"Phân loại chủ đề, tránh bẫy từ khóa"},
+ {id:"event",n:"Phát hiện sự kiện",d:"Gom cụm, so với mức nền 30 ngày"},
+ {id:"impact",n:"Ánh xạ tác động",d:"Kênh truyền dẫn → mảng kinh doanh"},
+ {id:"score",n:"Chấm điểm & xếp hạng",d:"Mức độ × độ tin cậy, xếp từ cao xuống thấp"},
+ {id:"brief",n:"Briefing Agent",d:"Soạn & gửi bản tin cho Line Manager"},
+ {id:"fetch",n:"Fetch & Markdown Agent",d:"Chỉ chạy khi Line Manager duyệt: tải toàn văn → .md"}
+];
+const oiGuard=my=>{if(my!==OI.runId)throw "abort";};
+
+function oiReset(){
+  OI.runId++;OI.done=false;OI.dec={};OI.pick={};OI.note={};OI.sent=false;OI.files=[];
+  renderAgents($("#oiAgents"),OIAG,"oa");$("#oiTerm").innerHTML="";
+  $("#oiFeed").innerHTML='<div class="empty">Bấm <b>▶ Chạy phiên crawl đêm</b> để bắt đầu.</div>';
+  $("#oiCount").textContent="(0)";$("#oiEvent").classList.remove("on");
+  $("#oiBrief").innerHTML='<div class="empty">Chưa có bản tin. Chạy phiên crawl ở tab 1; Briefing Agent gửi bản tin lúc 06:30.</div>';
+  $("#oiDl").innerHTML='<div class="card"><div class="empty">Chưa có tin nào được duyệt. Line Manager chọn "Đồng ý tải tin" ở tab 2 rồi bấm gửi quyết định.</div></div>';
+  ["#oiB2","#oiB3"].forEach(b=>$(b).classList.add("hidden"));setClock($("#oiClock"),"22:00");$("#oiRun").disabled=false;
+}
+function feedItem(h){
+  const d=document.createElement("div");d.className="item";d.id="f-"+h.id;
+  d.innerHTML=`<div class="t">${h.t}</div><div><div class="ttl">${esc(h.title)}</div><div class="chips"><span class="chip src">${SRC[h.s].n} · ${SRC[h.s].r}</span><span class="chip st">mới</span></div></div>`;
+  return d;
+}
+const setSt=(h,html)=>{$(`#f-${h.id} .st`).outerHTML=html;};
+function applyHide(){const on=$("#oiHide").checked;$$("#oiFeed .item.out").forEach(e=>e.classList.toggle("hide",on));}
+
+async function oiRun(){
+  oiReset();const my=OI.runId;$("#oiRun").disabled=true;
+  try{
+    // 1. Crawl
+    setAg("oa","crawl","run");$("#oiFeed").innerHTML="";
+    oiLog("crawl","Khởi động phiên 22:00. Nguồn: 10 (6 quốc tế, 4 trong nước). Chế độ: chỉ lấy tiêu đề + URL + giờ đăng.");
+    await sleep(500);oiGuard(my);
+    for(const [i,h] of H.entries()){
+      setClock($("#oiClock"),h.t);$("#oiFeed").prepend(feedItem(h));
+      $("#oiCount").textContent=`(${i+1})`;setAg("oa","crawl","run",`${i+1} tiêu đề`);
+      oiLog("crawl",`+1 ${SRC[h.s].n}: "${h.title.length>62?h.title.slice(0,62)+"…":h.title}"`);
+      await sleep(["event","rel"].includes(h.k)?220:120);oiGuard(my);
+    }
+    setAg("oa","crawl","done",`${H.length} tiêu đề / 10 nguồn`);oiLog("crawl",`Hoàn tất: ${H.length} tiêu đề.`,"ok");
+
+    // 2. Filter
+    setAg("oa","filter","run");setClock($("#oiClock"),"05:56");
+    oiLog("filter","Phân loại chủ đề song ngữ (VI/EN) bằng mô hình, không chỉ khớp từ khóa; đo tương đồng để gộp trùng…");
+    await sleep(500);oiGuard(my);
+    let c={noise:0,trap:0,dup:0,keep:0};
+    for(const h of H){
+      const el=$("#f-"+h.id);
+      if(h.k==="noise"){c.noise++;el.classList.add("out");setSt(h,`<span class="chip">loại: ${h.why}</span>`);oiLog("filter",`Loại ${h.id}: ${h.why}`,"m");}
+      else if(h.k==="trap"){c.trap++;el.classList.add("out");setSt(h,`<span class="chip trap">bẫy: ${h.why}</span>`);oiLog("filter",`Loại ${h.id} (bẫy): ${h.why}`,"w");}
+      else if(h.k==="dup"){c.dup++;el.classList.add("out");setSt(h,`<span class="chip">trùng với ${h.of}</span>`);oiLog("filter",`Gộp ${h.id} vào ${h.of} (độ tương đồng 0,9x)`,"m");}
+      else if(h.k==="routine"){c.keep++;setSt(h,'<span class="chip rt">kinh tế thường nhật (lưu bối cảnh)</span>');}
+      else{c.keep++;setSt(h,'<span class="chip keep">giữ lại</span>');}
+      applyHide();await sleep(60);oiGuard(my);
+    }
+    setAg("oa","filter","done",`Giữ ${c.keep} · loại ${c.noise+c.trap} · trùng ${c.dup}`);
+    oiLog("filter",`Giữ ${c.keep}/${H.length} tin (${Math.round(c.keep/H.length*100)}%). Loại ${c.noise} tin nhiễu, ${c.trap} tin bẫy từ khóa/giật tít, gộp ${c.dup} tin trùng.`,"ok");
+
+    // 3. Event
+    setAg("oa","event","run");setClock($("#oiClock"),"06:00");
+    oiLog("event","Gom cụm theo thực thể & chủ đề, so tần suất với mức nền 30 ngày…");await sleep(700);oiGuard(my);
+    const war=H.filter(h=>h.c==="war"||(h.k==="dup"&&HM[h.of].c==="war"));
+    const hours=["23","00","01","02","03","04","05"],cnt=hours.map(x=>war.filter(h=>h.t.startsWith(x)).length),mx=Math.max(...cnt);
+    $("#oiBars").innerHTML=cnt.map((n,i)=>`<div style="height:${Math.max(3,n/mx*56)}px"><i>${n||""}</i><span>${hours[i]}h</span></div>`).join("");
+    const uniq=H.filter(h=>h.c==="war").length;
+    $("#oiEventText").innerHTML=`<b>${uniq} tin độc lập</b> (+2 tin trùng) từ nhiều nguồn trong khoảng 23:40–05:42; mức nền chủ đề "Trung Đông/Iran" ~1,3 tin/đêm → <b>gấp ~${Math.round(uniq/1.3)} lần</b>. Mốc chính: 00:48 Mỹ không kích mục tiêu quân sự tại Iran; 01:34 Iran đe dọa phong tỏa eo biển Hormuz.`;
+    const others=Object.keys(CL).filter(k=>k!=="war").map(k=>[k,H.filter(h=>h.c===k).length]).sort((a,b)=>b[1]-a[1]);
+    $("#oiClus").innerHTML=`<span class="note">Các cụm khác:</span>`+others.map(([k,n])=>`<span class="chip cl">${CL[k]} · ${n}</span>`).join("");
+    $("#oiEvent").classList.add("on");
+    for(const h of H.filter(h=>h.c)){ $(`#f-${h.id} .chips`).insertAdjacentHTML("beforeend",`<span class="chip ${h.c==="war"?"ev":"cl"}">${CL[h.c]}</span>`);await sleep(25); }
+    oiLog("event",`PHÁT HIỆN cụm "Xung đột Mỹ – Iran": ${uniq} tin, gấp ~${Math.round(uniq/1.3)} lần mức nền.`,"w");
+    oiLog("event",`Cụm "Tin đồn về ABC": 3 tin trong 6 giờ, tin sau lan rộng hơn tin trước. Đối tượng là chính ngân hàng → ưu tiên cao nhất.`,"e");
+    oiLog("event",`Các cụm khác: ${others.map(([k,n])=>`${CL[k]} (${n})`).join(", ")}.`,"m");
+    setAg("oa","event","done",`${Object.keys(CL).length} cụm · 1 sự kiện lớn`);
+
+    // 4. Impact
+    setAg("oa","impact","run");setClock($("#oiClock"),"06:08");
+    oiLog("impact","Áp dụng bản đồ kênh truyền dẫn: thanh khoản & uy tín, tỷ giá, lãi suất, giá hàng hóa, tín dụng ngành, thương mại, tuân thủ, an ninh mạng, vận hành…");
+    await sleep(400);
+    for(const [i,x] of INS.entries()){
+      oiLog("impact",`${x.id} ${x.short}: ${x.chain[0]} → … → ${x.chain[x.chain.length-1]}`);
+      oiLog("impact",`   mảng: ${x.lines.map(c=>LN[c]).join(", ")} · nguồn: ${x.src.join(", ")}`,"m");
+      setAg("oa","impact","run",`${i+1}/${INS.length} chủ đề`);await sleep(240);oiGuard(my);
+    }
+    setAg("oa","impact","done",`${INS.length} chủ đề tác động`);
+
+    // 5. Score
+    setAg("oa","score","run");setClock($("#oiClock"),"06:18");
+    oiLog("score","Xếp hạng theo mức nghiêm trọng (cao → thấp), cùng mức thì theo điểm ưu tiên:");
+    for(const x of TOP){
+      oiLog("score",`#${x.rank} ${x.id} ${sevName(x).toUpperCase()} · ${x.score}/100 · tin cậy ${Math.round(x.conf*100)}% · ${x.short}`,x.sev===4?"e":x.sev===3?"w":x.opp?"ok":"");
+      await sleep(130);oiGuard(my);
+    }
+    const n4=INS.filter(x=>x.sev===4).length,n3=INS.filter(x=>x.sev===3).length;
+    setAg("oa","score","done",`${n4} nghiêm trọng · ${n3} cao`);
+    oiLog("score","Lưu ý: chấm điểm dựa trên tiêu đề, độ tin cậy có giới hạn. Toàn văn chỉ được tải khi Line Manager duyệt.","w");
+
+    // 6. Brief
+    setAg("oa","brief","run");setClock($("#oiClock"),"06:25");
+    oiLog("brief","Soạn bản tin, xếp danh sách chủ đề từ nghiêm trọng đến thấp…");await sleep(700);oiGuard(my);
+    setClock($("#oiClock"),"06:30");OI.done=true;renderBrief();setAg("oa","brief","done","Đã gửi 06:30");
+    oiLog("brief",`Đã gửi bản tin tới ${MANAGER}. Chờ duyệt tải toàn văn.`,"ok");
+    $("#oiB2").classList.remove("hidden");
+    toast(`<b>06:30 · Bản tin Outside-In đã gửi</b><br>${n4} chủ đề nghiêm trọng, ${n3} chủ đề cao. Mở tab 2 để duyệt.`);
+  }catch(e){if(e!=="abort")console.error(e);}
+  $("#oiRun").disabled=false;
+}
+
+function renderBrief(){
+  const kept=H.filter(h=>["event","rel","routine"].includes(h.k)).length;
+  const crit=TOP.filter(x=>x.sev>=3&&!x.opp);
+  TOP.forEach(x=>{if(!OI.pick[x.id])OI.pick[x.id]=new Set(x.src);});
+  const table=`<div class="mx"><table><thead><tr><th>#</th><th class="l">Chủ đề</th><th>Mức</th><th>Điểm</th><th>Tin</th>${LINES.map(l=>`<th>${l.n}</th>`).join("")}</tr></thead><tbody>${
+    TOP.map(x=>`<tr data-go="${x.id}"><td><b>${x.rank}</b></td><td class="l">${x.short}</td><td>${sevTag(x)}</td><td class="score">${x.score}</td><td>${x.src.length}</td>${LINES.map(l=>`<td>${x.lines.includes(l.c)?`<span class="cell ${sevCls(x)}"></span>`:""}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+  $("#oiBrief").innerHTML=`
+  <div class="brief-head">
+    <div><h2>Bản tin Outside-In · ${dLabel(1)}</h2>
+    <div class="meta">Gửi: ${MANAGER} · ${BANK} · Phát hành 06:30 · Phiên crawl 22:00 ${dLabel(0)} → 05:50 ${dLabel(1)}</div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="alert">Mức cảnh báo: ĐỎ</span>
+      <button class="btn noprint" id="copyBtn">Sao chép bản tin</button><button class="btn noprint" onclick="window.print()">In / Lưu PDF</button></div>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><b>${H.length}</b><span>tiêu đề thu thập</span></div>
+    <div class="kpi"><b>${H.length-kept}</b><span>tin nhiễu/trùng đã loại (${Math.round((H.length-kept)/H.length*100)}%)</span></div>
+    <div class="kpi"><b>${kept}</b><span>tin giữ lại</span></div>
+    <div class="kpi"><b>${INS.length}</b><span>chủ đề tác động</span></div>
+    <div class="kpi"><b style="color:var(--red)">${INS.filter(x=>x.sev===4).length}</b><span>nghiêm trọng</span></div>
+    <div class="kpi"><b style="color:var(--orange)">${INS.filter(x=>x.sev===3).length}</b><span>cao</span></div>
+  </div>
+  <div class="summary">
+    <p><b>Tóm tắt.</b> Đêm qua có hai nhóm tin chính. (1) Tin đồn sai sự thật về thanh khoản của chính ${BANK} lan rộng trên mạng xã hội. Ngân hàng đã bác bỏ lúc gần nửa đêm, nhưng tin đồn vẫn lan tiếp tới rạng sáng, kèm lời kêu gọi rút tiền khi mở cửa. (2) Xung đột quân sự Mỹ – Iran leo thang: dầu Brent tăng khoảng 9%, vàng lập đỉnh, USD mạnh lên, chứng khoán châu Á giảm, Mỹ mở rộng trừng phạt. Ngoài ra còn tin về trái phiếu Hưng Phát chậm trả lãi, chiến dịch SMS mạo danh ABC, bão số 7 và dự thảo thông tư của NHNN.</p>
+    <p><b>Cần quyết định sớm (xếp theo mức nghiêm trọng):</b></p>
+    <ol>${crit.map(x=>`<li>${sevTag(x)} <b>${x.title}</b>. Đầu mối: ${x.owner}, ${x.eta.toLowerCase()}.</li>`).join("")}</ol>
+    <p class="note">Phân tích dựa trên tiêu đề, chưa đọc toàn văn. Khi Line Manager duyệt, Fetch & Markdown Agent sẽ tải toàn văn các tin được chọn về dạng .md để phân tích sâu.</p>
+  </div>
+  <div class="sec-title">Bảng xếp hạng chủ đề (nghiêm trọng → thấp) · bấm một dòng để xem chi tiết</div>
+  ${table}
+  <div class="legend"><span><span class="cell s4"></span>Nghiêm trọng</span><span><span class="cell s3"></span>Cao</span><span><span class="cell s2"></span>Trung bình</span><span><span class="cell s1"></span>Thấp</span><span><span class="cell op"></span>Cơ hội</span></div>
+  <div class="sec-title">Chi tiết & duyệt tải tin</div>
+  ${TOP.map(insCard).join("")}
+  <div class="sticky"><span class="note" id="decCount">Chưa có quyết định nào.</span>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="suggestBtn">Áp dụng đề xuất của agent</button><button class="btn primary" id="sendBtn" disabled>Gửi quyết định →</button></div></div>`;
+  $$("#oiBrief .decide .btn").forEach(b=>b.onclick=()=>setDec(b.dataset.i,b.dataset.d));
+  $$("#oiBrief .decide input").forEach(inp=>inp.oninput=()=>{OI.note[inp.dataset.i]=inp.value;});
+  $$("#oiBrief .nl input").forEach(cb=>cb.onchange=()=>{const s=OI.pick[cb.dataset.t];cb.checked?s.add(cb.dataset.n):s.delete(cb.dataset.n);updDec();});
+  $$("#oiBrief tr[data-go]").forEach(r=>r.onclick=()=>$("#ic-"+r.dataset.go).scrollIntoView({behavior:"smooth",block:"start"}));
+  $("#sendBtn").onclick=sendOI;$("#copyBtn").onclick=copyBrief;
+  $("#suggestBtn").onclick=()=>TOP.forEach(x=>setDec(x.id,recOf(x)));
+  Object.entries(OI.dec).forEach(([i,d])=>setDec(i,d));
+}
+function insCard(x){
+  return `<div class="ins ${x.opp?"opp":"sev"+x.sev}" id="ic-${x.id}">
+   <div class="ins-top"><h4><span class="rank">#${x.rank}</span>${x.title}</h4><div style="display:flex;gap:6px;align-items:center">${sevTag(x)}<span class="score">${x.score}/100</span></div></div>
+   <div class="chain">${x.chain.map(esc).join('<span class="arr">→</span>')}</div>
+   <div class="facts">
+     <div><span>Thời gian tác động:</span> ${x.hz}</div><div><span>Độ tin cậy:</span> ${Math.round(x.conf*100)}%</div>
+     <div><span>Mảng ảnh hưởng:</span> ${x.lines.map(c=>LN[c]).join(", ")}</div><div><span>Đầu mối đề xuất:</span> ${x.owner}</div>
+   </div>
+   <details><summary>Câu hỏi phân tích nếu tải toàn văn (${x.q.length})</summary><ul>${x.q.map(q=>`<li>${esc(q)}</li>`).join("")}</ul></details>
+   <ul class="nl">${x.src.map(id=>{const h=HM[id];return `<li><label><input type="checkbox" data-t="${x.id}" data-n="${id}" ${OI.pick[x.id].has(id)?"checked":""}><span class="nt">${h.t}</span><span><span class="chip src">${SRC[h.s].n}</span> ${esc(h.title)}</span></label></li>`;}).join("")}</ul>
+   <div class="decide"><span class="note">Agent đề xuất: <b>${REC[recOf(x)]}</b></span>
+     <button class="btn" data-i="${x.id}" data-d="dl">✔ Đồng ý tải tin (.md)</button>
+     <button class="btn" data-i="${x.id}" data-d="watch">👁 Theo dõi</button>
+     <button class="btn" data-i="${x.id}" data-d="skip">✕ Bỏ qua</button>
+     <input data-i="${x.id}" placeholder="Ghi chú cho người phân tích (sẽ ghi vào file .md)" value="${esc(OI.note[x.id]||"")}">
+   </div></div>`;
+}
+function setDec(id,d){
+  if(OI.sent)return;OI.dec[id]=d;
+  $$(`#ic-${id} .decide .btn`).forEach(b=>{b.classList.remove("sel-dl","sel-watch","sel-skip");if(b.dataset.d===d)b.classList.add("sel-"+d);});
+  updDec();
+}
+function updDec(){
+  const v=Object.values(OI.dec),c=k=>v.filter(x=>x===k).length;
+  const nf=TOP.filter(x=>OI.dec[x.id]==="dl").reduce((a,x)=>a+OI.pick[x.id].size,0);
+  if(!$("#decCount"))return;
+  $("#decCount").textContent=`Đã quyết định ${v.length}/${INS.length} · Đồng ý tải ${c("dl")} chủ đề (${nf} tin) · Theo dõi ${c("watch")} · Bỏ qua ${c("skip")}`;
+  $("#sendBtn").disabled=v.length===0;
+}
+function briefText(){
+  return `BẢN TIN OUTSIDE-IN · ${dLabel(1)} · ${BANK}\nMức cảnh báo: ĐỎ\n\nDanh sách chủ đề theo mức nghiêm trọng (cao → thấp):\n`+
+  TOP.map(x=>`#${x.rank} [${sevName(x).toUpperCase()} · ${x.score}] ${x.title}\n   ${x.chain.join(" → ")}\n   Mảng: ${x.lines.map(c=>LN[c]).join(", ")} · ${x.hz} · Đầu mối: ${x.owner}`).join("\n")+
+  `\n\n(Dựa trên tiêu đề báo, chưa kiểm chứng. Dữ liệu giả lập.)`;
+}
+function copyBrief(){
+  const t=briefText(),fb=()=>{const a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();try{document.execCommand("copy");}catch(e){}a.remove();};
+  if(navigator.clipboard)navigator.clipboard.writeText(t).catch(fb);else fb();
+  toast("Đã sao chép bản tin dạng văn bản để dán vào email hoặc Teams.");
+}
+
+/* ---------- Tải toàn văn → Markdown ---------- */
+function mdFor(h,x){
+  const s=SRC[h.s],url=`https://news.example/${slug(s.n)}/${h.id}`;
+  const also=TOP.filter(y=>y.src.includes(h.id)&&y.id!==x.id).map(y=>`#${y.rank} ${y.id} ${y.short}`);
+  const q=v=>String(v).replace(/\\/g,"\\\\").replace(/"/g,'\\"');
+  return `---
+id: ${h.id}
+title: "${q(h.title)}"
+source: "${s.n}"
+region: ${s.r}
+language: ${s.r==="VN"?"vi":"en"}
+published_at: ${isoAt(h.t)}
+url: ${url}
+fetched_at: ${isoAt("07:12")}
+fetched_by: Fetch & Markdown Agent (Outside-In Radar)
+topic_id: ${x.id}
+topic_rank: ${x.rank}
+topic: "${q(x.title)}"
+severity: ${sevName(x)}
+priority_score: ${x.score}
+confidence: ${x.conf}
+business_lines: [${x.lines.map(c=>`"${LN[c]}"`).join(", ")}]
+approved_by: "${MANAGER}"
+manager_note: "${q(OI.note[x.id]||"")}"
+data_status: simulated
+---
+
+# ${h.title}
+
+> ${s.n} (${s.r}) · ${h.t} ngày ${dLabel(+h.t.slice(0,2)<12?1:0)} · [Liên kết gốc](${url})
+
+## Nội dung
+
+${h.b}
+
+*Nội dung giả lập phục vụ prototype. Bản thật sẽ là toàn văn đã làm sạch từ trang gốc.*
+
+## Vì sao tin này được đưa vào phân tích
+
+- **Chủ đề:** #${x.rank} ${x.id} · ${x.title}
+- **Mức nghiêm trọng:** ${sevName(x)} · điểm ưu tiên ${x.score}/100 · độ tin cậy ${Math.round(x.conf*100)}%
+- **Kênh tác động:** ${x.chain.join(" → ")}
+- **Mảng kinh doanh liên quan:** ${x.lines.map(c=>LN[c]).join(", ")}
+- **Thời gian tác động:** ${x.hz}
+- **Chỉ số cần theo dõi:** ${x.kpi}${also.length?`\n- **Cũng liên quan tới:** ${also.join("; ")}`:""}
+
+## Câu hỏi phân tích
+
+${x.q.map(v=>`- [ ] ${v}`).join("\n")}
+
+## Đầu mối & hạn
+
+- ${x.owner} · ${x.eta}
+- Theo dõi tự động: ${x.watch}
+`;
+}
+const folderOf=x=>`${pad2(x.rank)}_${x.id}_${slug(x.short)}`;
+const fsize=t=>{const n=new TextEncoder().encode(t).length;return n>1024?(n/1024).toFixed(1)+" KB":n+" B";};
+function readmeMd(appr){
+  return `# Outside-In Radar · Gói tin đã duyệt · ${dLabel(1)}
+
+- **Ngân hàng:** ${BANK}
+- **Phê duyệt bởi:** ${MANAGER}
+- **Phiên crawl:** 22:00 ${dLabel(0)} → 05:50 ${dLabel(1)} · ${H.length} tiêu đề, giữ lại ${H.filter(h=>["event","rel","routine"].includes(h.k)).length}
+- **Số file .md:** ${OI.files.length}
+- **Trạng thái dữ liệu:** giả lập (prototype)
+
+## Danh sách theo mức độ nghiêm trọng (cao → thấp)
+
+| # | Chủ đề | Mức | Điểm | Số tin | Thư mục |
+|---|---|---|---|---|---|
+${appr.map(x=>`| ${x.rank} | ${x.title} | ${sevName(x)} | ${x.score} | ${OI.pick[x.id].size} | \`${folderOf(x)}/\` |`).join("\n")}
+
+## Ghi chú của Line Manager
+
+${appr.map(x=>`- **${x.id}:** ${OI.note[x.id]||"(không có)"}`).join("\n")}
+
+## Chủ đề không tải (theo dõi / bỏ qua)
+
+${TOP.filter(x=>OI.dec[x.id]!=="dl").map(x=>`- #${x.rank} ${x.short}: ${OI.dec[x.id]==="skip"?"bỏ qua":"theo dõi"}`).join("\n")||"- (không có)"}
+`;
+}
+
+async function sendOI(){
+  OI.sent=true;$("#sendBtn").disabled=true;$("#suggestBtn").disabled=true;
+  $$("#oiBrief .decide input, #oiBrief .nl input").forEach(i=>i.disabled=true);
+  const my=OI.runId;
+  TOP.forEach(x=>{if(!OI.dec[x.id])OI.dec[x.id]="watch";});
+  TOP.filter(x=>OI.dec[x.id]==="dl"&&OI.pick[x.id].size===0).forEach(x=>OI.dec[x.id]="watch");
+  const appr=TOP.filter(x=>OI.dec[x.id]==="dl");
+  const watch=TOP.filter(x=>OI.dec[x.id]==="watch"),skip=TOP.filter(x=>OI.dec[x.id]==="skip");
+  const nf=appr.reduce((a,x)=>a+OI.pick[x.id].size,0);
+  $("#oiB3").textContent=nf;$("#oiB3").classList.remove("hidden");
+  $$("#m-oi .tab").find(t=>t.dataset.v==="oi3").click();
+  OI.files=[];const root=`outside-in_${ymd(1)}`;
+  $("#oiDl").innerHTML=`
+    <div class="card pad" style="margin-bottom:14px">
+      <div class="dlbar"><div><b>Line Manager đã duyệt lúc 07:05.</b> Tải toàn văn ${appr.length} chủ đề (${nf} tin) · Theo dõi ${watch.length} · Bỏ qua ${skip.length}.
+      <div class="note">Mỗi tin thành 1 file .md có metadata (nguồn, giờ đăng, mức nghiêm trọng, mảng ảnh hưởng, câu hỏi phân tích). Thư mục xếp theo thứ hạng nghiêm trọng.</div></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="zipBtn" disabled>⬇ Tải tất cả (.zip)</button><button class="btn" id="bundleBtn" disabled>⬇ Một file .md tổng hợp</button></div></div>
+    </div>
+    ${appr.length?"":'<div class="card" style="margin-bottom:14px"><div class="empty">Không có chủ đề nào được duyệt tải.</div></div>'}
+    ${appr.map(x=>`<div class="deep" id="dp-${x.id}"><div class="hd"><h4><span class="rank">#${x.rank}</span>${x.title}</h4><div>${sevTag(x)} <span class="note">${OI.pick[x.id].size} tin · thư mục <code>${folderOf(x)}/</code></span></div></div>
+      <div class="bd">${OI.note[x.id]?`<p class="note" style="margin:0 0 8px">Ghi chú của Line Manager: "${esc(OI.note[x.id])}"</p>`:""}
+      <div class="steps" id="st-${x.id}">${[`Tải toàn văn ${OI.pick[x.id].size} bài từ trang gốc`,"Làm sạch nội dung (bỏ quảng cáo, menu, bình luận)","Chuyển sang Markdown, gắn metadata & mức nghiêm trọng",`Lưu vào kho phân tích: ${root}/${folderOf(x)}/`].map(s=>`<div>${esc(s)}</div>`).join("")}</div>
+      <div class="files hidden" id="fl-${x.id}"></div></div></div>`).join("")}
+    ${watch.length?`<div class="card" style="margin-bottom:14px"><h3>Danh sách theo dõi tự động (không tải toàn văn)</h3><div class="mx" style="padding-top:10px"><table><thead><tr><th>#</th><th class="l">Chủ đề</th><th>Mức</th><th class="l">Ngưỡng kích hoạt cảnh báo lại</th></tr></thead><tbody>
+      ${watch.map(x=>`<tr><td>${x.rank}</td><td class="l">${x.short}</td><td>${sevTag(x)}</td><td class="l">${x.watch}</td></tr>`).join("")}</tbody></table></div></div>`:""}
+    ${skip.length?`<div class="card"><h3>Phản hồi dùng để tinh chỉnh agent</h3><div class="pad">${skip.map(x=>`<div>✕ #${x.rank} ${x.short}: ghi nhận "không cần phân tích", giảm trọng số kênh này cho tin tương tự.${OI.note[x.id]?` Lý do: "${esc(OI.note[x.id])}"`:""}</div>`).join("")}</div></div>`:""}`;
+  setAg("oa","fetch","run",`${nf} tin`);
+  oiLog("fetch",`Nhận phê duyệt: ${appr.length} chủ đề, ${nf} tin. Bắt đầu tải toàn văn…`);
+  try{
+    for(const x of appr){
+      for(const r of $$(`#st-${x.id} div`)){r.className="run";await sleep(380);oiGuard(my);r.className="ok";}
+      const list=x.src.filter(id=>OI.pick[x.id].has(id)).map(id=>{
+        const h=HM[id],name=`${ymd(1)}_${h.id}_${slug(SRC[h.s].n)}_${slug(h.title).slice(0,40).replace(/-+$/,"")}.md`;
+        const f={name,path:`${root}/${folderOf(x)}/${name}`,text:mdFor(h,x),topic:x.id};OI.files.push(f);return f;});
+      const fl=$("#fl-"+x.id);
+      fl.innerHTML=list.map((f,i)=>`<div class="file"><span>📄</span><code>${f.name}</code><span class="sz">${fsize(f.text)}</span><button class="btn" data-v="${i}">Xem</button><button class="btn" data-d="${i}">⬇ .md</button></div>`).join("");
+      fl.classList.remove("hidden");
+      fl.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>openModal(list[+b.dataset.v]));
+      fl.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{const f=list[+b.dataset.d];download(f.name,mdBlob(f.text));});
+      oiLog("fetch",`#${x.rank} ${x.id}: đã lưu ${list.length} file .md`,"ok");
+    }
+    setAg("oa","fetch","done",`${OI.files.length} file .md`);
+    if(OI.files.length){
+      const readme={name:"README.md",path:`${root}/README.md`,text:readmeMd(appr)};
+      $("#zipBtn").disabled=false;$("#bundleBtn").disabled=false;
+      $("#zipBtn").onclick=()=>download(`${root}.zip`,makeZip([readme,...OI.files]));
+      $("#bundleBtn").onclick=()=>download(`${root}_tong-hop.md`,mdBlob([readme.text,...OI.files.map(f=>`\n\n---\n\n<!-- ${f.path} -->\n\n`+f.text)].join("")));
+      toast(`<b>Đã tạo ${OI.files.length} file .md</b><br>Tải từng file hoặc cả gói .zip ở tab 3.`);
+    }
+  }catch(e){if(e!=="abort")console.error(e);}
+}
+
+/* ======================================================================
+   MODULE 2: INSIDE-OUT MONITOR
+   ====================================================================== */
+const SERIES=[435210,435640,436020,436310,436180,436750,437020,437310,437480,437700,437950,438410,438920,412310];
+const FEATS=[
+ {f:"du_no_chot_ngay",n:"Dư nợ cho vay chốt ngày",t1:"412.310",t2:"438.920",t7:"437.310",d:"−6,06%",st:"alert"},
+ {f:"du_no_khdn",n:"Dư nợ KH doanh nghiệp",t1:"236.540",t2:"262.520",t7:"261.300",d:"−9,90%",st:"alert"},
+ {f:"du_no_khcn",n:"Dư nợ KH cá nhân",t1:"175.770",t2:"176.400",t7:"176.010",d:"−0,36%",st:"ok"},
+ {f:"thu_no_goc_trong_ngay",n:"Thu nợ gốc trong ngày",t1:"28.940",t2:"1.910",t7:"1.780",d:"×15",st:"alert"},
+ {f:"giai_ngan_trong_ngay",n:"Giải ngân trong ngày",t1:"2.330",t2:"2.240",t7:"2.190",d:"+4,0%",st:"ok"},
+ {f:"so_hd_vay_hieu_luc",n:"Số hợp đồng vay hiệu lực",t1:"1.284.120",t2:"1.287.950",t7:"1.286.400",d:"−0,30%",st:"ok"},
+ {f:"etl_rowcount_los_corp",n:"Số bản ghi nạp từ LOS doanh nghiệp",t1:"41.870",t2:"42.640",t7:"42.590",d:"−1,81%",st:"warn"},
+ {f:"etl_job_finish_time",n:"Giờ hoàn tất job snapshot dư nợ",t1:"05:27",t2:"03:38",t7:"03:41",d:"+1h49, 1 retry",st:"warn"},
+ {f:"huy_dong_chot_ngay",n:"Huy động chốt ngày",t1:"455.880",t2:"455.420",t7:"454.900",d:"+0,10%",st:"ok"}
+];
+const BREAK={seg:[["KH doanh nghiệp","−25.980","97,6%"],["KH cá nhân","−630","2,4%"]],
+  br:[["CN A (Hà Nội)","−14.210","53%"],["CN B (TP.HCM)","−9.870","37%"],["46 chi nhánh còn lại","−2.530","10%"]],
+  cus:[["Top 5 KH doanh nghiệp","−21.560","81%"],["Các KH khác","−5.050","19%"]]};
+const SIG_TECH=["Job snapshot dư nợ hoàn tất 05:27, chậm 1h49 so với thường lệ, có 1 lần retry lúc 04:51",
+  "Số bản ghi nạp từ LOS doanh nghiệp giảm 1,81% (thiếu khoảng 770 bản ghi), trong khi số hợp đồng hiệu lực gần như không đổi",
+  "Có 1 bản deploy pipeline feature lúc 21:40 T-1 (thay đổi logic join bảng khoản vay)",
+  "Chưa đối soát được với sổ cái GL (GL chốt lúc 08:00)"];
+const SIG_BIZ=["Thu nợ gốc trong ngày cao gấp 15 lần bình thường; giải ngân vẫn bình thường",
+  "Mức giảm tập trung: KHDN 97,6%, 2 chi nhánh 90%, Top 5 KH 81%",
+  "3/5 KH có cùng người đại diện pháp luật (nghi nhóm liên quan)",
+  "Các giao dịch tất toán thực hiện 16:42–16:58, sát giờ chốt sổ"];
+const TK=[
+ {k:"tech",code:"DQ",team:"Bộ phận Kỹ thuật",sub:"Data Engineering & Vận hành hệ thống",pri:"P1 · Khẩn",sla:"Phản hồi trong 60 phút",
+  checks:["Kiểm tra log job snapshot dư nợ (retry 04:51) và các partition nạp từ LOS doanh nghiệp","Đối chiếu số bản ghi LOS doanh nghiệp giữa nguồn và kho dữ liệu (thiếu ~770 bản ghi)","Rà soát bản deploy pipeline feature lúc 21:40 T-1, rollback nếu cần","Đối soát tổng dư nợ của feature với sổ cái GL khi GL chốt (08:00)","Xác nhận độ ổn định Core Banking, LOS và các kết nối ETL"]},
+ {k:"biz",code:"BIZ",team:"Bộ phận Kinh doanh & Kiểm soát",sub:"Khối KHDN · Phòng Kiểm soát nội bộ & Phòng chống gian lận",pri:"Cao",sla:"Phản hồi trước 12:00",
+  checks:["Xác nhận các khoản tất toán của Top 5 KH tại CN A, CN B: chứng từ, nguồn tiền","Kiểm tra có chiến lược/chương trình nào: bán nợ, chuyển nợ, xử lý nợ, tái cấu trúc khoản vay","Rà soát nhóm 3 KH liên quan tất toán đồng loạt 16:42–16:58: nguồn tiền từ đâu?","Theo dõi đề nghị giải ngân lại cho cùng nhóm KH trong ngày T và T+1 (dấu hiệu đảo nợ, làm đẹp số liệu)","Kiểm tra user thực hiện, cấp phê duyệt và thẩm quyền của các giao dịch"]}
+];
+const DOWNSTREAM=["Báo cáo quản trị điều hành 08:00 (MIS)","Mô hình cảnh báo sớm rủi ro tín dụng (EWS)","Dashboard tăng trưởng tín dụng theo chi nhánh","Báo cáo chỉ số thanh khoản nội bộ (LDR)"];
+const OUT={
+ tech:{btn:"Kỹ thuật: lỗi nạp dữ liệu",t:["done","Xác nhận lỗi · đã chạy lại job"],b:["closed","Đóng tự động: số liệu không phản ánh giao dịch thật"],
+  find:"Bản deploy 21:40 làm sai điều kiện join, nên lần retry lúc 04:51 chỉ nạp 2/3 partition từ LOS doanh nghiệp. Các khoản vay lớn của 5 KH bị rơi khỏi snapshot, còn bản ghi thu nợ bị ghi trùng khi retry.",
+  act:["Rollback bản deploy và chạy lại job: dư nợ T-1 = 438.750 tỷ (−0,04% so với T-2), trở về bình thường","Gỡ cách ly feature; các báo cáo downstream chạy lại lúc 08:40","Lập biên bản sự cố dữ liệu theo quy trình quản trị dữ liệu"],
+  learn:"Bổ sung kiểm tra tự động \"số bản ghi theo partition\" trước khi công bố feature; không deploy pipeline sau 21:00 ngày làm việc.",q:false},
+ biz:{btn:"Kinh doanh: biến động hợp lệ",t:["done","Hệ thống ổn định · dữ liệu khớp GL"],b:["done","Xác nhận hợp lệ"],
+  find:"Dữ liệu đúng và khớp sổ cái GL. 2 KH lớn tại CN A, CN B tất toán trước hạn bằng tiền bán tài sản, có đủ chứng từ. Nhóm 3 KH liên quan tất toán theo phương án tái cấu trúc đã được Hội đồng tín dụng phê duyệt. Job chạy chậm do khối lượng giao dịch lớn.",
+  act:["Gỡ cách ly feature, ghi nhận ngoại lệ có giải trình","Cập nhật dự báo dư nợ và tiến độ chỉ tiêu tăng trưởng tín dụng quý","RM tìm cơ hội tái giải ngân cho KH có nhu cầu"],
+  learn:"Gắn nhãn \"biến động hợp lệ – tất toán lớn có kế hoạch\". Đề xuất khối kinh doanh báo trước các giao dịch tất toán trên 1.000 tỷ để agent không cảnh báo nhầm.",q:false},
+ fraud:{btn:"Dấu hiệu gian lận / bất thường",t:["done","Hệ thống ổn định · dữ liệu khớp GL"],b:["esc","Chuyển Kiểm soát nội bộ & Pháp chế"],
+  find:"Hệ thống ổn định, dữ liệu khớp sổ cái GL. Tuy nhiên tiền tất toán của nhóm 3 KH liên quan đến từ các khoản vay mới tại một TCTD khác, giải ngân cùng ngày. Sáng ngày T đã có hồ sơ đề nghị giải ngân lại cho cùng nhóm với hạn mức cao hơn. Đây là dấu hiệu đảo nợ / che giấu nợ có vấn đề.",
+  act:["Tạm dừng xử lý hồ sơ giải ngân mới cho nhóm KH liên quan","Chuyển hồ sơ cho Kiểm soát nội bộ và Pháp chế; rà soát RM và cấp phê duyệt","Giữ cách ly feature cho mô hình EWS đến khi có kết luận; báo cáo theo quy định nội bộ"],
+  learn:"Thêm quy tắc phát hiện: \"tất toán lớn sát giờ chốt + nhóm KH liên quan + đề nghị giải ngân lại trong 48 giờ\".",q:true}
+};
+const fmtN=n=>n.toLocaleString("vi-VN");
+const tkId=t=>`${t.code}-${ymd(1).slice(2)}-${t.k==="tech"?"01":"02"}`;
+const IO={runId:0,done:false,outcome:null};
+const ioLog=mkLog($("#ioTerm"),$("#ioClock"));
+const IOAG=[
+ {id:"etl",n:"Theo dõi batch ETL đêm",d:"Trạng thái job, thời gian chạy, retry"},
+ {id:"dq",n:"Giám sát feature",d:"So T-1 với T-2, T-7 và dải bình thường"},
+ {id:"rca",n:"Phân rã nguyên nhân",d:"Theo phân khúc, chi nhánh, khách hàng"},
+ {id:"route",n:"Định tuyến cảnh báo",d:"Gửi phiếu cho Kỹ thuật & Kinh doanh, cách ly feature"}
+];
+const ioGuard=my=>{if(my!==IO.runId)throw "abort";};
+
+function ioChart(w=620,h=200){
+  const s=SERIES,P={l:58,r:96,t:14,b:26},mn=405000,mx=446000;
+  const X=i=>P.l+i*(w-P.l-P.r)/(s.length-1),Y=v=>P.t+(mx-v)/(mx-mn)*(h-P.t-P.b);
+  const base=s.slice(0,13).reduce((a,b)=>a+b,0)/13;
+  const grid=[410000,420000,430000,440000].map(v=>`<line class="gl" x1="${P.l}" x2="${w-P.r}" y1="${Y(v)}" y2="${Y(v)}"/><text class="ax" x="${P.l-6}" y="${Y(v)+3}" text-anchor="end">${fmtN(v)}</text>`).join("");
+  const xl=s.map((_,i)=>{const k=14-i;return (k%2===1||k===2)?`<text class="ax" x="${X(i)}" y="${h-8}" text-anchor="middle">T-${k}</text>`:"";}).join("");
+  const path=s.slice(0,13).map((v,i)=>`${i?"L":"M"}${X(i)},${Y(v)}`).join("");
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Dư nợ chốt ngày T-14 đến T-1, T-1 giảm 6,06%">
+    <rect class="band" x="${P.l}" width="${w-P.l-P.r}" y="${Y(base*1.015)}" height="${Y(base*0.985)-Y(base*1.015)}"/>
+    <text class="bl" x="${P.l+4}" y="${Y(base*1.015)+11}">Dải bình thường ±1,5%</text>
+    ${grid}${xl}<path class="ln" d="${path}"/><path class="ln2" d="M${X(12)},${Y(s[12])}L${X(13)},${Y(s[13])}"/>
+    ${s.slice(0,13).map((v,i)=>`<circle class="pt" cx="${X(i)}" cy="${Y(v)}" r="${i===12||i===7?4:2.5}"/>`).join("")}
+    <circle class="bad" cx="${X(13)}" cy="${Y(s[13])}" r="5"/>
+    <text class="lbl" x="${X(13)+8}" y="${Y(s[13])+4}">T-1: ${fmtN(s[13])}</text>
+    <text class="lbl" x="${X(13)+8}" y="${Y(s[13])+18}">−6,06% vs T-2</text>
+    <text class="ax" x="${X(12)+6}" y="${Y(s[12])-8}">T-2: ${fmtN(s[12])}</text>
+    <text class="ax" x="${X(7)}" y="${Y(s[7])-9}" text-anchor="middle">T-7: ${fmtN(s[7])}</text>
+    <text class="ax" x="${P.l}" y="${P.t-3}">tỷ đồng</text></svg>`;
+}
+const stTxt=st=>st==="ok"?"Bình thường":st==="warn"?"Cảnh báo nhẹ":"Bất thường";
+const featRow=f=>`<tr><td>${f.n}<br><code>${f.f}</code></td><td>${f.t1}</td><td>${f.t2}</td><td>${f.t7}</td><td>${f.d}</td><td class="st-${f.st}">${stTxt(f.st)}</td></tr>`;
+
+function ioReset(){
+  IO.runId++;IO.done=false;IO.outcome=null;
+  renderAgents($("#ioAgents"),IOAG,"ia");$("#ioTerm").innerHTML="";$("#ioRows").innerHTML="";
+  $("#ioChartBox").classList.add("hidden");$("#ioEmpty").classList.remove("hidden");$("#ioB2").classList.add("hidden");
+  $("#ioArea").innerHTML='<div class="empty">Chưa có cảnh báo. Chạy kiểm tra dữ liệu ở tab 1.</div>';
+  setClock($("#ioClock"),"03:30");$("#ioRun").disabled=false;
+}
+async function ioRun(){
+  ioReset();const my=IO.runId;$("#ioRun").disabled=true;$("#ioEmpty").classList.add("hidden");
+  try{
+    setAg("ia","etl","run");
+    ioLog("etl","Batch ETL đêm bắt đầu: 14 job, nguồn Core Banking, LOS, Thẻ, TTQT, Huy động.");await sleep(500);ioGuard(my);
+    for(const [t,m] of [["03:38","Job snapshot huy động: hoàn tất (OK)"],["03:52","Job giao dịch thẻ: hoàn tất (OK)"],["04:05","Job TTQT: hoàn tất (OK)"]]){setClock($("#ioClock"),t);ioLog("etl",m,"m");await sleep(350);ioGuard(my);}
+    setClock($("#ioClock"),"04:51");ioLog("etl","Job snapshot dư nợ: timeout khi đọc LOS doanh nghiệp → retry lần 1","w");await sleep(600);ioGuard(my);
+    setClock($("#ioClock"),"05:27");ioLog("etl","Job snapshot dư nợ hoàn tất, chậm 1h49 so với trung bình (03:38).","w");
+    setAg("ia","etl","done","14/14 job · 1 retry");await sleep(400);ioGuard(my);
+
+    setAg("ia","dq","run");setClock($("#ioClock"),"05:30");
+    ioLog("dq","Kiểm tra 9 feature của số liệu chốt ngày T-1: so với T-2, T-7 và dải biến động ±1,5%/ngày…");await sleep(500);ioGuard(my);
+    for(const [i,f] of FEATS.entries()){
+      $("#ioRows").insertAdjacentHTML("beforeend",featRow(f));
+      ioLog("dq",`${f.f}: T-1 ${f.t1} · T-2 ${f.t2} · T-7 ${f.t7} · ${f.d} → ${stTxt(f.st).toUpperCase()}`,f.st==="alert"?"e":f.st==="warn"?"w":"m");
+      if(i===0){$("#ioChartBox").innerHTML=ioChart(620,190);$("#ioChartBox").classList.remove("hidden");}
+      await sleep(f.st==="ok"?180:360);ioGuard(my);
+    }
+    ioLog("dq","Kiểm tra chéo: giải ngân 2.330 − thu nợ 28.940 = −26.610 tỷ, khớp mức giảm dư nợ.","m");
+    setAg("ia","dq","done","3 bất thường · 2 cảnh báo nhẹ");
+
+    setAg("ia","rca","run");setClock($("#ioClock"),"05:38");
+    ioLog("rca","Phân rã mức giảm −26.610 tỷ…");await sleep(500);ioGuard(my);
+    ioLog("rca","Theo phân khúc: KHDN −25.980 (97,6%), KHCN −630 (2,4%).");await sleep(350);ioGuard(my);
+    ioLog("rca","Theo chi nhánh: CN A −14.210 (53%), CN B −9.870 (37%), 46 CN còn lại −2.530.");await sleep(350);ioGuard(my);
+    ioLog("rca","Theo khách hàng: Top 5 KH chiếm 81%; 3/5 KH có cùng người đại diện pháp luật.","w");await sleep(350);ioGuard(my);
+    ioLog("rca","Tín hiệu kỹ thuật: retry, chậm 1h49, thiếu ~770 bản ghi LOS doanh nghiệp, deploy pipeline 21:40.","w");await sleep(300);ioGuard(my);
+    ioLog("rca","Tín hiệu kinh doanh: thu nợ ×15, tất toán 16:42–16:58 sát giờ chốt, tập trung nhóm KH liên quan.","w");await sleep(300);ioGuard(my);
+    ioLog("rca","Kết luận: có tín hiệu từ cả hai phía, chưa đủ cơ sở kết luận → cần kiểm tra song song.","e");
+    setAg("ia","rca","done","Tín hiệu từ 2 phía");
+
+    setAg("ia","route","run");setClock($("#ioClock"),"05:45");await sleep(500);ioGuard(my);
+    TK.forEach(t=>ioLog("route",`Đã gửi ${tkId(t)} → ${t.team} (${t.pri}, ${t.sla.toLowerCase()})`,"ok"));
+    ioLog("route",`Cách ly feature du_no_chot_ngay: ${DOWNSTREAM.length} hệ thống phía sau tạm dùng số T-2 kèm cờ cảnh báo.`,"w");
+    setAg("ia","route","done","2 phiếu · 1 feature cách ly");
+    IO.done=true;renderIO();$("#ioB2").classList.remove("hidden");
+    toast(`<b>05:45 · Cảnh báo Inside-Out</b><br>Dư nợ chốt T-1 giảm 6,06%. Đã gửi phiếu cho Kỹ thuật (P1) và Kinh doanh & Kiểm soát.`);
+  }catch(e){if(e!=="abort")console.error(e);}
+  $("#ioRun").disabled=false;
+}
+function renderIO(){
+  const o=IO.outcome?OUT[IO.outcome]:null,tkst=t=>o?(t.k==="tech"?o.t:o.b):["","Đã gửi 05:45 · chờ phản hồi"],qu=!o||o.q;
+  const tbl=(rows,h)=>`<table class="fchk"><thead><tr><th>${h}</th><th>Mức giảm (tỷ)</th><th>Tỷ trọng</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("")}</tbody></table>`;
+  $("#ioArea").innerHTML=`
+  <div class="brief-head">
+    <div><h2>Cảnh báo Inside-Out · Dữ liệu chốt ngày ${dLabel(0)} (T-1)</h2>
+    <div class="meta">Phát hiện 05:30 · Định tuyến 05:45 · Nguồn: kho dữ liệu nội bộ sau batch ETL đêm</div></div>
+    <span class="alert" style="background:var(--vio-soft);color:var(--vio)">Bất thường dữ liệu · kiểm tra song song</span>
+  </div>
+  <div class="iosec"><h5>Feature dư nợ cho vay chốt ngày (14 ngày gần nhất)</h5>${ioChart()}
+    <p class="note" style="margin:6px 0 0">T-1 = 412.310 tỷ, thấp hơn T-2 (438.920) 6,06% và T-7 (437.310) 5,72%. Mức giảm −26.610 tỷ gấp khoảng 4 lần ngưỡng cảnh báo ±1,5%/ngày.</p></div>
+  <div class="iosec"><h5>Kết quả kiểm tra 9 feature</h5><div style="overflow-x:auto"><table class="fchk"><thead><tr><th>Feature</th><th>T-1</th><th>T-2</th><th>T-7</th><th>Biến động</th><th>Trạng thái</th></tr></thead><tbody>${FEATS.map(featRow).join("")}</tbody></table></div>
+    <p class="note" style="margin:6px 0 0">Kiểm tra chéo: giải ngân (2.330) − thu nợ (28.940) = −26.610 tỷ, khớp đúng mức giảm dư nợ.</p></div>
+  <div class="iosec"><h5>Phân rã mức giảm −26.610 tỷ</h5><div class="cols" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+    <div>${tbl(BREAK.seg,"Phân khúc")}</div><div>${tbl(BREAK.br,"Chi nhánh")}</div><div>${tbl(BREAK.cus,"Khách hàng")}</div></div></div>
+  <div class="iosec"><h5>Chẩn đoán của agent</h5><div class="cols">
+    <div class="sig"><h6>🛠 Tín hiệu lỗi hệ thống / dữ liệu</h6><ul>${SIG_TECH.map(x=>`<li>${x}</li>`).join("")}</ul></div>
+    <div class="sig"><h6>💼 Tín hiệu chiến lược kinh doanh / gian lận</h6><ul>${SIG_BIZ.map(x=>`<li>${x}</li>`).join("")}</ul></div></div>
+    <p style="margin:10px 0 0;font-size:13px"><b>Kết luận sơ bộ:</b> có tín hiệu từ cả hai phía, chưa đủ cơ sở kết luận. Agent gửi song song 2 phiếu thay vì chờ một bên kiểm tra xong.</p></div>
+  <div class="iosec"><h5>Phiếu cảnh báo đã gửi</h5><div class="cols">${TK.map(t=>{const st=tkst(t);return `<div class="ticket ${o?"ok":""}"><div class="hd"><b>${tkId(t)} → ${t.team}</b><span class="status ${st[0]}">${st[1]}</span></div>
+      <div class="note">${t.sub} · Mức: ${t.pri} · ${t.sla}</div><ul>${t.checks.map(c=>`<li>${c}</li>`).join("")}</ul></div>`;}).join("")}</div>
+    <div class="qbox ${qu?"":"off"}" style="margin-top:12px">${qu?`🔒 <b>Feature <code>du_no_chot_ngay</code> đang bị cách ly.</b> Các hệ thống phía sau tạm dùng giá trị T-2 kèm cờ cảnh báo: ${DOWNSTREAM.join(" · ")}.`:`🔓 <b>Đã gỡ cách ly feature <code>du_no_chot_ngay</code>.</b> Các hệ thống phía sau dùng lại số liệu T-1.`}</div></div>
+  <div class="iosec noprint"><h5>Mô phỏng phản hồi từ các bộ phận (dùng khi demo)</h5>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${Object.entries(OUT).map(([k,v])=>`<button class="btn ${IO.outcome===k?"primary":""}" data-o="${k}">${v.btn}</button>`).join("")}${o?'<button class="btn" data-o="">↺ Về trạng thái chờ</button>':""}</div>
+    ${o?`<div class="outcome"><p style="margin:0 0 6px"><b>Kết quả kiểm tra:</b> ${o.find}</p><b style="font-size:13px">Hành động tiếp theo</b><ul>${o.act.map(a=>`<li>${a}</li>`).join("")}</ul>
+      <p class="note" style="margin:8px 0 0"><b>Agent học từ phản hồi:</b> ${o.learn}</p></div>`:'<p class="note" style="margin:8px 0 0">Chọn một kết quả để xem phiếu cảnh báo, trạng thái cách ly và vòng phản hồi thay đổi ra sao.</p>'}</div>`;
+  $$("#ioArea [data-o]").forEach(b=>b.onclick=()=>{IO.outcome=b.dataset.o||null;renderIO();if(IO.outcome)toast(`<b>Phản hồi cập nhật:</b> ${OUT[IO.outcome].btn}`);});
+}
+
+/* ===================== KHỞI TẠO ===================== */
+$$(".mod").forEach(m=>m.onclick=()=>{$$(".mod").forEach(x=>x.classList.toggle("on",x===m));$$(".module").forEach(s=>s.classList.toggle("on",s.id==="m-"+m.dataset.m));});
+$$(".module").forEach(mod=>mod.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+  mod.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x===t));
+  mod.querySelectorAll(".view").forEach(v=>v.classList.toggle("on",v.id===t.dataset.v));
+  const b=t.querySelector(".badge");if(b&&(t.dataset.v==="oi2"||t.dataset.v==="io2"))b.classList.add("hidden");
+}));
+$("#speed").onchange=e=>S.speed=+e.target.value;
+$("#oiRun").onclick=oiRun;$("#oiReset").onclick=oiReset;$("#oiHide").onchange=applyHide;
+$("#ioRun").onclick=ioRun;$("#ioReset").onclick=ioReset;
+$("#dateIn").onchange=()=>{setClock($("#oiClock"),$("#oiClock").dataset.t||"22:00");setClock($("#ioClock"),$("#ioClock").dataset.t||"03:30");if(OI.done&&!OI.sent)renderBrief();if(IO.done)renderIO();};
+document.addEventListener("keydown",e=>{if(e.key==="Escape")$("#modal").classList.remove("on");});
+oiReset();ioReset();
+</script>
+</body>
+</html>
