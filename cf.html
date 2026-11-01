@@ -1,0 +1,386 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Bản đồ cơ hội Outside-in</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: một trang giải thích dài; chuyển kịch bản bằng tab; đường lan truyền vẽ thành 3 làn hop từ trái sang phải, xếp dọc trên điện thoại */
+:root{
+  --bg:#F4F6F5; --surface:#FFFFFF; --ink:#15211D; --muted:#55665F; --line:#D6DFDB;
+  --accent:#8F5414; --accent-soft:#F3E7D8;
+  --up:#1D7550; --up-soft:#E2F1E9; --down:#A9412A; --down-soft:#F7E6E1;
+  --display:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --body:"Be Vietnam Pro", "Segoe UI", Roboto, Arial, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1513; --surface:#17201D; --ink:#E5EDEA; --muted:#9AABA4; --line:#2B3833;
+  --accent:#E3A65C; --accent-soft:#33281A;
+  --up:#62C795; --up-soft:#173126; --down:#EE8C72; --down-soft:#3A221C; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1513; --surface:#17201D; --ink:#E5EDEA; --muted:#9AABA4; --line:#2B3833;
+  --accent:#E3A65C; --accent-soft:#33281A;
+  --up:#62C795; --up-soft:#173126; --down:#EE8C72; --down-soft:#3A221C; color-scheme:dark}
+
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15.5px;line-height:1.6}
+.wrap{max-width:1120px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:40px 64px;display:flex;flex-direction:column;gap:56px}
+h1,h2,h3{font-family:var(--display);font-weight:600;text-wrap:balance;margin:0;line-height:1.2}
+h1{font-size:clamp(30px,5vw,46px);letter-spacing:-.01em}
+h2{font-size:clamp(23px,3vw,30px)}
+h3{font-size:19px}
+p{margin:0}
+.eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.lede{max-width:66ch;color:var(--muted);font-size:17px}
+.code{font-family:var(--mono);font-size:.82em;padding:1px 5px;border-radius:4px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+section{display:flex;flex-direction:column;gap:20px}
+.note{font-size:13px;color:var(--muted)}
+
+/* Header */
+header{display:flex;flex-direction:column;gap:16px;padding-bottom:28px;border-bottom:1px solid var(--line)}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;font-size:14px;color:var(--muted)}
+.flow b{color:var(--ink);font-weight:600}
+.flow .arr{color:var(--accent)}
+
+/* So sánh hai chiều */
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{text-align:left;vertical-align:top;padding:12px 16px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:none}
+thead th{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--bg)}
+td:first-child{font-weight:600;width:22%}
+.col-down{color:var(--down)} .col-up{color:var(--up)}
+
+/* Loại cơ hội */
+.opps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.opp{display:flex;flex-direction:column;gap:6px;padding:14px 16px;border-top:2px solid var(--up);background:var(--surface)}
+.opp b{font-size:15px}
+.opp span{font-size:13.5px;color:var(--muted)}
+
+/* Tabs */
+.tabs{display:flex;flex-wrap:wrap;gap:8px}
+.tab{font:inherit;font-size:14.5px;font-weight:500;padding:9px 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.tab:hover{border-color:var(--accent)}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.tab:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.event{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px 28px;align-items:start;padding:22px 24px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.event .tags{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted);text-align:right}
+.event .tags b{color:var(--ink)}
+.event h3{font-size:22px;margin-bottom:6px}
+@media (max-width:640px){.event{grid-template-columns:1fr}.event .tags{text-align:left;flex-direction:row;flex-wrap:wrap;gap:4px 16px}}
+
+/* Làn hop */
+.lanes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;position:relative}
+.lane{display:flex;flex-direction:column;gap:10px;min-width:0}
+.lane-head{display:flex;align-items:baseline;gap:8px;padding-bottom:6px;border-bottom:1px dashed var(--line)}
+.lane-head b{font-family:var(--mono);font-size:13px;color:var(--accent)}
+.lane-head span{font-size:13px;color:var(--muted)}
+.node{display:flex;flex-direction:column;gap:6px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.node-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.seg{font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.who{font-weight:600;font-size:15px;line-height:1.35}
+.how{font-size:14px;color:var(--muted)}
+.edge{font-size:12.5px;color:var(--muted)}
+.cert{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--up);white-space:nowrap}
+.dots{letter-spacing:1px;font-size:11px}
+@media (max-width:860px){.lanes{grid-template-columns:1fr}}
+
+.legend{display:flex;flex-wrap:wrap;gap:6px 20px;font-size:13px;color:var(--muted)}
+.legend .cert{color:var(--up)}
+
+/* Bảng sản phẩm */
+.prod td:first-child{width:16%}
+.pills{display:flex;flex-wrap:wrap;gap:4px}
+.pill{font-size:12px;font-weight:500;padding:2px 8px;border-radius:999px;background:var(--up-soft);color:var(--up);white-space:nowrap}
+.prod td{font-size:14px}
+.prod td:nth-child(4){color:var(--muted)}
+
+/* Mặt trái */
+.flip{display:flex;flex-direction:column;gap:10px;padding:18px 22px;background:var(--down-soft);border-radius:10px}
+.flip h3{color:var(--down);font-size:17px}
+.flip ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.flip li{display:grid;grid-template-columns:16px minmax(0,1fr);gap:6px;font-size:14.5px}
+.flip li::before{content:"−";color:var(--down);font-weight:600}
+
+.prose{display:flex;flex-direction:column;gap:8px;padding:18px 22px;border-left:3px solid var(--accent);background:var(--surface)}
+.prose p{max-width:72ch;font-size:15px}
+
+/* Bổ sung playbook */
+.steps{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;counter-reset:s}
+.steps li{display:flex;flex-direction:column;gap:6px;counter-increment:s;padding-top:12px;border-top:1px solid var(--line)}
+.steps li::before{content:counter(s);font-family:var(--mono);color:var(--accent);font-size:13px}
+.steps b{font-size:15px}
+.steps span{font-size:14px;color:var(--muted)}
+
+footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:18px}
+@media (prefers-reduced-motion:no-preference){.scen-body{animation:fade .25s ease-out}}
+@keyframes fade{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}}
+</style>
+
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">Playbook Outside-in · chiều tích cực</span>
+  <h1>Bản đồ cơ hội Outside-in</h1>
+  <p class="lede">Cùng một tin tức bên ngoài có thể báo trước rủi ro cho nhóm khách hàng này và cơ hội cho nhóm khách hàng khác. Trang này cho thấy cách agent đọc tin tích cực (giá hàng hóa tăng, nhu cầu một ngành tăng), tìm ra khách hàng hưởng lợi trong ngân hàng, rồi chỉ ra sản phẩm nào có nhu cầu tăng.</p>
+  <div class="flow" aria-label="Luồng suy luận">
+    <b>Tin tích cực</b><span class="arr">→</span>
+    <b>Ai hưởng lợi đầu tiên</b><span class="arr">→</span>
+    <b>Dòng tiền lan sang ai</b><span class="arr">→</span>
+    <b>Sản phẩm có nhu cầu tăng</b><span class="arr">→</span>
+    <b>Tín hiệu nội bộ để xác nhận</b><span class="arr">→</span>
+    <b>Mặt trái cần theo dõi</b>
+  </div>
+</header>
+
+<section aria-labelledby="h-compare">
+  <span class="eyebrow">Cùng đồ thị, đọc theo hai chiều</span>
+  <h2 id="h-compare">Rủi ro và cơ hội đi chung một đường</h2>
+  <p class="lede">Không cần một đồ thị mới. 12 kênh liên kết <span class="code">L01</span>–<span class="code">L12</span> và mã sản phẩm trong playbook vẫn dùng nguyên. Chỉ khác ở chỗ agent theo dõi dòng tiền tăng lên thay vì giảm đi.</p>
+  <div class="tablebox">
+    <table>
+      <thead><tr><th>Khía cạnh</th><th>Chiều rủi ro (playbook hiện tại)</th><th>Chiều cơ hội</th></tr></thead>
+      <tbody>
+        <tr><td>Câu hỏi đầu tiên</td><td>Ai bị chạm và thiệt hại thế nào?</td><td>Ai hưởng lợi và phát sinh nhu cầu tài chính gì?</td></tr>
+        <tr><td>Đường lan truyền</td><td>Doanh thu, thu nhập giảm lan qua các kênh <span class="code">L01</span>–<span class="code">L12</span></td><td>Doanh thu, thu nhập tăng lan qua cùng các kênh đó</td></tr>
+        <tr><td>Ở sản phẩm</td><td class="col-down">Sản phẩm nào chịu rủi ro tín dụng, thanh khoản…</td><td class="col-up">Sản phẩm nào có nhu cầu tăng, khách nào đủ điều kiện mở rộng</td></tr>
+        <tr><td>Tín hiệu nội bộ</td><td>Lương trễ, doanh thu QR giảm, tất toán tiết kiệm sớm</td><td>Lô lương tăng người, doanh thu QR tăng, tiền gửi mới, L/C xuất khẩu tăng</td></tr>
+        <tr><td>Phản ứng của ngân hàng</td><td>Siết tín dụng quá muộn hoặc quá mạnh</td><td>Nới hạn mức quá nhanh theo giá đỉnh</td></tr>
+        <tr><td>Kết luận</td><td>Rủi ro cần phòng ngừa</td><td>Cơ hội, kèm mặt trái cần theo dõi</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section aria-labelledby="h-opps">
+  <span class="eyebrow">Phân loại</span>
+  <h2 id="h-opps">Năm loại cơ hội agent cần gọi tên</h2>
+  <div class="opps">
+    <div class="opp"><b>Tín dụng mới</b><span>Vay mới hoặc tăng hạn mức cho khách có dòng tiền tăng thật.</span></div>
+    <div class="opp"><b>Huy động &amp; CASA</b><span>Tiền gửi, số dư tài khoản thanh toán, sinh lời tự động tăng.</span></div>
+    <div class="opp"><b>Thanh toán, FX &amp; phí</b><span>Giao dịch thẻ, QR, POS, ngoại tệ, tài trợ thương mại tăng.</span></div>
+    <div class="opp"><b>Bán chéo</b><span>Khách có tiền nhàn rỗi: iBond, iFund, bảo hiểm tích lũy.</span></div>
+    <div class="opp"><b>Chất lượng nợ cải thiện</b><span>Khách đang vay có khả năng trả nợ tốt hơn, rủi ro giảm.</span></div>
+  </div>
+</section>
+
+<section aria-labelledby="h-scen" id="scenarios">
+  <span class="eyebrow">Kịch bản minh họa</span>
+  <h2 id="h-scen">Chọn một tin tức để xem agent lần ra khách hàng hưởng lợi</h2>
+  <div class="tabs" role="tablist" aria-label="Kịch bản" id="tabs"></div>
+  <div id="scen" role="tabpanel" aria-live="polite"></div>
+  <div class="legend" aria-label="Chú giải mức chắc chắn">
+    <span class="cert"><span class="dots">●●●</span>Có khả năng cao: hưởng lợi trực tiếp hoặc 1 bước, cơ chế rõ</span>
+    <span class="cert"><span class="dots">●●○</span>Có thể: 2 bước, hoặc phụ thuộc điều kiện</span>
+    <span class="cert"><span class="dots">●○○</span>Giả thuyết: cần kiểm chứng bằng dữ liệu nội bộ</span>
+  </div>
+  <p class="note">Tất cả kịch bản là giả định để minh họa cách suy luận. Không có số liệu thực và không nhắc tới khách hàng cụ thể nào.</p>
+</section>
+
+<section aria-labelledby="h-add">
+  <span class="eyebrow">Áp dụng vào playbook</span>
+  <h2 id="h-add">Bốn chỗ cần bổ sung để agent đọc được chiều tích cực</h2>
+  <ol class="steps">
+    <li><b>Bước 1 hỏi thêm “có lợi cho ai”</b><span>Ngoài outside-in hay inside-out, agent gắn thêm hướng tác động: rủi ro, cơ hội, hoặc cả hai cho các nhóm khác nhau.</span></li>
+    <li><b>Thêm phần (g) vào mỗi file phân khúc</b><span>“Sản phẩm hưởng lợi”, dùng lại mã sản phẩm hiện có, ghi loại cơ hội và điều kiện khách đủ chuẩn.</span></li>
+    <li><b>Đọc tín hiệu nội bộ theo hai chiều</b><span>S01 lương, S02 doanh thu QR, S06 tiền gửi, S10 hóa đơn, S11 chuỗi cung ứng: đảo dấu là thành tín hiệu tích cực.</span></li>
+    <li><b>Bắt buộc có đoạn mặt trái</b><span>Mỗi kết luận về cơ hội phải nói ai bị thiệt từ cùng sự kiện và rủi ro nếu xu hướng đảo chiều.</span></li>
+  </ol>
+</section>
+
+<footer>Mã sản phẩm, kênh liên kết và tín hiệu tham chiếu theo bộ playbook v1.2. Danh mục sản phẩm lấy từ techcombank.com, chốt ngày 26/10/2026.</footer>
+</div>
+
+<script>
+const C = {
+  h:{dots:"●●●",label:"Có khả năng cao"},
+  m:{dots:"●●○",label:"Có thể"},
+  l:{dots:"●○○",label:"Giả thuyết"}
+};
+const S = [
+{
+ id:"ca-phe", tab:"Giá cà phê tăng",
+ title:"Giá cà phê Robusta tăng mạnh trên thị trường thế giới",
+ event:"Nguồn cung từ các nước sản xuất lớn giảm, giá Robusta xuất khẩu tăng mạnh đúng mùa thu hoạch.",
+ direction:"Outside-in", pattern:"P1 + P2", first:"Doanh nghiệp xuất khẩu và người trồng",
+ lanes:[
+  {h:"Hop 0", s:"hưởng lợi trực tiếp", n:[
+   {seg:"CIB · SME", who:"Doanh nghiệp xuất khẩu cà phê", how:"Doanh thu ngoại tệ tăng; cần thêm vốn lưu động vì giá thu mua cao hơn.", edge:"Kênh L08 – thị trường quốc tế", c:"h"},
+   {seg:"HKD", who:"Đại lý thu mua tại vùng trồng", how:"Tiền quay vòng mỗi vụ lớn hơn; cần hạn mức để ứng tiền cho nông hộ.", edge:"Trực tiếp", c:"h"},
+   {seg:"KHCN", who:"Nông hộ trồng cà phê", how:"Thu nhập vụ thu hoạch tăng.", edge:"Trực tiếp", c:"h"}]},
+  {h:"Hop 1", s:"dòng tiền lan ra", n:[
+   {seg:"KHCN Priority", who:"Chủ doanh nghiệp, chủ đại lý", how:"Tài sản cá nhân tăng, có tiền nhàn rỗi để gửi hoặc đầu tư.", edge:"Kênh L01 – chủ DN", c:"h"},
+   {seg:"HKD", who:"Cửa hàng vật liệu, xe máy, điện máy ở vùng trồng", how:"Nông hộ chi tiêu nhiều hơn sau vụ.", edge:"Kênh L06 – chi tiêu", c:"m"},
+   {seg:"KHCN", who:"Nông hộ mua sắm lớn", how:"Nhu cầu mua xe, xây sửa nhà sau vụ.", edge:"Trực tiếp, trễ 1–3 tháng", c:"m"}]},
+  {h:"Hop 2", s:"lan rộng", n:[
+   {seg:"SME", who:"Nhà phân phối vật liệu xây dựng", how:"Đơn hàng từ cửa hàng địa phương tăng.", edge:"Kênh L03 – chuỗi cung ứng", c:"m"},
+   {seg:"CIB", who:"Đại lý ô tô trong chương trình tài trợ chuỗi", how:"Doanh số xe tại vùng trồng có thể tăng.", edge:"Kênh L03 – chuỗi cung ứng", c:"l"}]}
+ ],
+ products:[
+  {seg:"CIB · SME", items:"Vay vốn lưu động theo hạn mức <span class='code'>CIB-LN-01</span> <span class='code'>SME-LN-01</span>, L/C xuất khẩu và tài trợ thương mại <span class='code'>CIB-TF-02</span>, FX giao ngay/kỳ hạn <span class='code'>CIB-FX-01</span>", opp:["Tín dụng mới","Thanh toán, FX & phí"], sig:"L/C xuất khẩu và lượng USD bán cho ngân hàng của DN ngành cà phê tăng"},
+  {seg:"HKD", items:"ShopCash <span class='code'>HKD-LN-01</span>, ShopCredit <span class='code'>HKD-LN-02</span>, Tài khoản HKD <span class='code'>HKD-ACC-01</span>", opp:["Tín dụng mới","Huy động & CASA"], sig:"Dòng tiền vào tài khoản HKD ở vùng trồng tăng theo mùa vụ"},
+  {seg:"KHCN", items:"Tiết kiệm có kỳ hạn <span class='code'>CN-DEP-01</span>, Sinh lời tự động <span class='code'>CN-ACC-03</span>, iBond/iFund <span class='code'>CN-INV-01</span> <span class='code'>CN-INV-02</span>, BH tích lũy <span class='code'>CN-INS-02</span>, vay mua ô tô <span class='code'>CN-LN-04</span>, vay xây sửa nhà <span class='code'>CN-LN-08</span>", opp:["Huy động & CASA","Bán chéo","Tín dụng mới"], sig:"Tiền gửi mới tại các tỉnh trồng cà phê; chủ DN chuyển tiền từ tài khoản DN sang tài khoản cá nhân"},
+  {seg:"SME · CIB", items:"Tài trợ kinh doanh ô tô <span class='code'>CIB-SCF-01</span>, vay vốn lưu động nhà phân phối <span class='code'>SME-LN-01</span>", opp:["Tín dụng mới"], sig:"Doanh số đại lý xe trong chương trình tài trợ chuỗi ở vùng trồng"}
+ ],
+ flip:[
+  "Doanh nghiệp đã ký bán kỳ hạn ở giá thấp nhưng phải thu mua ở giá cao có thể lỗ hoặc phá hợp đồng. Cần rà soát L/C xuất khẩu và vốn lưu động của nhóm này trước khi coi là cơ hội.",
+  "Quán cà phê (HKD) và doanh nghiệp rang xay trong nước bị tăng giá đầu vào, biên lợi nhuận giảm.",
+  "Người vay mở rộng diện tích hoặc trữ hàng ở đỉnh giá. Nếu giá đảo chiều sau một đến hai vụ, các khoản này có thể thành nợ xấu.",
+  "Ngân hàng nới hạn mức theo giá đỉnh. Nên định hạn mức theo giá bình quân nhiều vụ."
+ ],
+ prose:"Giá cà phê tăng mạnh là sự kiện outside-in, chạm cùng lúc doanh nghiệp xuất khẩu và người trồng, nên lan theo cả hai mẫu P1 và P2. Hưởng lợi rõ nhất là doanh nghiệp xuất khẩu và đại lý thu mua: doanh thu ngoại tệ tăng, nhưng cần nhiều vốn lưu động hơn để thu mua ở giá cao, nên nhu cầu vay vốn lưu động, tài trợ xuất khẩu và bán USD có khả năng cao tăng ngay trong vụ. Tiền về tay nông hộ có thể lan sang hộ kinh doanh địa phương và các khoản vay mua xe, sửa nhà sau một đến ba tháng. Mặt trái cần theo dõi là doanh nghiệp đã ký bán kỳ hạn ở giá thấp, và người vay mở rộng ở đỉnh giá."
+},
+{
+ id:"du-lich", tab:"Khách quốc tế tăng",
+ title:"Lượng khách du lịch quốc tế tăng mạnh",
+ event:"Chính sách thị thực được nới, các hãng bay mở thêm đường bay quốc tế, lượng khách đến tăng mạnh trong mùa cao điểm.",
+ direction:"Outside-in", pattern:"P1 (có nút lai HKD)", first:"Doanh nghiệp và hộ kinh doanh du lịch",
+ lanes:[
+  {h:"Hop 0", s:"hưởng lợi trực tiếp", n:[
+   {seg:"CIB", who:"Hãng bay và đại lý bán vé", how:"Doanh số vé tăng; đại lý cần thêm vốn để ứng vé.", edge:"Kênh L03 – hãng bay đến đại lý", c:"h"},
+   {seg:"SME", who:"Khách sạn, công ty lữ hành", how:"Công suất phòng và số tour tăng.", edge:"Trực tiếp", c:"h"},
+   {seg:"HKD", who:"Homestay, quán ăn, cửa hàng lưu niệm", how:"Doanh thu tăng, nhiều giao dịch thẻ quốc tế.", edge:"Trực tiếp", c:"h"}]},
+  {h:"Hop 1", s:"dòng tiền lan ra", n:[
+   {seg:"KHCN", who:"Lao động ngành dịch vụ", how:"Thêm giờ làm, thu nhập và tiền thưởng tăng.", edge:"Kênh L02 – chi lương", c:"m"},
+   {seg:"KHCN Priority", who:"Chủ khách sạn, chủ hộ kinh doanh", how:"Có vốn để mở rộng, nâng cấp cơ sở.", edge:"Kênh L01 – chủ DN", c:"m"},
+   {seg:"SME", who:"Nhà cung cấp thực phẩm, vận chuyển", how:"Đơn hàng từ khách sạn, nhà hàng tăng.", edge:"Kênh L03 – chuỗi cung ứng", c:"m"}]},
+  {h:"Hop 2", s:"lan rộng", n:[
+   {seg:"HKD", who:"Dịch vụ quanh điểm du lịch: giặt là, spa, xe đưa đón", how:"Hưởng lợi từ chi tiêu của khách và người lao động.", edge:"Kênh L06 – chi tiêu", c:"m"},
+   {seg:"KHCN", who:"Người mua căn hộ nghỉ dưỡng để cho thuê", how:"Kỳ vọng thu nhập cho thuê tăng.", edge:"Kỳ vọng thị trường", c:"l"}]}
+ ],
+ products:[
+  {seg:"CIB", items:"Tài trợ đại lý bán vé hàng không <span class='code'>CIB-SCF-01</span>, thu hộ qua Payment Gateway <span class='code'>CIB-COL-01</span>", opp:["Tín dụng mới","Thanh toán, FX & phí"], sig:"Doanh số của đại lý vé trong chương trình tài trợ chuỗi"},
+  {seg:"SME", items:"SoftPOS <span class='code'>SME-REV-01</span>, MerchantOne <span class='code'>SME-PKG-02</span>, vay Hybrid <span class='code'>SME-LN-01</span>, giao dịch ngoại tệ <span class='code'>SME-PAY-04</span>", opp:["Thanh toán, FX & phí","Tín dụng mới"], sig:"Giao dịch thẻ quốc tế qua thiết bị chấp nhận thẻ ở địa bàn du lịch"},
+  {seg:"HKD", items:"SoftPOS/SmartPOS/SoundPOS <span class='code'>HKD-REV-03</span>, QR và Soundbox <span class='code'>HKD-REV-01</span>, ShopCredit để sửa sang cơ sở <span class='code'>HKD-LN-02</span>", opp:["Thanh toán, FX & phí","Tín dụng mới","Huy động & CASA"], sig:"Doanh thu QR và thẻ của HKD theo mã ngành lưu trú, ăn uống"},
+  {seg:"KHCN", items:"Thẻ thanh toán và tín dụng <span class='code'>CN-CARD-02</span> <span class='code'>CN-CARD-01</span>, Sinh lời tự động <span class='code'>CN-ACC-03</span>, vay mua BĐS <span class='code'>CN-LN-02</span>", opp:["Huy động & CASA","Tín dụng mới"], sig:"Lô lương của doanh nghiệp ngành lưu trú tăng số người và giá trị"}
+ ],
+ flip:[
+  "Doanh thu mùa cao điểm không đại diện cho cả năm. Nên định hạn mức theo doanh thu bình quân, không theo tháng đỉnh.",
+  "Gian lận thẻ quốc tế và tra soát hoàn tiền tại điểm bán có thể tăng cùng lượng giao dịch.",
+  "Đầu tư thêm phòng quá mức có thể dẫn tới dư cung khi lượng khách chững lại.",
+  "Ngoại tệ tiền mặt nhận ngoài hệ thống làm tăng rủi ro tuân thủ."
+ ],
+ prose:"Lượng khách quốc tế tăng là sự kiện outside-in, lan theo mẫu doanh nghiệp trước, với hộ kinh doanh du lịch là nút lai hưởng lợi cùng lúc. Hãng bay, đại lý vé, khách sạn và các hộ homestay, quán ăn có khả năng cao tăng doanh thu ngay trong mùa, kéo theo nhu cầu nhận thanh toán thẻ quốc tế, ngoại tệ và vốn để ứng vé. Thu nhập của lao động dịch vụ và đơn hàng của nhà cung cấp thực phẩm có thể tăng theo sau đó. Mặt trái cần theo dõi là tính mùa vụ và gian lận thẻ tại điểm bán."
+},
+{
+ id:"dau-tu-cong", tab:"Giải ngân đầu tư công",
+ title:"Giải ngân vốn đầu tư công cho cao tốc tăng tốc",
+ event:"Các dự án cao tốc được đẩy nhanh nghiệm thu và thanh toán; nhiều gói thầu mới được mở trong quý.",
+ direction:"Outside-in", pattern:"P1", first:"Nhà thầu thi công",
+ lanes:[
+  {h:"Hop 0", s:"hưởng lợi trực tiếp", n:[
+   {seg:"CIB · SME", who:"Nhà thầu thi công", how:"Tiền nghiệm thu từ ngân sách về nhanh hơn; có thêm gói thầu mới.", edge:"Kênh L12 – nhà nước đến DN", c:"h"}]},
+  {h:"Hop 1", s:"dòng tiền lan ra", n:[
+   {seg:"SME · CIB", who:"Nhà cung cấp thép, xi măng, đá, nhựa đường", how:"Đơn hàng tăng, được thanh toán đúng hạn hơn.", edge:"Kênh L03 – chuỗi cung ứng", c:"h"},
+   {seg:"KHCN", who:"Công nhân, kỹ sư công trường", how:"Lương đều hơn, có thêm ca.", edge:"Kênh L02 – chi lương", c:"m"},
+   {seg:"KHCN Priority", who:"Chủ doanh nghiệp xây dựng", how:"Lợi nhuận và tài sản cá nhân tăng.", edge:"Kênh L01 – chủ DN", c:"m"}]},
+  {h:"Hop 2", s:"lan rộng", n:[
+   {seg:"HKD", who:"Quán ăn, nhà trọ, cửa hàng dọc tuyến", how:"Hưởng lợi từ chi tiêu của công nhân công trường.", edge:"Kênh L06 – chi tiêu", c:"m"},
+   {seg:"KHCN", who:"Người mua đất, nhà gần nút giao", how:"Kỳ vọng giá BĐS tăng khi hạ tầng hoàn thành.", edge:"Kỳ vọng thị trường", c:"l"}]}
+ ],
+ products:[
+  {seg:"CIB · SME", items:"Bảo lãnh mua sắm công <span class='code'>SME-GTE-01</span>, bảo lãnh <span class='code'>CIB-TF-04</span>, vay vốn lưu động <span class='code'>CIB-LN-01</span>", opp:["Tín dụng mới","Thanh toán, FX & phí","Chất lượng nợ cải thiện"], sig:"Tiền từ Kho bạc về tài khoản nhà thầu; số bảo lãnh dự thầu và thực hiện hợp đồng phát hành mới"},
+  {seg:"SME · CIB", items:"Tài trợ thương mại nội địa, L/C nội địa <span class='code'>CIB-TF-03</span>, tín dụng B1CP <span class='code'>SME-LN-03</span>", opp:["Tín dụng mới","Thanh toán, FX & phí"], sig:"Thanh toán từ nhà thầu sang nhà cung cấp vật liệu tăng"},
+  {seg:"KHCN", items:"Tài khoản thanh toán <span class='code'>CN-ACC-01</span> qua chi lương <span class='code'>SME-PAY-06</span> <span class='code'>CIB-PAY-06</span>; tiết kiệm và iFund cho chủ DN <span class='code'>CN-DEP-01</span> <span class='code'>CN-INV-02</span>", opp:["Huy động & CASA","Bán chéo"], sig:"Lô lương của nhà thầu tăng số người"},
+  {seg:"HKD", items:"QR và Soundbox <span class='code'>HKD-REV-01</span>, ShopCash <span class='code'>HKD-LN-01</span>", opp:["Thanh toán, FX & phí","Tín dụng mới"], sig:"Doanh thu QR của HKD theo địa bàn dọc tuyến"}
+ ],
+ flip:[
+  "Nhà thầu nhận nhiều gói vượt năng lực có thể chậm tiến độ và bị gọi bảo lãnh.",
+  "Giải ngân chung tăng nhưng từng dự án vẫn có thể nghiệm thu chậm. Cần xem dòng tiền thực về theo từng nhà thầu.",
+  "Sốt đất cục bộ quanh nút giao làm tài sản bảo đảm bị định giá cao.",
+  "Giá vật liệu tăng ép biên lợi nhuận của nhà thầu ký hợp đồng giá cố định."
+ ],
+ prose:"Giải ngân đầu tư công tăng tốc là sự kiện outside-in, lan theo mẫu doanh nghiệp trước. Nhà thầu thi công hưởng lợi trực tiếp khi tiền nghiệm thu về nhanh hơn, nên nhu cầu bảo lãnh và vốn lưu động có khả năng cao tăng, đồng thời khả năng trả nợ của các khoản đang vay được cải thiện. Dòng tiền lan tiếp sang nhà cung cấp vật liệu qua chuỗi cung ứng, và có thể sang công nhân, hộ kinh doanh dọc tuyến. Mặt trái cần theo dõi là nhà thầu nhận việc vượt năng lực và sốt đất cục bộ."
+},
+{
+ id:"fdi", tab:"Nhà máy FDI mở rộng",
+ title:"Một tập đoàn điện tử FDI mở rộng nhà máy",
+ event:"Tập đoàn công bố mở rộng nhà máy tại một khu công nghiệp phía Bắc, tuyển thêm nhiều lao động trong năm tới.",
+ direction:"Outside-in", pattern:"P1", first:"Doanh nghiệp FDI",
+ lanes:[
+  {h:"Hop 0", s:"hưởng lợi trực tiếp", n:[
+   {seg:"CIB", who:"Doanh nghiệp FDI", how:"Góp vốn, nhập máy móc và linh kiện, quỹ lương tăng mạnh.", edge:"Kênh L08 – thị trường quốc tế", c:"h"}]},
+  {h:"Hop 1", s:"dòng tiền lan ra", n:[
+   {seg:"KHCN", who:"Công nhân mới tuyển", how:"Cần tài khoản nhận lương, thẻ, chuyển tiền về quê.", edge:"Kênh L02 – chi lương", c:"h"},
+   {seg:"SME", who:"Doanh nghiệp phụ trợ: bao bì, cơ khí, logistics, suất ăn", how:"Đơn hàng từ nhà máy tăng.", edge:"Kênh L03 – chuỗi cung ứng", c:"m"}]},
+  {h:"Hop 2", s:"lan rộng", n:[
+   {seg:"HKD", who:"Nhà trọ, quán ăn, tạp hóa quanh khu công nghiệp", how:"Có thêm khách thường xuyên.", edge:"Kênh L06 – chi tiêu", c:"m"},
+   {seg:"KHCN", who:"Chuyên gia, quản lý thuê hoặc mua nhà gần khu công nghiệp", how:"Nhu cầu nhà ở tăng.", edge:"Kỳ vọng thị trường", c:"l"}]}
+ ],
+ products:[
+  {seg:"CIB", items:"Tài khoản vốn <span class='code'>CIB-ACC-02</span>, L/C nhập khẩu <span class='code'>CIB-TF-01</span>, FX giao ngay/hoán đổi <span class='code'>CIB-FX-01</span>, thanh toán lương <span class='code'>CIB-PAY-06</span>, vay theo dự án <span class='code'>CIB-LN-02</span>", opp:["Thanh toán, FX & phí","Tín dụng mới","Huy động & CASA"], sig:"Vốn góp chuyển vào tài khoản vốn; L/C nhập khẩu linh kiện tăng"},
+  {seg:"KHCN", items:"Tài khoản thanh toán <span class='code'>CN-ACC-01</span>, thẻ thanh toán <span class='code'>CN-CARD-02</span>, Techcombank Mobile <span class='code'>CN-DIG-01</span>, Tích lũy Như Ý <span class='code'>CN-DEP-02</span>", opp:["Huy động & CASA","Thanh toán, FX & phí"], sig:"Số tài khoản nhận lương mới mở theo doanh nghiệp trả lương"},
+  {seg:"SME", items:"Techcombank Business <span class='code'>SME-DIG-01</span>, vay kết nối Misa Lending <span class='code'>SME-LN-02</span>, thanh toán lương <span class='code'>SME-PAY-06</span>", opp:["Tín dụng mới","Huy động & CASA"], sig:"Dòng tiền từ nhà máy FDI vào tài khoản của doanh nghiệp phụ trợ"},
+  {seg:"HKD", items:"QR và Soundbox <span class='code'>HKD-REV-01</span>, Tài khoản HKD <span class='code'>HKD-ACC-01</span>, ShopCash <span class='code'>HKD-LN-01</span>", opp:["Thanh toán, FX & phí","Huy động & CASA"], sig:"Doanh thu QR của HKD quanh khu công nghiệp"}
+ ],
+ flip:[
+  "Cả chuỗi phụ thuộc vào một doanh nghiệp đầu chuỗi. Nếu đơn hàng đảo chiều, doanh nghiệp phụ trợ, công nhân và hộ kinh doanh quanh khu công nghiệp cùng chịu.",
+  "Công nhân mới có thu nhập chưa ổn định. Cần cẩn trọng khi cấp vay tín chấp hoặc MyCash ngay từ đầu.",
+  "Doanh nghiệp phụ trợ nhập nguyên liệu chịu rủi ro tỷ giá.",
+  "Tranh giành lao động có thể đẩy chi phí lương của doanh nghiệp địa phương lên."
+ ],
+ prose:"Việc mở rộng nhà máy FDI là sự kiện outside-in, lan theo mẫu doanh nghiệp trước. Doanh nghiệp FDI phát sinh ngay nhu cầu về tài khoản vốn, ngoại tệ, L/C nhập khẩu và chi lương quy mô lớn. Qua kênh chi lương, công nhân mới có khả năng cao cần mở tài khoản và thẻ, là cơ hội huy động tiền gửi không kỳ hạn. Doanh nghiệp phụ trợ và hộ kinh doanh quanh khu công nghiệp có thể tăng doanh thu theo sau. Mặt trái cần theo dõi là sự phụ thuộc vào một doanh nghiệp đầu chuỗi và thu nhập chưa ổn định của lao động mới."
+}
+];
+
+const tabsEl = document.getElementById("tabs");
+const scenEl = document.getElementById("scen");
+
+function cert(c){ return `<span class="cert" title="${C[c].label}"><span class="dots" aria-hidden="true">${C[c].dots}</span>${C[c].label}</span>`; }
+
+function render(id){
+  const s = S.find(x => x.id === id) || S[0];
+  [...tabsEl.children].forEach(b => b.setAttribute("aria-selected", b.dataset.id === s.id ? "true" : "false"));
+  scenEl.setAttribute("aria-labelledby", "tab-" + s.id);
+  scenEl.innerHTML = `
+  <div class="scen-body" style="display:flex;flex-direction:column;gap:20px">
+    <div class="event">
+      <div><span class="eyebrow">Tin tức đầu vào</span><h3>${s.title}</h3><p class="how">${s.event}</p></div>
+      <div class="tags"><span>Hướng: <b>${s.direction}</b></span><span>Mẫu lan truyền: <b>${s.pattern}</b></span><span>Hưởng lợi đầu tiên: <b>${s.first}</b></span></div>
+    </div>
+    <div class="lanes">
+      ${s.lanes.map(l => `
+        <div class="lane">
+          <div class="lane-head"><b>${l.h}</b><span>${l.s}</span></div>
+          ${l.n.map(n => `
+            <div class="node">
+              <div class="node-top"><span class="seg">${n.seg}</span>${cert(n.c)}</div>
+              <div class="who">${n.who}</div>
+              <div class="how">${n.how}</div>
+              <div class="edge">${n.edge}</div>
+            </div>`).join("")}
+        </div>`).join("")}
+    </div>
+    <h3>Sản phẩm có nhu cầu tăng</h3>
+    <div class="tablebox">
+      <table class="prod">
+        <thead><tr><th>Phân khúc</th><th>Sản phẩm</th><th>Loại cơ hội</th><th>Tín hiệu nội bộ để xác nhận</th></tr></thead>
+        <tbody>${s.products.map(p => `<tr><td>${p.seg}</td><td>${p.items}</td><td><div class="pills">${p.opp.map(o => `<span class="pill">${o}</span>`).join("")}</div></td><td>${p.sig}</td></tr>`).join("")}</tbody>
+      </table>
+    </div>
+    <div class="flip"><h3>Mặt trái cần theo dõi</h3><ul>${s.flip.map(f => `<li><span>${f}</span></li>`).join("")}</ul></div>
+    <div class="prose"><span class="eyebrow">Agent sẽ viết kết luận như sau</span><p>${s.prose}</p></div>
+  </div>`;
+}
+
+S.forEach(s => {
+  const b = document.createElement("button");
+  b.className = "tab"; b.type = "button"; b.role = "tab";
+  b.id = "tab-" + s.id; b.dataset.id = s.id; b.textContent = s.tab;
+  b.addEventListener("click", () => { render(s.id); try { history.replaceState(null, "", "#" + s.id); } catch(e) {} });
+  tabsEl.appendChild(b);
+});
+tabsEl.addEventListener("keydown", e => {
+  if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+  const btns = [...tabsEl.children];
+  const i = btns.findIndex(b => b.getAttribute("aria-selected") === "true");
+  const j = (i + (e.key === "ArrowRight" ? 1 : -1) + btns.length) % btns.length;
+  btns[j].click(); btns[j].focus();
+});
+function fromHash(){ const h = location.hash.replace("#",""); render(S.some(s => s.id === h) ? h : S[0].id); }
+window.addEventListener("hashchange", fromHash);
+fromHash();
+</script>
+
+</body></html>
