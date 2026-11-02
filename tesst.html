@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Luồng chạy playbook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: sơ đồ ba làn (người dùng · agent · code) ở trên, bộ bước chi tiết bên dưới, rồi bảng ai đọc file nào */
+:root{
+  --bg:#F4F5F7; --surface:#FFFFFF; --ink:#18212C; --muted:#56606D; --line:#DCE0E5; --line2:#E8EBEF; --chip:#EEF0F3;
+  --agent:#2D5B8E; --agent-soft:#E7EEF6; --code:#8A4A1C; --code-soft:#F6ECE3; --warn:#A94E19; --warn-soft:#FBE8DA; --ok:#2D5B8E;
+  --body:"Be Vietnam Pro","Segoe UI",Arial,sans-serif; --mono:"JetBrains Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161D; --surface:#19202A; --ink:#E6EBF1; --muted:#9AA6B4; --line:#2C3542; --line2:#242C37; --chip:#232B36;
+  --agent:#8DB4E2; --agent-soft:#1D2A3A; --code:#E9A877; --code-soft:#2E241C; --warn:#F09A68; --warn-soft:#35231A; --ok:#8DB4E2; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161D; --surface:#19202A; --ink:#E6EBF1; --muted:#9AA6B4; --line:#2C3542; --line2:#242C37; --chip:#232B36;
+  --agent:#8DB4E2; --agent-soft:#1D2A3A; --code:#E9A877; --code-soft:#2E241C; --warn:#F09A68; --warn-soft:#35231A; --ok:#8DB4E2; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55;margin:0}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:36px 64px;display:flex;flex-direction:column;gap:44px}
+h1,h2,h3{margin:0;line-height:1.2;text-wrap:balance}
+h1{font-size:clamp(28px,4.4vw,40px);font-weight:700;letter-spacing:-.015em}
+h2{font-size:22px;font-weight:700}
+h3{font-size:17px;font-weight:700}
+p{margin:0}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lede{max-width:68ch;color:var(--muted);font-size:16px}
+.mono{font-family:var(--mono)}
+section{display:flex;flex-direction:column;gap:16px}
+.code{font-family:var(--mono);font-size:.84em;padding:1px 6px;border-radius:4px;background:var(--chip);white-space:nowrap}
+
+/* Sơ đồ ba làn */
+.lanes{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.lane{display:grid;grid-template-columns:170px minmax(0,1fr);border-top:1px solid var(--line)}
+.lane:first-child{border-top:none}
+.lane-label{padding:16px;display:flex;flex-direction:column;gap:4px;border-right:1px solid var(--line)}
+.lane-label b{font-size:14px}
+.lane-label span{font-size:12px;color:var(--muted)}
+.lane.agent .lane-label{background:var(--agent-soft)}
+.lane.codel .lane-label{background:var(--code-soft)}
+.flow{padding:16px;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.flow + .flow{border-top:1px dashed var(--line);}
+.node{font:inherit;text-align:left;display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);min-width:0;max-width:220px}
+.node small{font-size:12px;color:var(--muted)}
+.node b{font-size:14px;font-weight:600}
+button.node{cursor:pointer}
+button.node:hover{border-color:var(--agent)}
+.agent .node{border-color:color-mix(in srgb,var(--agent) 35%,var(--line))}
+.codel .node{border-color:color-mix(in srgb,var(--code) 35%,var(--line))}
+.node.out{background:var(--agent-soft)}
+.arr{color:var(--muted);font-size:16px}
+.arr::before{content:"→"}
+.loops{display:flex;flex-wrap:wrap;gap:12px}
+.loop{flex:1 1 360px;display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:10px;font-size:14px;min-width:0}
+.loop.ok{background:var(--agent-soft)}
+.loop.no{background:var(--warn-soft)}
+.loop .sym{font-family:var(--mono);font-weight:600;font-size:15px}
+.loop.ok .sym{color:var(--ok)} .loop.no .sym{color:var(--warn)}
+@media (max-width:720px){
+  .lane{grid-template-columns:1fr}
+  .lane-label{border-right:none;border-bottom:1px solid var(--line)}
+  .flow{flex-direction:column;align-items:stretch}
+  .node{max-width:none}
+  .arr{align-self:center}.arr::before{content:"↓"}
+}
+
+/* Flow chart động */
+.chartbox{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+#flowsvg{display:block;width:100%;min-width:760px;height:auto}
+.lb-user{fill:var(--bg)} .lb-agent{fill:var(--agent-soft)} .lb-code{fill:var(--code-soft)}
+.lane-tx{font:600 11px var(--body);letter-spacing:.08em;fill:var(--muted)}
+.nd rect{fill:var(--surface);stroke:var(--line);stroke-width:1.5;transition:fill .25s,stroke .25s}
+.nd .t{font:600 13px var(--body);fill:var(--ink)}
+.nd .s{font:500 11px var(--body);fill:var(--muted)}
+.nd.click{cursor:pointer}
+.nd.click:hover rect{stroke:var(--agent)}
+.nd.click:focus-visible{outline:none}
+.nd.click:focus-visible rect{stroke:var(--agent);stroke-width:3}
+.nd.done rect{stroke:var(--agent)}
+.nd.code.done rect{stroke:var(--code)}
+.nd.active rect{stroke:var(--agent);stroke-width:2.5;fill:var(--agent-soft)}
+.nd.code.active rect{stroke:var(--code);fill:var(--code-soft)}
+.ed{fill:none;stroke:var(--muted);stroke-opacity:.55;stroke-width:2}
+.ed.fb{stroke-dasharray:6 5}
+.ed.block{stroke:var(--warn);stroke-opacity:.8;stroke-dasharray:4 5}
+.ed.lit{stroke:var(--agent);stroke-opacity:1;stroke-width:3;stroke-dasharray:7 6;animation:march .6s linear infinite}
+.ed.code.lit{stroke:var(--code)}
+.ed.done{stroke:var(--agent);stroke-opacity:.85;stroke-width:2.5}
+.ed.code.done{stroke:var(--code)}
+@keyframes march{to{stroke-dashoffset:-13}}
+.ah-m{fill:var(--muted);fill-opacity:.7} .ah-a{fill:var(--agent)} .ah-c{fill:var(--code)}
+.token{fill:var(--agent);stroke:var(--surface);stroke-width:3}
+.token.code{fill:var(--code)}
+.xmark{font:700 18px var(--mono);fill:var(--warn)}
+.elabel{font:500 11px var(--body);paint-order:stroke;stroke-width:5px;stroke-linejoin:round}
+.elabel.ok{fill:var(--agent);stroke:var(--agent-soft)}
+.elabel.no{fill:var(--warn);stroke:var(--agent-soft)}
+.flash{animation:flash .5s ease-in-out 3}
+@keyframes flash{50%{opacity:.15}}
+.fc-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fc-btn{font:inherit;font-size:14px;font-weight:600;min-height:44px;padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.fc-btn.primary{background:var(--ink);border-color:var(--ink);color:var(--surface)}
+.fc-btn:focus-visible,#fc-speed:focus-visible{outline:2px solid var(--agent);outline-offset:2px}
+.fc-speed{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-left:auto}
+#fc-speed{font:inherit;font-size:14px;min-height:44px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.fc-cap{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding:14px 16px;border-radius:10px;background:var(--surface);border:1px solid var(--line)}
+.fc-cap .ph{font-family:var(--mono);font-size:12px;font-weight:600;padding:3px 8px;border-radius:6px;background:var(--agent-soft);color:var(--agent);white-space:nowrap}
+.fc-cap .ph.code{background:var(--code-soft);color:var(--code)}
+.fc-cap .txt{flex:1 1 380px;min-width:0;font-size:14.5px}
+.fc-cap .lnk{font:inherit;font-size:13px;font-weight:600;background:none;border:none;color:var(--agent);cursor:pointer;padding:8px 0;min-height:44px;text-decoration:underline;text-underline-offset:3px}
+@media (prefers-reduced-motion: reduce){.ed.lit{animation:none}.flash{animation:none}}
+
+/* Bộ bước */
+.stepper{display:grid;grid-template-columns:260px minmax(0,1fr);gap:20px;align-items:start}
+.steplist{display:flex;flex-direction:column;gap:4px;margin:0;padding:0;list-style:none}
+.stepbtn{width:100%;font:inherit;text-align:left;display:grid;grid-template-columns:34px minmax(0,1fr);gap:10px;align-items:center;padding:10px 12px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--ink);cursor:pointer;min-height:44px}
+.stepbtn:hover{background:var(--surface);border-color:var(--line)}
+.stepbtn .n{font-family:var(--mono);font-size:12px;font-weight:600;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--chip);color:var(--muted)}
+.stepbtn .t{display:flex;flex-direction:column;min-width:0}
+.stepbtn .t b{font-size:14px;font-weight:600}
+.stepbtn .t span{font-size:12px;color:var(--muted)}
+.stepbtn[aria-selected="true"]{background:var(--surface);border-color:var(--line)}
+.stepbtn[aria-selected="true"] .n{background:var(--agent);color:var(--surface)}
+.stepbtn.is-code[aria-selected="true"] .n{background:var(--code)}
+.stepbtn:focus-visible,.navbtn:focus-visible,button.node:focus-visible{outline:2px solid var(--agent);outline-offset:2px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:24px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;gap:8px 16px;flex-wrap:wrap;align-items:baseline}
+.who{font-size:13px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--agent-soft);color:var(--agent)}
+.who.is-code{background:var(--code-soft);color:var(--code)}
+.q{font-size:18px;font-weight:600;max-width:60ch}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.block{display:flex;flex-direction:column;gap:8px;min-width:0}
+.block h3{font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.files{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.files li{display:flex;flex-direction:column;gap:1px;padding:8px 10px;border-radius:6px;background:var(--chip);min-width:0}
+.files .path{font-family:var(--mono);font-size:12.5px;overflow-wrap:anywhere}
+.files .note{font-size:12px;color:var(--muted)}
+.does{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:14.5px}
+.handoff{font-size:14px;padding:10px 12px;border-radius:8px;border:1px dashed var(--line)}
+.example{display:flex;flex-direction:column;gap:6px;padding:14px 16px;border-radius:8px;background:var(--bg);border:1px solid var(--line2)}
+.example p{font-size:14.5px}
+.example pre{margin:0;font-family:var(--mono);font-size:12.5px;white-space:pre;overflow-x:auto;padding:8px 10px;border-radius:6px;background:var(--surface);border:1px solid var(--line2)}
+.nav{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.navbtn{font:inherit;font-size:14px;font-weight:600;min-height:44px;padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.navbtn:disabled{opacity:.4;cursor:default}
+@media (max-width:860px){
+  .stepper{grid-template-columns:1fr}
+  .steplist{flex-direction:row;overflow-x:auto;padding-bottom:4px}
+  .steplist li{flex:0 0 auto}
+  .stepbtn{width:auto;grid-template-columns:30px auto}
+  .stepbtn .t span{display:none}
+  .cols{grid-template-columns:1fr}
+}
+
+/* Bảng ai đọc file nào */
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:14px}
+th,td{padding:9px 12px;border-bottom:1px solid var(--line2);text-align:center}
+th:first-child,td:first-child{text-align:left}
+thead th{font-size:12px;font-weight:600;color:var(--muted);background:var(--bg);border-bottom:1px solid var(--line)}
+tbody tr:last-child td{border-bottom:none}
+td.f{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+td .y{color:var(--agent);font-weight:700}
+td .c{color:var(--code);font-weight:700}
+td .m{color:var(--muted)}
+tr.grp td{background:var(--code-soft)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 20px;font-size:13px;color:var(--muted)}
+
+/* Lỗi hay gặp */
+.pitfalls{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;margin:0;padding:0;list-style:none}
+.pitfalls li{display:flex;flex-direction:column;gap:6px;padding:14px 16px;border-top:2px solid var(--warn);background:var(--surface)}
+.pitfalls b{font-size:15px}
+.pitfalls span{font-size:14px;color:var(--muted)}
+footer{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header style="display:flex;flex-direction:column;gap:12px">
+  <span class="eyebrow">Playbook Fear &amp; Greed · v2.1</span>
+  <h1>Luồng chạy playbook</h1>
+  <p class="lede">Từ một sự kiện đã sàng lọc đến bài văn xuôi, dòng nhãn [FG] và chỉ số trên dashboard. Mỗi agent chỉ đọc vài file nhỏ của riêng mình, không ai đọc cả thư mục.</p>
+</header>
+
+<section aria-labelledby="h-map">
+  <span class="eyebrow">Toàn cảnh</span>
+  <h2 id="h-map">Một lượt chạy, từ sự kiện tới dashboard</h2>
+  <div class="fc-bar" role="group" aria-label="Điều khiển flow chart">
+    <button type="button" class="fc-btn primary" id="fc-play" aria-pressed="false">▶ Chạy</button>
+    <button type="button" class="fc-btn" id="fc-next">Pha tiếp</button>
+    <button type="button" class="fc-btn" id="fc-reset">Chạy lại từ đầu</button>
+    <label class="fc-speed" for="fc-speed">Tốc độ
+      <select id="fc-speed"><option value="0.6">Chậm</option><option value="1" selected>Vừa</option><option value="1.7">Nhanh</option></select>
+    </label>
+  </div>
+  <div class="chartbox"><svg id="flowsvg" viewBox="0 0 1000 520" role="img" aria-label="Flow chart luồng chạy playbook: người dùng, năm agent, đầu ra, và phần code tính chỉ số"></svg></div>
+  <div class="fc-cap" aria-live="polite" id="fc-cap"><span class="ph" id="fc-ph">Sẵn sàng</span><p class="txt" id="fc-txt">Bấm Chạy để xem một lượt đi qua từng agent, hoặc bấm vào một node để xem chi tiết bước đó.</p><button type="button" class="lnk" id="fc-lnk" hidden>Xem chi tiết bước</button></div>
+  <div class="loops">
+    <div class="loop ok"><span class="sym" aria-hidden="true">↺</span><p><strong>Chỉ số hành vi được quay lại.</strong> Orchestrator gắn một dòng bối cảnh vào lượt sau, ví dụ "chỉ số hành vi KHCN = 77". Agent xử lý theo <span class="code">fg_01_dual_lens.md</span> mục 7.</p></div>
+    <div class="loop no"><span class="sym" aria-hidden="true">✕</span><p><strong>Chỉ số tin tức không quay lại.</strong> Nó sinh ra từ chính output của agent; đưa ngược sẽ tạo vòng tự khuếch đại.</p></div>
+  </div>
+</section>
+
+<section aria-labelledby="h-steps" id="steps">
+  <span class="eyebrow">Từng bước</span>
+  <h2 id="h-steps">Một lượt chạy, theo ví dụ giá cà phê lập đỉnh</h2>
+  <div class="stepper">
+    <ul class="steplist" role="tablist" aria-label="Các bước" id="steplist"></ul>
+    <div class="panel" role="tabpanel" id="panel" aria-live="polite"></div>
+  </div>
+  <p style="font-size:13px;color:var(--muted)">Ví dụ là kịch bản giả định, theo bài mẫu <span class="code">ex_FG_01_ca_phe_o_B.md</span>.</p>
+</section>
+
+<section aria-labelledby="h-files">
+  <span class="eyebrow">Ngữ cảnh</span>
+  <h2 id="h-files">Ai đọc file nào</h2>
+  <p class="lede">Theo bảng gói ngữ cảnh trong <span class="code">00_INDEX.md</span> mục 3. Mỗi lượt nạp tối đa 3 file phân khúc.</p>
+  <div class="tablebox">
+    <table>
+      <thead><tr><th>File</th><th>Orchestrator</th><th>Propagation</th><th>Product-Impact</th><th>Inside-out Monitor</th><th>Critic</th><th>Code</th></tr></thead>
+      <tbody>
+        <tr><td class="f">00_INDEX.md</td><td><span class="y">●</span></td><td><span class="y">●</span></td><td><span class="y">●</span></td><td><span class="y">●</span></td><td><span class="y">●</span></td><td><span class="m">–</span></td></tr>
+        <tr><td class="f">guardrails.md</td><td><span class="y">●</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="y">●</span></td><td><span class="m">–</span></td></tr>
+        <tr><td class="f">core/01_risk_codes.md</td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="y">●</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td></tr>
+        <tr><td class="f">core/02_concepts_patterns.md</td><td><span class="m">–</span></td><td><span class="y">●</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td></tr>
+        <tr><td class="f">core/03_linkage_graph.md</td><td><span class="m">–</span></td><td><span class="y">●</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td></tr>
+        <tr><td class="f">core/04_reasoning_procedure.md</td><td><span class="y">●</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td></tr>
+        <tr><td class="f">core/05_output_prose.md</td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="y">●</span></td><td><span class="m">–</span></td></tr>
+        <tr><td class="f">fear_greed/fg_01_dual_lens.md</td><td><span class="m">–</span></td><td><span class="y">●</span></td><td><span class="m">–</span></td><td><span class="y">○</span> mục 6</td><td><span class="y">●</span></td><td><span class="m">–</span></td></tr>
+        <tr><td class="f">fear_greed/fg_02_behavior_signals.md</td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="y">●</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td></tr>
+        <tr><td class="f">fear_greed/fg_03_opportunity_map.md</td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="y">●</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td></tr>
+        <tr><td class="f">segments/seg_0x_*.md</td><td>chọn file</td><td><span class="y">○</span> phần (e)</td><td><span class="y">○</span> phần (c)</td><td><span class="y">○</span> phần (d)</td><td><span class="m">–</span></td><td><span class="m">–</span></td></tr>
+        <tr><td class="f">inside_out/signals.md</td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="y">●</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td></tr>
+        <tr><td class="f">inside_out/bank_response_risks.md</td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="y">●</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td></tr>
+        <tr><td class="f">examples/ex_*.md</td><td>chọn bài</td><td><span class="y">○</span> 1 bài</td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="y">○</span> 1 bài</td><td><span class="m">–</span></td></tr>
+        <tr class="grp"><td class="f">index_spec/*</td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="m">–</span></td><td><span class="c">●</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="legend"><span><span style="color:var(--agent);font-weight:700">●</span> luôn nạp</span><span><span style="color:var(--agent);font-weight:700">○</span> nạp khi cần</span><span>– không nạp</span></div>
+</section>
+
+<section aria-labelledby="h-pit">
+  <span class="eyebrow">Vận hành</span>
+  <h2 id="h-pit">Năm lỗi hay gặp</h2>
+  <ul class="pitfalls">
+    <li><b>Nạp cả thư mục cho một agent</b><span>Vượt giới hạn ngữ cảnh và agent lẫn vai trò. Nạp đúng gói trong bảng trên.</span></li>
+    <li><b>Gộp các file thành một</b><span>Các file tham chiếu nhau bằng đường dẫn; gộp lại làm vỡ tham chiếu và quá dài để đọc.</span></li>
+    <li><b>Quá 3 file phân khúc một lượt</b><span>Sự kiện toàn hệ thống (P3) thì tách thành nhiều lượt, mỗi lượt một phân khúc, rồi Critic viết gộp.</span></li>
+    <li><b>Sửa hộ dòng nhãn sai</b><span>Code bỏ dòng sai định dạng và ghi log. Tỷ lệ sai cao là tín hiệu cần chỉnh prompt, không phải đoán sửa.</span></li>
+    <li><b>Đưa chỉ số tin tức vào agent</b><span>Agent thấy "đang tham" rồi viết càng tham. Chỉ chỉ số hành vi được làm bối cảnh.</span></li>
+  </ul>
+</section>
+
+<footer>Theo bộ playbook v2.1 ngày 02/11/2026: thư mục <span class="code">playbook/</span> cho agent, <span class="code">index_spec/</span> cho đội dữ liệu, <span class="code">tham_khao/</span> cho người xem.</footer>
+</div>
+
+<script>
+(function(){
+var STEPS = [
+ {n:"0", t:"Đầu vào", s:"Orchestrator", who:"Orchestrator", code:false,
+  q:"Sự kiện nào, cần gọi agent nào và nạp những file gì?",
+  files:[["00_INDEX.md","Bộ định tuyến, gói ngữ cảnh"],["core/04_reasoning_procedure.md","Quy trình 6 bước"],["guardrails.md","14 ràng buộc"]],
+  does:["Nhận sự kiện đã sàng lọc, không lọc lại, không tìm thêm tin.","Nếu đã có, gắn một dòng bối cảnh chỉ số hành vi.","Chọn tối đa 3 file phân khúc theo bộ định tuyến và một bài mẫu.","Giao việc cho các agent con theo thứ tự."],
+  out:"Sự kiện, danh sách file phân khúc, bài mẫu và bối cảnh (nếu có).",
+  ex:"Sự kiện: giá cà phê Robusta lập đỉnh, nông dân và đại lý đổ xô trữ hàng. Bối cảnh: chỉ số hành vi KHCN = 77 (Tham lam cực độ). Orchestrator chọn seg_01_KHCN, seg_02_HKD, seg_04_CIB và bài mẫu ex_FG_01_ca_phe_o_B."},
+ {n:"1", t:"Ai bị chạm", s:"Propagation · bước 1", who:"Propagation", code:false,
+  q:"Sự kiện chạm ai đầu tiên? Ai thiệt, ai lợi? Tâm lý thế nào, mỗi nhánh nằm ở ô nào?",
+  files:[["core/02_concepts_patterns.md","Mẫu P1/P2/P3, nút lai HKD"],["fear_greed/fg_01_dual_lens.md","Hai lăng kính, ma trận ô A–D"]],
+  does:["Xác định outside-in hay inside-out.","Chọn mẫu lan truyền P1, P2 hoặc P3.","Liệt kê bên thiệt (Fear) và bên lợi (Greed).","Chỉ kết luận tâm lý khi sự kiện mô tả rõ hành vi.","Xếp từng nhánh vào ô A, B, C hoặc D."],
+  out:"Mẫu lan truyền, bên thiệt, bên lợi và ô của từng nhánh.",
+  ex:"Outside-in, mẫu P1 + P2. Cụm \"đổ xô\" cho thấy tâm lý tham. Bên lợi (DN xuất khẩu, đại lý, nông hộ) ở ô B. Bên thiệt (quán cà phê, DN rang xay, DN kẹt hợp đồng giá cũ) ở ô D. Bối cảnh 77 nên phải soi tín hiệu G."},
+ {n:"2", t:"Lan truyền", s:"Propagation · bước 2", who:"Propagation", code:false,
+  q:"Rủi ro và dòng tiền tăng lan sang ai, qua kênh nào, sau bao lâu?",
+  files:[["core/03_linkage_graph.md","12 kênh L01–L12, độ trễ"],["segments/… phần (e)","Lan sang phân khúc khác"]],
+  does:["Đi theo kênh liên kết, tối đa 3 hop.","Ghi độ trễ và mức chắc chắn cho từng nhánh, cả hai chiều.","Kiểm tra ít nhất một vòng phản hồi."],
+  out:"Các nhánh lan truyền rủi ro và cơ hội.",
+  ex:"DN xuất khẩu hưởng lợi qua thị trường quốc tế (L08, ngay trong vụ, có khả năng cao), lan sang chủ đại lý (L01, có khả năng cao), rồi sang HKD địa phương qua chi tiêu (L06, 1–3 tháng, có thể). Nhánh ẩn: khoản vay trữ hàng ở giá đỉnh (giả thuyết, 1–2 vụ sau)."},
+ {n:"3", t:"Sản phẩm", s:"Product-Impact", who:"Product-Impact", code:false,
+  q:"Sản phẩm nào chịu rủi ro, sản phẩm nào có nhu cầu tăng?",
+  files:[["core/01_risk_codes.md","Mã loại rủi ro"],["fear_greed/fg_03_opportunity_map.md","Sản phẩm hưởng lợi, điều kiện đủ chuẩn"],["segments/… phần (c)","Bảng độ nhạy sản phẩm, tối đa 3 file"]],
+  does:["Tra mã sản phẩm theo phân khúc trên đường lan truyền.","Gắn loại rủi ro và loại cơ hội O1–O6.","Chỉ coi là cơ hội khi thỏa điều kiện đủ chuẩn."],
+  out:"Danh sách sản phẩm ở hai phía, có mã.",
+  ex:"Rủi ro: CIB-TF-02 và CIB-LN-01 của DN kẹt giá cũ, HKD-LN-01 của quán cà phê. Cơ hội: CIB-LN-01, CIB-TF-02, CIB-FX-01 (O1, O3) cho DN có hợp đồng giá mới; CN-DEP-01, CN-ACC-03 (O2) cho nông hộ."},
+ {n:"4", t:"Tín hiệu", s:"Inside-out Monitor · bước 4", who:"Inside-out Monitor", code:false,
+  q:"Tín hiệu nội bộ nào xác nhận hoặc bác bỏ các nhận định?",
+  files:[["inside_out/signals.md","S01–S16"],["fear_greed/fg_02_behavior_signals.md","Đọc hai chiều, hành vi F và G"],["segments/… phần (d)","Tín hiệu sớm theo phân khúc"]],
+  does:["Đọc S01–S16 theo hai chiều: xem tiền đi đâu.","Nhánh ở ô B: liệt kê ít nhất 2 tín hiệu G.","Nhánh ở ô C: bắt buộc S07 và F01."],
+  out:"Danh sách tín hiệu cần truy vấn.",
+  ex:"Xác nhận cơ hội: L/C xuất khẩu, USD bán cho ngân hàng, tiền gửi mới ở tỉnh trồng cà phê. Cảnh báo cơ hội đã nóng: G05 (xin hạn mức theo giá đỉnh), G01 (tiền vay chuyển sang đặt cọc đất)."},
+ {n:"5", t:"Phản ứng ngân hàng", s:"Inside-out Monitor · bước 5", who:"Inside-out Monitor", code:false,
+  q:"Ngân hàng phản ứng theo hướng sợ hoặc tham có tạo rủi ro mới không?",
+  files:[["inside_out/bank_response_risks.md","Pha sợ và pha tham"],["fear_greed/fg_01_dual_lens.md","Mục 6: ngân hàng cũng sợ và tham"]],
+  does:["Pha sợ: siết quá mạnh, cắt cả khách tốt.","Pha tham: nới quá nhanh, đẩy chỉ tiêu bán sản phẩm đầu tư."],
+  out:"Rủi ro bậc 2 do chính ngân hàng gây ra.",
+  ex:"Pha tham: định giá hàng tồn kho làm tài sản bảo đảm và cấp hạn mức theo giá đỉnh. Nên dùng giá bình quân nhiều vụ."},
+ {n:"6", t:"Phản biện và viết", s:"Critic", who:"Critic", code:false,
+  q:"Hai lăng kính đã cân bằng chưa? Viết kết luận.",
+  files:[["guardrails.md","14 ràng buộc"],["core/05_output_prose.md","Mẫu 7 đoạn, định dạng dòng [FG]"],["fear_greed/fg_01_dual_lens.md","Điểm đảo chiều"],["examples/… 1 bài","Bài mẫu đúng loại sự kiện"]],
+  does:["Mỗi cơ hội có mặt trái và điểm đảo chiều chưa?","Có bịa số, quá 3 hop, hay kết luận tâm lý thiếu căn cứ không?","Viết 7 đoạn, 350–650 từ.","Thêm 1–3 dòng nhãn [FG], mỗi nhánh chính một dòng."],
+  out:"Bài văn xuôi kèm dòng nhãn.",
+  ex:"Hai dòng nhãn cuối bài:", pre:"[FG] o=B | tam_ly=tham | huong=co_hoi | phan_khuc=KHCN,HKD,CIB | muc=co_kha_nang_cao\n[FG] o=D | tam_ly=chua_ro | huong=rui_ro | phan_khuc=HKD,SME,CIB | muc=co_the"},
+ {n:"7", t:"Sau output", s:"Code · không phải agent", who:"Pipeline dữ liệu", code:true,
+  q:"Biến dòng nhãn và dữ liệu giao dịch thành chỉ số.",
+  files:[["index_spec/fg_tag_format.md","Biểu thức kiểm tra, mã đọc nhãn"],["index_spec/fg_index_spec.md","Công thức ba chỉ số"],["index_spec/sample_data.json","Cấu trúc dữ liệu cho dashboard"]],
+  does:["Đọc dòng [FG], bỏ và ghi log dòng sai định dạng.","Tính chỉ số tin tức trong 30 ngày.","Tính chỉ số hành vi và dòng tiền thực từ dữ liệu giao dịch.","Hiển thị trên dashboard.","Chỉ truyền chỉ số hành vi vào lượt sau."],
+  out:"Dashboard và dòng bối cảnh cho lượt chạy sau.",
+  ex:"Hai dòng nhãn được lưu thành 6 dòng, mỗi phân khúc một dòng, và tính vào chỉ số tin tức của KHCN, HKD, SME và CIB."}
+];
+var list = document.getElementById('steplist'), panel = document.getElementById('panel'), cur = 0;
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+list.innerHTML = STEPS.map(function(s,i){
+  return '<li><button type="button" role="tab" id="tab-'+i+'" class="stepbtn'+(s.code?' is-code':'')+'" data-i="'+i+'" aria-controls="panel"><span class="n">'+s.n+'</span><span class="t"><b>'+esc(s.t)+'</b><span>'+esc(s.s)+'</span></span></button></li>';
+}).join('');
+function show(i, focus){
+  cur = i; var s = STEPS[i];
+  Array.prototype.forEach.call(list.querySelectorAll('.stepbtn'), function(b){ var on = +b.getAttribute('data-i') === i; b.setAttribute('aria-selected', on ? 'true' : 'false'); b.tabIndex = on ? 0 : -1; if(on && focus) b.focus(); });
+  panel.setAttribute('aria-labelledby','tab-'+i);
+  panel.innerHTML =
+    '<div class="panel-head"><span class="eyebrow">Bước '+s.n+' · '+esc(s.t)+'</span><span class="who'+(s.code?' is-code':'')+'">'+esc(s.who)+'</span></div>'+
+    '<p class="q">'+esc(s.q)+'</p>'+
+    '<div class="cols">'+
+      '<div class="block"><h3>Nạp '+s.files.length+' file</h3><ul class="files">'+s.files.map(function(f){return '<li><span class="path">'+esc(f[0])+'</span><span class="note">'+esc(f[1])+'</span></li>';}).join('')+'</ul></div>'+
+      '<div class="block"><h3>Làm gì</h3><ul class="does">'+s.does.map(function(d){return '<li>'+esc(d)+'</li>';}).join('')+'</ul></div>'+
+    '</div>'+
+    '<div class="block"><h3>Chuyển tiếp</h3><p class="handoff">'+esc(s.out)+'</p></div>'+
+    '<div class="example"><span class="eyebrow">Ví dụ: giá cà phê lập đỉnh</span><p>'+esc(s.ex)+'</p>'+(s.pre?'<pre>'+esc(s.pre)+'</pre>':'')+'</div>'+
+    '<div class="nav"><button type="button" class="navbtn" data-go="-1"'+(i===0?' disabled':'')+'>← Bước trước</button><button type="button" class="navbtn" data-go="1"'+(i===STEPS.length-1?' disabled':'')+'>Bước tiếp →</button></div>';
+}
+list.addEventListener('click', function(e){ var b = e.target.closest('.stepbtn'); if(b) show(+b.getAttribute('data-i')); });
+list.addEventListener('keydown', function(e){
+  var k = e.key, d = (k==='ArrowDown'||k==='ArrowRight') ? 1 : (k==='ArrowUp'||k==='ArrowLeft') ? -1 : 0;
+  if(!d) return; e.preventDefault(); show(Math.max(0, Math.min(STEPS.length-1, cur + d)), true);
+});
+panel.addEventListener('click', function(e){ var b = e.target.closest('[data-go]'); if(b && !b.disabled) show(Math.max(0, Math.min(STEPS.length-1, cur + (+b.getAttribute('data-go'))))); });
+Array.prototype.forEach.call(document.querySelectorAll('button.node[data-step]'), function(b){
+  b.addEventListener('click', function(){ show(+b.getAttribute('data-step')); document.getElementById('steps').scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block:'start'}); });
+});
+show(0);
+
+/* ---------- Flow chart động ---------- */
+var NS = 'http://www.w3.org/2000/svg';
+var svg = document.getElementById('flowsvg');
+var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+var NW = 136, NH = 56;
+var NODES = {
+  U:{x:110,y:70,t:'Sự kiện',s:'đã sàng lọc',k:'user'},
+  O:{x:110,y:210,t:'Orchestrator',s:'Bước 0',k:'agent',step:0},
+  P:{x:285,y:210,t:'Propagation',s:'Bước 1–2',k:'agent',step:1},
+  I:{x:460,y:210,t:'Product-Impact',s:'Bước 3',k:'agent',step:3},
+  M:{x:635,y:210,t:'Inside-out',s:'Monitor · bước 4–5',k:'agent',step:4},
+  C:{x:810,y:210,t:'Critic',s:'Bước 6',k:'agent',step:6},
+  OUT:{x:810,y:330,t:'Văn xuôi + [FG]',s:'Đầu ra của agent',k:'agent',step:6},
+  PARSE:{x:810,y:455,t:'Đọc dòng [FG]',s:'Code',k:'code',step:7},
+  NEWS:{x:635,y:455,t:'Chỉ số tin tức',s:'30 ngày · chỉ để xem',k:'code',step:7},
+  DASH:{x:460,y:455,t:'Dashboard',s:'Ma trận ô A–D',k:'code'},
+  BEH:{x:285,y:455,t:'Chỉ số hành vi',s:'+ dòng tiền thực',k:'code',step:7},
+  DATA:{x:110,y:455,t:'Dữ liệu giao dịch',s:'Nội bộ',k:'code'}
+};
+var EDGES = {
+  e1:{d:'M110 98 V180',k:'agent'}, e2:{d:'M178 210 H215',k:'agent'}, e3:{d:'M353 210 H390',k:'agent'},
+  e4:{d:'M528 210 H565',k:'agent'}, e5:{d:'M703 210 H740',k:'agent'}, e6:{d:'M810 238 V300',k:'agent'},
+  e7:{d:'M810 358 V425',k:'code'}, e8:{d:'M742 455 H705',k:'code'}, e9:{d:'M567 455 H530',k:'code'},
+  e10:{d:'M178 455 H215',k:'code'}, e11:{d:'M353 455 H390',k:'code'},
+  e12:{d:'M285 427 C285 330 110 330 110 240',k:'agent',fb:true},
+  x13:{d:'M635 427 V308',k:'warn'}
+};
+var PHASES = [
+  {from:'U', go:[['e1','O']], step:0, k:'agent', h:'Đầu vào', c:'Người dùng chuyển sự kiện đã sàng lọc. Orchestrator nạp 00_INDEX, quy trình 6 bước và guardrails, rồi chọn tối đa 3 file phân khúc và một bài mẫu.'},
+  {go:[['e2','P']], step:1, k:'agent', h:'Bước 1–2 · Propagation', c:'Xác định ai thiệt, ai lợi, tâm lý và ô A–D; rồi lần theo 12 kênh liên kết xem rủi ro và dòng tiền tăng lan sang ai.'},
+  {go:[['e3','I']], step:3, k:'agent', h:'Bước 3 · Product-Impact', c:'Tra sản phẩm theo phân khúc trên đường lan truyền: sản phẩm chịu rủi ro và sản phẩm có nhu cầu tăng (O1–O6).'},
+  {go:[['e4','M']], step:4, k:'agent', h:'Bước 4–5 · Inside-out Monitor', c:'Chọn tín hiệu nội bộ để kiểm chứng (S, F, G) và xét phản ứng của ngân hàng có tạo rủi ro mới không.'},
+  {go:[['e5','C']], step:6, k:'agent', h:'Bước 6 · Critic', c:'Phản biện: hai lăng kính cân bằng chưa, mỗi cơ hội có mặt trái và điểm đảo chiều chưa, có bịa số không. Viết bài 7 đoạn.'},
+  {go:[['e6','OUT']], step:6, k:'agent', h:'Đầu ra', c:'Bài văn xuôi 350–650 từ, kết thúc bằng 1–3 dòng nhãn [FG], mỗi nhánh chính một dòng.'},
+  {go:[['e7','PARSE'],['e8','NEWS'],['e9','DASH']], step:7, k:'code', h:'Code đọc nhãn', c:'Code đọc dòng [FG], bỏ dòng sai định dạng, tính chỉ số tin tức trong 30 ngày và đưa lên dashboard.'},
+  {from:'DATA', go:[['e10','BEH'],['e11','DASH']], step:7, k:'code', h:'Dữ liệu giao dịch', c:'Song song, dữ liệu giao dịch nội bộ cho ra chỉ số hành vi và chỉ số dòng tiền thực, tạo thành ma trận trên dashboard.'},
+  {go:[['e12','O']], block:true, step:0, k:'agent', h:'Vòng quay lại', c:'Chỉ số hành vi quay lại làm bối cảnh cho lượt chạy sau. Chỉ số tin tức bị chặn, không đưa vào agent.'}
+];
+
+function el(tag, attrs, parent){ var e = document.createElementNS(NS, tag); for (var a in attrs) e.setAttribute(a, attrs[a]); if (parent) parent.appendChild(e); return e; }
+function txt(attrs, s, parent){ var t = el('text', attrs, parent); t.textContent = s; return t; }
+
+var defs = el('defs', {}, svg);
+[['ah-m','ah-m'],['ah-a','ah-a'],['ah-c','ah-c']].forEach(function(m){
+  var mk = el('marker', {id:m[0], viewBox:'0 0 10 10', refX:'9', refY:'5', markerWidth:'7', markerHeight:'7', orient:'auto-start-reverse'}, defs);
+  el('path', {d:'M0,0 L10,5 L0,10 z', 'class':m[1]}, mk);
+});
+el('rect', {x:0, y:20, width:1000, height:100, 'class':'lb-user'}, svg);
+el('rect', {x:0, y:130, width:1000, height:250, 'class':'lb-agent'}, svg);
+el('rect', {x:0, y:390, width:1000, height:120, 'class':'lb-code'}, svg);
+txt({x:985, y:42, 'text-anchor':'end', 'class':'lane-tx'}, 'NGƯỜI DÙNG', svg);
+txt({x:985, y:152, 'text-anchor':'end', 'class':'lane-tx'}, 'AGENT · ĐỌC playbook/', svg);
+txt({x:985, y:412, 'text-anchor':'end', 'class':'lane-tx'}, 'CODE · THEO index_spec/', svg);
+
+var edgeEls = {};
+Object.keys(EDGES).forEach(function(id){
+  var E = EDGES[id];
+  var cls = 'ed' + (E.k === 'code' ? ' code' : '') + (E.fb ? ' fb' : '') + (E.k === 'warn' ? ' block' : '');
+  var attrs = {d:E.d, 'class':cls};
+  if (E.k !== 'warn') attrs['marker-end'] = 'url(#ah-m)';
+  edgeEls[id] = el('path', attrs, svg);
+});
+txt({x:200, y:322, 'text-anchor':'middle', 'class':'elabel ok'}, 'bối cảnh cho lượt sau', svg);
+var xmark = txt({x:635, y:302, 'text-anchor':'middle', 'class':'xmark'}, '✕', svg);
+txt({x:622, y:352, 'text-anchor':'end', 'class':'elabel no'}, 'không quay lại agent', svg);
+
+var nodeEls = {};
+Object.keys(NODES).forEach(function(id){
+  var N = NODES[id];
+  var g = el('g', {'class':'nd' + (N.k === 'code' ? ' code' : '') + (N.step != null ? ' click' : ''), 'data-id':id}, svg);
+  el('rect', {x:N.x - NW/2, y:N.y - NH/2, width:NW, height:NH, rx:8}, g);
+  txt({x:N.x, y:N.y - 3, 'text-anchor':'middle', 'class':'t'}, N.t, g);
+  txt({x:N.x, y:N.y + 15, 'text-anchor':'middle', 'class':'s'}, N.s, g);
+  if (N.step != null) {
+    g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button');
+    g.setAttribute('aria-label', N.t + ' ' + N.s + ': xem chi tiết bước');
+    var go = function(){ show(N.step); document.getElementById('steps').scrollIntoView({behavior: reduced ? 'auto' : 'smooth', block:'start'}); };
+    g.addEventListener('click', go);
+    g.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  }
+  nodeEls[id] = g;
+});
+var token = el('circle', {r:7, cx:-20, cy:-20, 'class':'token'}, svg);
+
+var playBtn = document.getElementById('fc-play'), phEl = document.getElementById('fc-ph'), txEl = document.getElementById('fc-txt'), lnk = document.getElementById('fc-lnk');
+var speed = 1, playing = false, phase = -1, runId = 0, raf = 0, timer = 0, inPhase = false;
+
+function markerFor(E){ return E.k === 'code' ? 'url(#ah-c)' : 'url(#ah-a)'; }
+function activate(id){
+  var prev = svg.querySelector('.nd.active');
+  if (prev && prev !== nodeEls[id]) { prev.classList.remove('active'); prev.classList.add('done'); }
+  nodeEls[id].classList.add('active');
+}
+function edgeDone(id){
+  var p = edgeEls[id], E = EDGES[id];
+  p.classList.remove('lit'); p.classList.add('done');
+  if (E.k !== 'warn') p.setAttribute('marker-end', markerFor(E));
+}
+function caption(i){
+  var P = PHASES[i];
+  phEl.textContent = 'Pha ' + (i + 1) + '/' + PHASES.length;
+  phEl.className = 'ph' + (P.k === 'code' ? ' code' : '');
+  txEl.innerHTML = '<strong>' + esc(P.h) + '.</strong> ' + esc(P.c);
+  lnk.hidden = false; lnk.textContent = 'Xem chi tiết bước ' + STEPS[P.step].n; lnk.setAttribute('data-step', P.step);
+}
+function travel(id, done){
+  var p = edgeEls[id], E = EDGES[id], L = p.getTotalLength();
+  p.classList.add('lit');
+  token.setAttribute('class', 'token' + (E.k === 'code' ? ' code' : ''));
+  if (reduced) { done(); return; }
+  var dur = Math.max(650, L * 9) / speed, t0 = null, my = runId;
+  function frame(ts){
+    if (my !== runId) return;
+    if (t0 === null) t0 = ts;
+    var k = Math.min(1, (ts - t0) / dur), e = k < .5 ? 2*k*k : 1 - Math.pow(-2*k + 2, 2) / 2, pt = p.getPointAtLength(e * L);
+    token.setAttribute('cx', pt.x); token.setAttribute('cy', pt.y);
+    if (k < 1) raf = requestAnimationFrame(frame); else done();
+  }
+  raf = requestAnimationFrame(frame);
+}
+function runPhase(i, cb){
+  var my = ++runId, P = PHASES[i], k = 0;
+  phase = i; inPhase = true; caption(i);
+  if (P.from) activate(P.from);
+  (function next(){
+    if (my !== runId) return;
+    if (k >= P.go.length) {
+      inPhase = false;
+      if (P.block) { edgeEls.x13.classList.remove('flash'); xmark.classList.remove('flash'); void xmark.getBBox(); edgeEls.x13.classList.add('flash'); xmark.classList.add('flash'); }
+      if (cb) cb();
+      return;
+    }
+    var step = P.go[k++];
+    travel(step[0], function(){ edgeDone(step[0]); activate(step[1]); next(); });
+  })();
+}
+function finishInstant(){
+  if (!inPhase || phase < 0) return;
+  runId++; cancelAnimationFrame(raf);
+  PHASES[phase].go.forEach(function(s){ edgeDone(s[0]); activate(s[1]); });
+  inPhase = false;
+}
+function resetVisual(){
+  runId++; cancelAnimationFrame(raf); clearTimeout(timer); inPhase = false; phase = -1;
+  Object.keys(edgeEls).forEach(function(id){ var p = edgeEls[id]; p.classList.remove('lit','done','flash'); if (EDGES[id].k !== 'warn') p.setAttribute('marker-end','url(#ah-m)'); });
+  xmark.classList.remove('flash');
+  Object.keys(nodeEls).forEach(function(id){ nodeEls[id].classList.remove('active','done'); });
+  token.setAttribute('cx', -20); token.setAttribute('cy', -20);
+}
+function setPlaying(v){
+  playing = v; playBtn.setAttribute('aria-pressed', v ? 'true' : 'false');
+  playBtn.textContent = v ? '❚❚ Tạm dừng' : '▶ Chạy';
+}
+function loop(){
+  if (!playing) return;
+  if (phase + 1 >= PHASES.length) {
+    timer = setTimeout(function(){ if (playing) { resetVisual(); loop(); } }, 2200 / speed);
+    return;
+  }
+  runPhase(phase + 1, function(){ timer = setTimeout(loop, (reduced ? 2600 : 1200) / speed); });
+}
+playBtn.addEventListener('click', function(){
+  if (playing) { setPlaying(false); clearTimeout(timer); return; }
+  setPlaying(true);
+  if (inPhase) return;
+  if (phase + 1 >= PHASES.length) resetVisual();
+  loop();
+});
+document.getElementById('fc-next').addEventListener('click', function(){
+  setPlaying(false); clearTimeout(timer); finishInstant();
+  if (phase + 1 >= PHASES.length) resetVisual();
+  runPhase(phase + 1);
+});
+document.getElementById('fc-reset').addEventListener('click', function(){
+  resetVisual(); setPlaying(true); loop();
+});
+document.getElementById('fc-speed').addEventListener('change', function(e){ speed = parseFloat(e.target.value) || 1; });
+lnk.addEventListener('click', function(){
+  show(+lnk.getAttribute('data-step'));
+  document.getElementById('steps').scrollIntoView({behavior: reduced ? 'auto' : 'smooth', block:'start'});
+});
+if (!reduced && 'IntersectionObserver' in window) {
+  var started = false;
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if (en.isIntersecting && !started) { started = true; io.disconnect(); setPlaying(true); loop(); }
+    });
+  }, {threshold: 0.4});
+  io.observe(svg);
+}
+})();
+</script>
+
+</body>
+</html>
