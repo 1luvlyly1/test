@@ -1,0 +1,1363 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Agents sinh Test Case – Tín chấp</title>
+<style>
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --surface-2:#f0f2f5; --text:#18202b; --muted:#5b6675; --border:#dde2e8;
+  --accent:#1f5fbf; --accent-soft:#e6eefb;
+  --c-input:#6b7686; --c-input-bg:#eef0f3;
+  --c-agent:#1f5fbf; --c-agent-bg:#e6eefb;
+  --c-human:#b26a00; --c-human-bg:#fdf1dd;
+  --c-engine:#1d7a4c; --c-engine-bg:#e1f4ea;
+  --c-dec:#6a3fb5; --c-dec-bg:#efe8fa;
+  --c-sys:#8a3a3a; --c-sys-bg:#f8e7e7;
+  --c-out:#0f6b72; --c-out-bg:#ddf2f3;
+  --edge:#7c8796; --ok:#1d7a4c; --ok-bg:#e1f4ea; --bad:#b3261e; --bad-bg:#fbe4e2;
+  --code-bg:#0f1720; --code-text:#d7e1ec;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1318; --surface:#171c23; --surface-2:#1e252e; --text:#e6ebf1; --muted:#9aa6b5; --border:#2c3540;
+    --accent:#7fb0ff; --accent-soft:#1b2a40;
+    --c-input:#9aa6b5; --c-input-bg:#222a34;
+    --c-agent:#7fb0ff; --c-agent-bg:#1a2a42;
+    --c-human:#f0b75a; --c-human-bg:#3a2c14;
+    --c-engine:#6fd3a0; --c-engine-bg:#163327;
+    --c-dec:#b99af0; --c-dec-bg:#2a2140;
+    --c-sys:#f09a9a; --c-sys-bg:#3a1f1f;
+    --c-out:#6fd0d6; --c-out-bg:#143236;
+    --edge:#8592a3; --ok:#6fd3a0; --ok-bg:#163327; --bad:#ff8a80; --bad-bg:#3a1c1a;
+    --code-bg:#0a0e13; --code-text:#d7e1ec;
+  }
+}
+:root[data-theme="dark"]{
+    --bg:#0f1318; --surface:#171c23; --surface-2:#1e252e; --text:#e6ebf1; --muted:#9aa6b5; --border:#2c3540;
+    --accent:#7fb0ff; --accent-soft:#1b2a40;
+    --c-input:#9aa6b5; --c-input-bg:#222a34;
+    --c-agent:#7fb0ff; --c-agent-bg:#1a2a42;
+    --c-human:#f0b75a; --c-human-bg:#3a2c14;
+    --c-engine:#6fd3a0; --c-engine-bg:#163327;
+    --c-dec:#b99af0; --c-dec-bg:#2a2140;
+    --c-sys:#f09a9a; --c-sys-bg:#3a1f1f;
+    --c-out:#6fd0d6; --c-out-bg:#143236;
+    --edge:#8592a3; --ok:#6fd3a0; --ok-bg:#163327; --bad:#ff8a80; --bad-bg:#3a1c1a;
+    --code-bg:#0a0e13; --code-text:#d7e1ec;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:15.5px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px 64px}
+header.hero{padding:40px 0 24px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.eyebrow{font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700}
+h1{font-size:clamp(24px,4vw,34px);line-height:1.25;margin:8px 0 12px}
+h2{font-size:22px;margin:44px 0 12px;padding-top:8px}
+h3{font-size:17px;margin:20px 0 8px}
+p{margin:8px 0}
+.lead{color:var(--muted);font-size:16.5px;max-width:820px}
+nav.toc{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--border);padding:8px 0;overflow-x:auto;white-space:nowrap}
+nav.toc a{display:inline-block;margin-right:6px;padding:4px 10px;border-radius:999px;color:var(--muted);text-decoration:none;font-size:13.5px;border:1px solid var(--border);background:var(--surface)}
+nav.toc a:hover{color:var(--accent);border-color:var(--accent)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.note{border-left:4px solid var(--c-human);background:var(--c-human-bg);padding:10px 14px;border-radius:8px;font-size:14.5px}
+.roles{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0}
+.role{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;flex:1 1 180px}
+.role b{display:block}
+.role span{color:var(--muted);font-size:13.5px}
+.role.test{border-color:var(--accent);background:var(--accent-soft)}
+.arrow{color:var(--muted);font-size:20px}
+.diagram{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px;overflow-x:auto}
+.diagram svg{display:block;min-width:660px;width:100%;height:auto}
+.legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin:10px 4px 0;font-size:13px;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px;border:1.5px solid}
+svg .n-input{fill:var(--c-input-bg);stroke:var(--c-input)}
+svg .n-agent{fill:var(--c-agent-bg);stroke:var(--c-agent)}
+svg .n-human{fill:var(--c-human-bg);stroke:var(--c-human)}
+svg .n-engine{fill:var(--c-engine-bg);stroke:var(--c-engine)}
+svg .n-dec{fill:var(--c-dec-bg);stroke:var(--c-dec)}
+svg .n-sys{fill:var(--c-sys-bg);stroke:var(--c-sys)}
+svg .n-out{fill:var(--c-out-bg);stroke:var(--c-out)}
+svg rect,svg polygon{stroke-width:1.6}
+svg .t1{font-size:15px;font-weight:650;fill:var(--text)}
+svg .t2{font-size:12.5px;fill:var(--muted)}
+svg .t3{font-size:11.5px;fill:var(--muted)}
+svg .td{font-size:13.5px;font-weight:650;fill:var(--text)}
+svg .edge{stroke:var(--edge);stroke-width:1.6;fill:none}
+svg .loop{stroke-dasharray:6 4}
+svg .lbl{font-size:12px;fill:var(--muted);font-weight:600}
+svg .arrowhead{fill:var(--edge)}
+.agent{border-top:4px solid var(--c-agent)}
+.agent.engine{border-top-color:var(--c-engine)}
+.agent h3{margin-top:2px}
+.agent dl{margin:0;font-size:14px}
+.agent dt{font-weight:700;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin-top:8px}
+.agent dd{margin:2px 0 0}
+.pipeline{display:flex;flex-direction:column;gap:0}
+.step{display:grid;grid-template-columns:36px 1fr;gap:12px;align-items:start;position:relative;padding-bottom:14px}
+.step:not(:last-child)::before{content:"";position:absolute;left:17px;top:34px;bottom:0;width:2px;background:var(--border)}
+.step .num{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:var(--accent-soft);color:var(--accent);border:1.5px solid var(--accent)}
+.step.ko .num{background:var(--bad-bg);color:var(--bad);border-color:var(--bad)}
+.step.cap .num{background:var(--c-engine-bg);color:var(--c-engine);border-color:var(--c-engine)}
+.step .body{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.formula{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13.5px;background:var(--surface-2);border-radius:6px;padding:6px 10px;margin-top:6px;overflow-x:auto;white-space:pre}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border-bottom:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:var(--surface-2);font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.tablewrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:700}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.pill.tag{background:var(--surface-2);color:var(--muted);font-weight:600}
+#tcTable tbody tr{cursor:pointer}
+#tcTable tbody tr:hover{background:var(--accent-soft)}
+#tcTable tbody tr.sel{background:var(--accent-soft);outline:2px solid var(--accent);outline-offset:-2px}
+.calc{display:grid;grid-template-columns:minmax(260px,1fr) minmax(300px,1.3fr);gap:14px}
+@media (max-width:760px){.calc{grid-template-columns:1fr}}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
+.form label{font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.form input,.form select{font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text);width:100%}
+.form .full{grid-column:1/-1}
+.result-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.result-head .big{font-size:24px;font-weight:750}
+.kv{display:grid;grid-template-columns:1fr auto;gap:2px 12px;font-size:14px;margin-top:8px}
+.kv span:nth-child(even){text-align:right;font-variant-numeric:tabular-nums}
+.kv .bind{color:var(--c-engine);font-weight:700}
+pre.xml{background:var(--code-bg);color:var(--code-text);border-radius:10px;padding:12px 14px;font-size:12.5px;line-height:1.5;overflow:auto;max-height:420px;margin:8px 0 0}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+button{font:inherit;font-size:13.5px;padding:7px 12px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+button.ghost{background:transparent;color:var(--accent)}
+ul.tight{margin:6px 0;padding-left:20px}
+ul.tight li{margin:3px 0}
+.tech{border-left:4px solid var(--c-dec)}
+footer{margin-top:48px;color:var(--muted);font-size:13px;border-top:1px solid var(--border);padding-top:14px}
+.themebtn{float:right;margin-top:4px}
+:root{--glow:rgba(31,95,191,.55)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--glow:rgba(127,176,255,.65)}}
+:root[data-theme="dark"]{--glow:rgba(127,176,255,.65)}
+.flowctl{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:flex-end;margin-bottom:12px}
+.flowctl label{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--muted)}
+.flowctl select{font:inherit;font-size:14px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text);max-width:100%}
+.fprog{flex:1 1 100%;height:6px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+.fbar{height:100%;width:0;background:var(--accent);transition:width .4s ease}
+.fscen-desc{flex:1 1 100%;font-size:13.5px;color:var(--muted);margin-top:-2px}
+.flowgrid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:12px;align-items:start}
+#fSvg{min-width:0}
+@media (max-width:860px){.flowgrid{grid-template-columns:1fr}.fdiag{max-height:56vh!important}#fSvg{min-width:600px}}
+.fdiag{max-height:80vh;overflow:auto;padding:8px}
+.fpanel{position:sticky;top:56px;max-height:calc(100vh - 72px);overflow:auto}
+@media (max-width:860px){.fpanel{position:static;max-height:none}}
+.fstep{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.fbody dl{margin:8px 0 0;font-size:14px}
+.fbody dt{font-weight:700;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;margin-top:8px}
+.fbody dd{margin:2px 0 0}
+.fbody pre{background:var(--code-bg);color:var(--code-text);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.5;overflow:auto;margin:6px 0 0;white-space:pre}
+.fart{margin-top:12px;border-top:1px solid var(--border);padding-top:10px}
+.fart-h{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:6px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;padding:2px 8px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border)}
+.chip.new{border-color:var(--accent);background:var(--accent-soft);color:var(--accent);animation:pop .5s ease}
+.chip.muted{color:var(--muted)}
+@keyframes pop{0%{transform:scale(.7);opacity:0}100%{transform:scale(1);opacity:1}}
+.actor{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;border:1.5px solid}
+.actor.ai{color:var(--c-agent);background:var(--c-agent-bg);border-color:var(--c-agent)}
+.actor.human{color:var(--c-human);background:var(--c-human-bg);border-color:var(--c-human)}
+.actor.code{color:var(--c-engine);background:var(--c-engine-bg);border-color:var(--c-engine)}
+.actor.sys{color:var(--c-sys);background:var(--c-sys-bg);border-color:var(--c-sys)}
+.actor.input{color:var(--c-input);background:var(--c-input-bg);border-color:var(--c-input)}
+.actor.out{color:var(--c-out);background:var(--c-out-bg);border-color:var(--c-out)}
+.actor.dec{color:var(--c-dec);background:var(--c-dec-bg);border-color:var(--c-dec)}
+#fSvg .node{cursor:pointer;transition:opacity .35s ease}
+#fSvg .edge{transition:opacity .35s ease,stroke .35s ease}
+#fSvg .arrowheadA{fill:var(--accent)}
+#fSvg .fdot{fill:var(--accent);stroke:var(--surface);stroke-width:2.5}
+#fDiag.started .node{opacity:.32}
+#fDiag.started .node.visited,#fDiag.started .node.active{opacity:1}
+#fDiag.started .edge{opacity:.25}
+#fDiag.started .edge.done{opacity:1;stroke:var(--accent);stroke-width:2.2}
+#fSvg .node.active rect,#fSvg .node.active polygon{animation:fpulse 1.3s ease-in-out infinite;filter:drop-shadow(0 0 7px var(--glow))}
+@keyframes fpulse{0%,100%{stroke-width:2.4}50%{stroke-width:4.4}}
+#fSvg .node:hover rect,#fSvg .node:hover polygon{stroke-width:2.8}
+table.cons{min-width:640px}
+table.cons .pill{white-space:nowrap}
+.pro{border-top:4px solid var(--ok)}
+.pro b{display:block;margin-bottom:2px}
+.pro p{font-size:14.5px;margin:4px 0 0}
+@media (prefers-reduced-motion: reduce){#fSvg .node.active rect,#fSvg .node.active polygon{animation:none;stroke-width:3.6}.chip.new{animation:none}}
+.ic{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;border:1.5px solid;white-space:nowrap}
+.ic-keep{color:var(--c-input);background:var(--c-input-bg);border-color:var(--c-input)}
+.ic-exp,.ic-shift{color:var(--c-engine);background:var(--c-engine-bg);border-color:var(--c-engine)}
+.ic-shift{border-style:dashed}
+.ic-feat,.ic-new{color:var(--c-agent);background:var(--c-agent-bg);border-color:var(--c-agent)}
+.ic-new{border-style:dashed}
+.ic-obs{color:var(--c-sys);background:var(--c-sys-bg);border-color:var(--c-sys)}
+.ic-out{color:var(--muted);background:transparent;border-color:var(--border)}
+table.imp{min-width:760px}
+table.imp tr.dim td{opacity:.55}
+.schema pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.55;background:var(--surface-2);border-radius:8px;padding:10px;overflow:auto;margin:8px 0 0}
+details summary{outline:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <button class="ghost themebtn" id="themeBtn" type="button">Sáng / Tối</button>
+  <div class="eyebrow">Kiểm thử phê duyệt tín dụng tín chấp</div>
+  <h1>Quy trình sinh test case bằng AI Agents từ văn bản quy định</h1>
+  <p class="lead">Từ văn bản quy định (văn xuôi + bảng biểu) đến bộ file XML kịch bản kèm kết quả kỳ vọng: khách hàng có được cấp tín dụng không, hạn mức bao nhiêu, và vì sao.</p>
+</header>
+
+<nav class="toc">
+  <a href="#tongquan">1. Tổng quan</a><a href="#flow">2. Flow chart động</a><a href="#agents">3. Các agent</a><a href="#logic">4. Logic tính hạn mức</a><a href="#kythuat">5. Thiết kế kịch bản</a><a href="#demo">6. Kịch bản mẫu &amp; XML</a><a href="#trace">7. Truy vết</a><a href="#thaydoi">8. Thay đổi CS &amp; Regression DB</a><a href="#uunhuoc">9. Ưu / nhược điểm</a><a href="#kiemsoat">10. Kiểm soát rủi ro</a>
+</nav>
+
+<section id="tongquan">
+<h2>1. Tổng quan</h2>
+<p>Một quy định cho vay tín chấp thường gồm ba lớp thông tin: <b>điều kiện loại trừ</b> (độ tuổi, tình trạng nợ, nợ xấu), <b>công thức tính</b> (thu nhập ghi nhận từ CASA, tiết kiệm, kê khai; khả năng trả nợ) và <b>tham số giới hạn</b> (hệ số nhân và trần hạn mức theo segment, hạn mức tối đa sản phẩm). BA chuyển văn bản thành rule cho Dev; Dev viết function; mỗi biến trong rule tương ứng một <b>data feature</b> trong file XML đầu vào.</p>
+<div class="roles">
+  <div class="role"><b>Văn bản quy định</b><span>Nguồn sự thật nghiệp vụ</span></div><div class="arrow">→</div>
+  <div class="role"><b>BA</b><span>Viết lại rule, bảng tham số</span></div><div class="arrow">→</div>
+  <div class="role"><b>Dev</b><span>Phát triển function theo rule</span></div><div class="arrow">→</div>
+  <div class="role test"><b>Tester + AI Agents</b><span>Kịch bản → XML → kết quả kỳ vọng → so sánh</span></div>
+</div>
+<div class="grid g3">
+  <div class="card"><h3>Bài toán của test</h3><p>Nghĩ kịch bản, điền giá trị feature vào XML, tự tính xem khách hàng được cấp không và hạn mức bao nhiêu, rồi gửi XML và đối chiếu kết quả.</p></div>
+  <div class="card"><h3>AI Agents làm gì</h3><p>Đọc văn bản, trích rule, đối chiếu với rule của BA, map sang feature, sinh kịch bản theo kỹ thuật test, dựng XML và so sánh kết quả.</p></div>
+  <div class="card"><h3>Nguyên tắc cốt lõi</h3><p>LLM <b>không tự tính nhẩm</b> kết quả kỳ vọng. Kết quả đến từ một <b>Oracle Engine</b> viết bằng code, sinh từ Rule Catalog đã duyệt và độc lập với code của Dev.</p></div>
+</div>
+</section>
+
+<section id="flow">
+<h2>2. Flow chart động theo action</h2>
+<p>Chọn một luồng rồi bấm <b>Chạy</b> để xem từng action diễn ra, hoặc đi từng bước bằng <b>Trước / Tiếp</b>. Bấm vào bất kỳ ô nào để nhảy tới bước đó. Phím ← → cũng điều khiển được.</p>
+<div class="card flowctl">
+  <label>Luồng
+    <select id="fScen">
+      <option value="happy">1 · Luồng chuẩn (không phát sinh)</option>
+      <option value="gap">2 · Phát hiện gap giữa văn bản và rule BA</option>
+      <option value="coverage">3 · Thiếu coverage, phải bổ sung kịch bản</option>
+      <option value="mismatch">4 · Kết quả lệch, triage và chạy lại</option>
+      <option value="full">5 · Tổng hợp: đi qua mọi vòng lặp</option>
+    </select>
+  </label>
+  <label>Tốc độ
+    <select id="fSpeed"><option value="slow">Chậm</option><option value="mid" selected>Vừa</option><option value="fast">Nhanh</option></select>
+  </label>
+  <div class="btns" style="margin-top:0">
+    <button class="ghost" id="fReset" type="button" title="Về đầu">⟲ Đầu</button>
+    <button class="ghost" id="fPrev" type="button">◀ Trước</button>
+    <button id="fPlay" type="button">▶ Chạy</button>
+    <button class="ghost" id="fNext" type="button">Tiếp ▶</button>
+  </div>
+  <div class="fprog"><div class="fbar" id="fBar"></div></div>
+  <div class="fscen-desc" id="fScenDesc"></div>
+</div>
+
+<div class="flowgrid">
+<div class="diagram fdiag" id="fDiag">
+<svg id="fSvg" viewBox="0 0 1000 1430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sơ đồ động quy trình sinh test case bằng AI agents">
+<defs>
+  <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker>
+  <marker id="ahA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowheadA"/></marker>
+</defs>
+<g id="fEdges">
+  <path id="e0" class="edge" d="M500 80 V108" marker-end="url(#ah)"/>
+  <path id="e1" class="edge" d="M500 170 V198" marker-end="url(#ah)"/>
+  <path id="e2" class="edge" d="M500 260 V288" marker-end="url(#ah)"/>
+  <path id="eL1" class="edge" d="M230 320 H298" marker-end="url(#ah)"/>
+  <path id="e3" class="edge" d="M500 350 V378" marker-end="url(#ah)"/>
+  <path id="eD1y" class="edge" d="M660 420 H768" marker-end="url(#ah)"/>
+  <path id="eR1loop" class="edge loop" d="M870 390 V230 H702" marker-end="url(#ah)"/>
+  <path id="eD1n" class="edge" d="M500 460 V488" marker-end="url(#ah)"/>
+  <path id="e4" class="edge" d="M500 550 V588" marker-end="url(#ah)"/>
+  <path id="eR2" class="edge" d="M770 620 H702" marker-end="url(#ah)"/>
+  <path id="e5" class="edge" d="M500 650 V678" marker-end="url(#ah)"/>
+  <path id="e6" class="edge" d="M500 740 V768" marker-end="url(#ah)"/>
+  <path id="eR3" class="edge loop" d="M768 800 H702" marker-start="url(#ah)" marker-end="url(#ah)"/>
+  <path id="e7" class="edge" d="M500 830 V858" marker-end="url(#ah)"/>
+  <path id="e8" class="edge" d="M500 920 V948" marker-end="url(#ah)"/>
+  <path id="eD2n" class="edge" d="M320 990 H232" marker-end="url(#ah)"/>
+  <path id="eL3loop" class="edge loop" d="M130 960 V710 H298" marker-end="url(#ah)"/>
+  <path id="eD2y" class="edge" d="M500 1030 V1058" marker-end="url(#ah)"/>
+  <path id="e9" class="edge" d="M500 1120 V1148" marker-end="url(#ah)"/>
+  <path id="e10" class="edge" d="M500 1210 V1238" marker-end="url(#ah)"/>
+  <path id="eD3n" class="edge" d="M640 1280 H768" marker-end="url(#ah)"/>
+  <path id="eR4loop" class="edge loop" d="M870 1250 V1090 H702" marker-end="url(#ah)"/>
+  <path id="eD3y" class="edge" d="M500 1320 V1348" marker-end="url(#ah)"/>
+</g>
+<g class="flbl">
+  <text class="lbl" x="712" y="412" text-anchor="middle">Có</text>
+  <text class="t3" x="880" y="300">cập nhật</text><text class="t3" x="880" y="316">Rule Catalog</text>
+  <text class="lbl" x="510" y="480">Không</text>
+  <text class="lbl" x="276" y="982" text-anchor="middle">Không</text>
+  <text class="t3" x="140" y="840">quay lại A5</text>
+  <text class="lbl" x="510" y="1050">Có</text>
+  <text class="lbl" x="704" y="1272" text-anchor="middle">Không</text>
+  <text class="t3" x="880" y="1165">fix → chạy lại</text>
+  <text class="lbl" x="510" y="1340">Có</text>
+</g>
+<g id="fNodes">
+  <g id="n0" class="node"><rect class="n-input" x="300" y="20" width="400" height="60" rx="10"/>
+    <text class="t1" x="500" y="44" text-anchor="middle">Văn bản quy định tín dụng tín chấp</text>
+    <text class="t2" x="500" y="64" text-anchor="middle">Văn xuôi + bảng điều kiện, công thức, hệ số segment</text></g>
+  <g id="n1" class="node"><rect class="n-agent" x="300" y="110" width="400" height="60" rx="10"/>
+    <text class="t1" x="500" y="134" text-anchor="middle">A1 · Document Parser Agent</text>
+    <text class="t2" x="500" y="154" text-anchor="middle">Tách điều khoản, bảng, công thức → JSON kèm trích dẫn</text></g>
+  <g id="n2" class="node"><rect class="n-agent" x="300" y="200" width="400" height="60" rx="10"/>
+    <text class="t1" x="500" y="224" text-anchor="middle">A2 · Rule Extraction Agent</text>
+    <text class="t2" x="500" y="244" text-anchor="middle">Sinh Rule Catalog: điều kiện, công thức, tham số, trần</text></g>
+  <g id="l1" class="node"><rect class="n-input" x="30" y="290" width="200" height="60" rx="10"/>
+    <text class="t1" x="130" y="314" text-anchor="middle">Rule spec của BA</text>
+    <text class="t3" x="130" y="334" text-anchor="middle">BRD, bảng rule cho Dev</text></g>
+  <g id="n3" class="node"><rect class="n-agent" x="300" y="290" width="400" height="60" rx="10"/>
+    <text class="t1" x="500" y="314" text-anchor="middle">A3 · Reconciliation Agent</text>
+    <text class="t2" x="500" y="334" text-anchor="middle">Đối chiếu văn bản ↔ rule BA, tìm gap / mâu thuẫn</text></g>
+  <g id="d1" class="node"><polygon class="n-dec" points="500,380 660,420 500,460 340,420"/>
+    <text class="td" x="500" y="425" text-anchor="middle">Có gap / mơ hồ?</text></g>
+  <g id="r1" class="node"><rect class="n-human" x="770" y="390" width="200" height="60" rx="10"/>
+    <text class="t1" x="870" y="414" text-anchor="middle">BA / PO làm rõ</text>
+    <text class="t3" x="870" y="434" text-anchor="middle">Chốt cách hiểu (ambiguity log)</text></g>
+  <g id="n4" class="node"><rect class="n-human" x="300" y="490" width="400" height="60" rx="10"/>
+    <text class="t1" x="500" y="514" text-anchor="middle">Checkpoint: BA + Tester duyệt</text>
+    <text class="t2" x="500" y="534" text-anchor="middle">Rule Catalog baseline (đánh version theo văn bản)</text></g>
+  <g id="n5" class="node"><rect class="n-agent" x="300" y="590" width="400" height="60" rx="10"/>
+    <text class="t1" x="500" y="614" text-anchor="middle">A4 · Feature Mapping Agent</text>
+    <text class="t2" x="500" y="634" text-anchor="middle">Rule ↔ data feature: tag XML, kiểu, miền giá trị</text></g>
+  <g id="r2" class="node"><rect class="n-input" x="770" y="590" width="200" height="60" rx="10"/>
+    <text class="t1" x="870" y="614" text-anchor="middle">XSD / Data dictionary</text>
+    <text class="t3" x="870" y="634" text-anchor="middle">Danh mục feature hệ thống</text></g>
+  <g id="n6" class="node"><rect class="n-agent" x="300" y="680" width="400" height="60" rx="10"/>
+    <text class="t1" x="500" y="704" text-anchor="middle">A5 · Scenario Design Agent</text>
+    <text class="t2" x="500" y="724" text-anchor="middle">EP, BVA, bảng quyết định, pairwise, negative</text></g>
+  <g id="n7" class="node"><rect class="n-engine" x="300" y="770" width="400" height="60" rx="10"/>
+    <text class="t1" x="500" y="794" text-anchor="middle">Oracle Engine (code, không phải LLM)</text>
+    <text class="t2" x="500" y="814" text-anchor="middle">Từ Rule Catalog → Được cấp? Hạn mức? Mã lý do</text></g>
+  <g id="r3" class="node"><rect class="n-human" x="770" y="770" width="200" height="60" rx="10"/>
+    <text class="t1" x="870" y="794" text-anchor="middle">Tester spot-check</text>
+    <text class="t3" x="870" y="814" text-anchor="middle">Tính tay / Excel đối chiếu</text></g>
+  <g id="n8" class="node"><rect class="n-agent" x="300" y="860" width="400" height="60" rx="10"/>
+    <text class="t1" x="500" y="884" text-anchor="middle">A6 · XML Builder Agent</text>
+    <text class="t2" x="500" y="904" text-anchor="middle">Điền giá trị feature vào template XML, validate XSD</text></g>
+  <g id="d2" class="node"><polygon class="n-dec" points="500,950 680,990 500,1030 320,990"/>
+    <text class="td" x="500" y="995" text-anchor="middle">XSD hợp lệ &amp; đủ coverage?</text></g>
+  <g id="l3" class="node"><rect class="n-agent" x="30" y="960" width="200" height="60" rx="10"/>
+    <text class="t1" x="130" y="984" text-anchor="middle">Bổ sung / sửa kịch bản</text>
+    <text class="t3" x="130" y="1004" text-anchor="middle">Lấp lỗ hổng coverage</text></g>
+  <g id="n9" class="node"><rect class="n-sys" x="300" y="1060" width="400" height="60" rx="10"/>
+    <text class="t1" x="500" y="1084" text-anchor="middle">Gửi XML vào hệ thống (SUT)</text>
+    <text class="t2" x="500" y="1104" text-anchor="middle">API / MQ / batch – chạy function Dev đã phát triển</text></g>
+  <g id="n10" class="node"><rect class="n-agent" x="300" y="1150" width="400" height="60" rx="10"/>
+    <text class="t1" x="500" y="1174" text-anchor="middle">A7 · Result Comparison Agent</text>
+    <text class="t2" x="500" y="1194" text-anchor="middle">Actual vs Expected: quyết định, hạn mức, mã lý do</text></g>
+  <g id="d3" class="node"><polygon class="n-dec" points="500,1240 640,1280 500,1320 360,1280"/>
+    <text class="td" x="500" y="1285" text-anchor="middle">Khớp kết quả?</text></g>
+  <g id="r4" class="node"><rect class="n-human" x="770" y="1250" width="200" height="60" rx="10"/>
+    <text class="t1" x="870" y="1274" text-anchor="middle">A8 · Triage + Tester</text>
+    <text class="t3" x="870" y="1294" text-anchor="middle">Phân loại lỗi → log defect</text></g>
+  <g id="n11" class="node"><rect class="n-out" x="300" y="1350" width="400" height="66" rx="10"/>
+    <text class="t1" x="500" y="1376" text-anchor="middle">Test pack hoàn chỉnh</text>
+    <text class="t2" x="500" y="1398" text-anchor="middle">XML + Expected + Traceability + báo cáo coverage</text></g>
+</g>
+<circle id="fDot" class="fdot" r="7" cx="0" cy="0" visibility="hidden"/>
+</svg>
+</div>
+
+<aside class="card fpanel" id="fPanel">
+  <div class="fstep" id="fStepNo">Chưa bắt đầu</div>
+  <h3 id="fTitle" style="margin:4px 0 6px">Bấm ▶ Chạy để xem từng action</h3>
+  <div id="fActor"></div>
+  <div id="fBody" class="fbody"><p style="color:var(--muted)">Mỗi bước sẽ cho biết ai thực hiện, làm gì, nhận đầu vào nào, tạo ra đầu ra nào, kèm một ví dụ cụ thể cho bài toán tín chấp.</p></div>
+  <div class="fart">
+    <div class="fart-h">Sản phẩm đã tạo</div>
+    <div id="fArtifacts" class="chips"><span class="chip muted">—</span></div>
+  </div>
+</aside>
+</div>
+<div class="legend">
+  <span><i style="background:var(--c-input-bg);border-color:var(--c-input)"></i>Đầu vào</span>
+  <span><i style="background:var(--c-agent-bg);border-color:var(--c-agent)"></i>AI agent</span>
+  <span><i style="background:var(--c-human-bg);border-color:var(--c-human)"></i>Con người duyệt</span>
+  <span><i style="background:var(--c-engine-bg);border-color:var(--c-engine)"></i>Tính toán tất định</span>
+  <span><i style="background:var(--c-dec-bg);border-color:var(--c-dec)"></i>Quyết định</span>
+  <span><i style="background:var(--c-sys-bg);border-color:var(--c-sys)"></i>Hệ thống được test</span>
+  <span><i style="background:var(--c-out-bg);border-color:var(--c-out)"></i>Đầu ra</span>
+</div>
+</section>
+
+<section id="agents">
+<h2>3. Vai trò từng agent</h2>
+<div class="grid g2">
+  <div class="card agent"><h3>A1 · Document Parser</h3><dl>
+    <dt>Đầu vào</dt><dd>File Word/PDF văn bản quy định</dd>
+    <dt>Việc làm</dt><dd>Tách chương/điều/khoản; nhận diện bảng (điều kiện, hệ số segment); bóc công thức; chuẩn hoá đơn vị (triệu, %, tháng, năm).</dd>
+    <dt>Đầu ra</dt><dd><code>document.json</code>: mỗi phần tử có <code>clause_id</code> và trích dẫn nguyên văn.</dd>
+    <dt>Kiểm soát</dt><dd>Không có trích dẫn nguồn thì không được dùng ở bước sau.</dd></dl></div>
+  <div class="card agent"><h3>A2 · Rule Extraction</h3><dl>
+    <dt>Việc làm</dt><dd>Chuyển nội dung thành <b>Rule Catalog</b>: loại rule (Knock-out / Tính toán / Tham số / Cap), biểu thức dạng DSL, tham số, thứ tự áp dụng, quy tắc làm tròn.</dd>
+    <dt>Đầu ra</dt><dd><code>rule_catalog.yaml</code> có version, mỗi rule gắn điều khoản nguồn.</dd>
+    <dt>Kiểm soát</dt><dd>Không suy diễn; câu chữ mơ hồ (VD “đến 60 tuổi” là ≤60 hay &lt;60) đánh dấu <code>AMBIGUOUS</code>.</dd></dl></div>
+  <div class="card agent"><h3>A3 · Reconciliation</h3><dl>
+    <dt>Việc làm</dt><dd>So rule trích từ văn bản với rule BA viết cho Dev: thiếu rule, thừa rule, lệch ngưỡng (≥ hay &gt;), lệch hệ số, lệch thứ tự MIN / làm tròn.</dd>
+    <dt>Đầu ra</dt><dd>Gap report + ambiguity log để BA/PO chốt.</dd>
+    <dt>Giá trị</dt><dd>Phát hiện lỗi yêu cầu <b>trước khi</b> có code — rẻ nhất để sửa.</dd></dl></div>
+  <div class="card agent"><h3>A4 · Feature Mapping</h3><dl>
+    <dt>Việc làm</dt><dd>Map từng biến của rule sang tag XML theo XSD/data dictionary: kiểu dữ liệu, enum, cho phép null, đơn vị. Xác định feature dẫn xuất (VD tuổi tính từ ngày sinh và ngày nộp hồ sơ).</dd>
+    <dt>Đầu ra</dt><dd><code>feature_map.csv</code>: rule_var → XPath → kiểu → miền giá trị.</dd></dl></div>
+  <div class="card agent"><h3>A5 · Scenario Design</h3><dl>
+    <dt>Việc làm</dt><dd>Sinh ma trận kịch bản từ Rule Catalog + Feature map theo các kỹ thuật ở mục 5. Mỗi kịch bản gắn <code>rule_id</code> được kiểm.</dd>
+    <dt>Đầu ra</dt><dd><code>scenarios.json</code>: chỉ chứa <b>giá trị đầu vào</b>, chưa có kết quả.</dd></dl></div>
+  <div class="card agent engine"><h3>Oracle Engine (không phải LLM)</h3><dl>
+    <dt>Việc làm</dt><dd>Code Python/JS sinh từ Rule Catalog, được tester review và unit test bằng các ví dụ trong văn bản. Tính quyết định, hạn mức, rule nào “ràng buộc” hạn mức, mã lý do từ chối.</dd>
+    <dt>Vì sao</dt><dd>LLM tính số dễ sai; oracle độc lập với code Dev mới phát hiện được lỗi của Dev.</dd></dl></div>
+  <div class="card agent"><h3>A6 · XML Builder</h3><dl>
+    <dt>Việc làm</dt><dd>Điền giá trị vào template XML (Jinja/XSLT), validate bằng XSD (lxml / xmllint), đặt tên file theo mã kịch bản, xuất file expected đi kèm.</dd>
+    <dt>Đầu ra</dt><dd><code>TC_xxx.xml</code> + <code>expected.csv</code></dd></dl></div>
+  <div class="card agent"><h3>A7 · Comparison &amp; A8 · Triage</h3><dl>
+    <dt>A7</dt><dd>Gửi XML, parse response, so sánh từng trường (quyết định, hạn mức, mã lý do) với dung sai làm tròn đã thống nhất.</dd>
+    <dt>A8</dt><dd>Dựa trên truy vết để đề xuất nguyên nhân: lỗi code Dev / rule BA sai / oracle sai / văn bản mơ hồ — tester xác nhận rồi log defect.</dd></dl></div>
+</div>
+</section>
+
+<section id="logic">
+<h2>4. Logic tính hạn mức (Oracle)</h2>
+<p class="note">Các ngưỡng, hệ số và trần dưới đây là <b>số minh hoạ</b> để mô tả cấu trúc. Khi áp dụng, thay bằng giá trị trong văn bản quy định thật.</p>
+<div class="pipeline" style="margin-top:14px">
+  <div class="step ko"><div class="num">1</div><div class="body"><b>Điều kiện loại trừ (knock-out)</b>
+    <div class="formula">R01  22 ≤ Tuổi ≤ 60
+R02  Tuổi + Kỳ hạn/12 ≤ 65   (tuổi tại thời điểm tất toán)
+R03  Nhóm nợ CIC hiện tại = 1
+R04  Không có nợ nhóm 3–5 trong 36 tháng</div></div></div>
+  <div class="step"><div class="num">2</div><div class="body"><b>Thu nhập ghi nhận (TN)</b>
+    <div class="formula">TN_CASA = Dòng tiền vào CASA bình quân 6T × 70%
+TN_TK   = Số dư tiết kiệm × Lãi suất TK / 12 × 100%
+TN_KK   = MIN(Thu nhập kê khai, 20 tr) × 50%
+TN      = TN_CASA + TN_TK + TN_KK        (R05: TN > 0)</div></div></div>
+  <div class="step ko"><div class="num">3</div><div class="body"><b>Khả năng trả nợ (DTI theo segment)</b>
+    <div class="formula">Khả năng trả thêm/tháng = TN × DTI_max(segment) − Nghĩa vụ nợ hiện tại
+R06: Khả năng trả thêm > 0</div></div></div>
+  <div class="step cap"><div class="num">4</div><div class="body"><b>Các hạn mức thành phần</b>
+    <div class="formula">HM_TN   = TN × Hệ số nhân K(segment)
+HM_DSR  = PV(lãi suất/12, kỳ hạn, Khả năng trả thêm)    (dư nợ tối đa trả góp được)
+HM_SEG  = Trần hạn mức theo segment
+HM_SP   = Hạn mức tối đa sản phẩm
+HM_DN   = Số tiền khách hàng đề nghị</div></div></div>
+  <div class="step cap"><div class="num">5</div><div class="body"><b>Hạn mức phê duyệt</b>
+    <div class="formula">HM = ROUNDDOWN( MIN(HM_TN, HM_DSR, HM_SEG, HM_SP, HM_DN), 1 tr )
+R07: HM ≥ 10 tr  → Phê duyệt;  ngược lại → Từ chối</div></div></div>
+</div>
+<h3>Bảng tham số theo segment (minh hoạ)</h3>
+<div class="tablewrap"><table>
+<thead><tr><th>Segment</th><th class="num">Hệ số nhân K</th><th class="num">DTI tối đa</th><th class="num">Trần segment</th></tr></thead>
+<tbody>
+<tr><td>MASS</td><td class="num">10</td><td class="num">50%</td><td class="num">200.000.000</td></tr>
+<tr><td>AFFLUENT</td><td class="num">15</td><td class="num">60%</td><td class="num">500.000.000</td></tr>
+<tr><td>PRIORITY</td><td class="num">20</td><td class="num">70%</td><td class="num">1.000.000.000</td></tr>
+</tbody></table></div>
+<p style="color:var(--muted);font-size:14px">Hạn mức tối đa sản phẩm: 1.000.000.000 · Hạn mức tối thiểu: 10.000.000 · Làm tròn xuống bội số 1.000.000.</p>
+</section>
+
+<section id="kythuat">
+<h2>5. Kỹ thuật thiết kế kịch bản</h2>
+<div class="grid g2">
+  <div class="card tech"><h3>Phân vùng tương đương (EP)</h3><p>Mỗi feature chia vùng hợp lệ / không hợp lệ: segment (MASS / AFFLUENT / PRIORITY / giá trị lạ), nhóm nợ (1 / 2 / 3–5), nguồn thu (chỉ CASA, chỉ kê khai, kết hợp, không có).</p></div>
+  <div class="card tech"><h3>Giá trị biên (BVA)</h3><p>Lấy giá trị ngay dưới, đúng và ngay trên ngưỡng: tuổi 21/22/60/61; tuổi tất toán 65 / 65 + 1 tháng; trần kê khai 20 tr; hạn mức tối thiểu 10 tr (9,x tr làm tròn xuống).</p></div>
+  <div class="card tech"><h3>Bảng quyết định</h3><p>Tổ hợp các rule knock-out và kiểm tra hệ thống trả <b>đủ</b> mã lý do khi nhiều điều kiện cùng trượt (VD tuổi 61, kỳ hạn 60 tháng trượt cả R01 và R02).</p></div>
+  <div class="card tech"><h3>“Rule nào ràng buộc hạn mức”</h3><p>Mỗi thành phần trong MIN phải có ít nhất một kịch bản mà nó là giá trị nhỏ nhất: HM_TN, HM_DSR, trần segment, trần sản phẩm, số tiền đề nghị. Đây là chỗ Dev hay sai thứ tự hoặc quên một cap.</p></div>
+  <div class="card tech"><h3>Pairwise</h3><p>Khi số feature nhiều (segment × nguồn thu × kỳ hạn × nhóm nợ…), dùng tổ hợp cặp để giảm số kịch bản mà vẫn phủ mọi cặp giá trị.</p></div>
+  <div class="card tech"><h3>Negative &amp; chất lượng dữ liệu</h3><p>Thiếu tag bắt buộc, giá trị âm, sai kiểu, sai enum, ngày sinh tương lai — kiểm hệ thống từ chối đúng cách thay vì tính ra hạn mức.</p></div>
+</div>
+</section>
+
+<section id="demo">
+<h2>6. Kịch bản mẫu, Oracle và XML</h2>
+<p>Bảng dưới được tính bằng chính Oracle minh hoạ ở mục 4. Bấm một dòng để nạp vào máy tính; có thể sửa giá trị để thử kịch bản mới và tải XML tương ứng.</p>
+<div class="tablewrap"><table id="tcTable">
+<thead><tr><th>Mã</th><th>Kỹ thuật</th><th>Mô tả</th><th>Kết quả</th><th class="num">Hạn mức</th><th>Ràng buộc / Mã lý do</th></tr></thead>
+<tbody></tbody></table></div>
+<div class="btns"><button class="ghost" id="dlCsv" type="button">Tải expected.csv (toàn bộ)</button><button class="ghost" id="dlAllXml" type="button">Tải toàn bộ XML (1 file gộp)</button></div>
+
+<h3 style="margin-top:24px">Máy tính Oracle</h3>
+<div class="calc">
+  <div class="card"><form class="form" id="f" onsubmit="return false">
+    <label class="full">Mã kịch bản<input id="id" value="TC_CUSTOM"></label>
+    <label>Tuổi<input id="age" type="number" step="1"></label>
+    <label>Kỳ hạn (tháng)<input id="tenor" type="number" step="1"></label>
+    <label>Nhóm nợ CIC hiện tại<select id="cic"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label>
+    <label>Nợ nhóm 3–5 trong 36T<select id="bad36"><option value="false">Không</option><option value="true">Có</option></select></label>
+    <label>CASA vào bình quân 6T<input id="casa" type="number" step="100000"></label>
+    <label>Số dư tiết kiệm<input id="saving" type="number" step="1000000"></label>
+    <label>Lãi suất tiết kiệm (%/năm)<input id="savingRate" type="number" step="0.1"></label>
+    <label>Thu nhập kê khai/tháng<input id="declared" type="number" step="100000"></label>
+    <label>Nghĩa vụ nợ hiện tại/tháng<input id="obligation" type="number" step="100000"></label>
+    <label>Segment<select id="segment"><option>MASS</option><option>AFFLUENT</option><option>PRIORITY</option></select></label>
+    <label>Lãi suất vay (%/năm)<input id="rate" type="number" step="0.1"></label>
+    <label>Số tiền đề nghị<input id="requested" type="number" step="1000000"></label>
+  </form></div>
+  <div class="card">
+    <div class="result-head"><span id="decision"></span><span class="big" id="limit"></span></div>
+    <div id="reasons" style="margin-top:6px"></div>
+    <div class="kv" id="breakdown"></div>
+    <pre class="xml" id="xml"></pre>
+    <div class="btns"><button id="dlXml" type="button">Tải XML kịch bản này</button><button class="ghost" id="copyXml" type="button">Sao chép XML</button></div>
+  </div>
+</div>
+<p style="color:var(--muted);font-size:13.5px">Kết quả kỳ vọng được ghi dưới dạng comment trong XML để tiện đọc; khi gửi thật nên tách sang file expected riêng để không lẫn vào dữ liệu đầu vào.</p>
+</section>
+
+<section id="trace">
+<h2>7. Ma trận truy vết</h2>
+<p>Mỗi điều khoản → rule → feature → kịch bản. Đây là căn cứ để đo coverage và để A8 truy nguyên nhân khi kết quả lệch.</p>
+<div class="tablewrap"><table>
+<thead><tr><th>Điều khoản (VD)</th><th>Rule</th><th>Feature (XPath)</th><th>Kịch bản</th></tr></thead>
+<tbody>
+<tr><td>Điều kiện độ tuổi</td><td>R01, R02</td><td>Customer/Age, LoanRequest/TenorMonths</td><td>TC02–TC06</td></tr>
+<tr><td>Tình trạng nợ CIC</td><td>R03, R04</td><td>CreditBureau/CurrentDebtGroup, CreditBureau/BadDebt36M</td><td>TC07, TC08</td></tr>
+<tr><td>Thu nhập ghi nhận</td><td>F_TN, R05</td><td>Income/CasaAvgInflow6M, Income/SavingBalance, Income/SavingRate, Income/DeclaredIncome</td><td>TC11, TC12, TC17</td></tr>
+<tr><td>Khả năng trả nợ (DTI)</td><td>R06, F_DSR</td><td>CreditBureau/MonthlyDebtObligation, Customer/Segment</td><td>TC09, TC10</td></tr>
+<tr><td>Hệ số &amp; trần segment</td><td>C_SEG, C_K</td><td>Customer/Segment</td><td>TC01, TC13, TC14</td></tr>
+<tr><td>Hạn mức tối thiểu, làm tròn</td><td>R07, F_ROUND</td><td>—</td><td>TC15, TC16</td></tr>
+</tbody></table></div>
+<h3>Bộ đầu ra của quy trình</h3>
+<ul class="tight">
+  <li><code>rule_catalog.yaml</code> (version theo văn bản) và gap report với rule BA</li>
+  <li><code>feature_map.csv</code>, <code>scenarios.json</code></li>
+  <li>Thư mục <code>xml/TC_xxx.xml</code> đã validate XSD + <code>expected.csv</code></li>
+  <li>Báo cáo chạy: actual vs expected, defect đã phân loại, coverage theo rule và theo thành phần MIN</li>
+</ul>
+</section>
+
+<section id="thaydoi">
+<h2>8. Thay đổi chính sách &amp; Regression DB</h2>
+<p>Bối cảnh thực tế: chính sách có <b>chính sách tổng</b> và nhiều <b>chính sách con phái sinh</b>; bộ regression hiện là các file XML làm tay. Mỗi lần chính sách đổi phải mở lại từng file để sửa giá trị và expected, rồi tự đoán còn thiếu test case nào. Sinh lại từ đầu thì tốn công và làm mất bộ regression đã được kiểm chứng.</p>
+<div class="note" style="border-left-color:var(--c-out);background:var(--c-out-bg)"><b>Nguyên tắc:</b> nguồn sự thật là <b>Regression DB</b> (giá trị feature, rule được phủ, expected theo từng phiên bản chính sách). File XML chỉ là <b>sản phẩm render</b> từ DB. Khi chính sách đổi, ta sửa một chỗ trong DB rồi render lại, không sửa tay hàng trăm file.</div>
+
+<h3>8.1 Mô hình kế thừa chính sách</h3>
+<div class="diagram">
+<svg viewBox="0 0 1000 232" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cây chính sách tổng và chính sách con" style="min-width:600px">
+  <path class="edge" d="M500 80 V115 H260 V148"/><path class="edge" d="M500 115 H740 V148"/>
+  <text class="t3" x="268" y="136">kế thừa phần còn lại</text><text class="t3" x="748" y="136">kế thừa phần còn lại</text>
+  <rect class="n-agent" x="300" y="10" width="400" height="70" rx="10"/>
+  <text class="t1" x="500" y="38" text-anchor="middle">CS-TC-2026 · Chính sách tổng</text>
+  <text class="t2" x="500" y="60" text-anchor="middle">Khung rule R01–R07 + toàn bộ tham số mặc định</text>
+  <rect class="n-human" x="40" y="150" width="440" height="70" rx="10"/>
+  <text class="t1" x="260" y="178" text-anchor="middle">CS-TC-LUONG · KH nhận lương qua TK</text>
+  <text class="t2" x="260" y="200" text-anchor="middle">Override: trọng số CASA 90%, hệ số K (MASS) = 12</text>
+  <rect class="n-human" x="520" y="150" width="440" height="70" rx="10"/>
+  <text class="t1" x="740" y="178" text-anchor="middle">CS-TC-PROMO · Ưu đãi Priority Q4</text>
+  <text class="t2" x="740" y="200" text-anchor="middle">Override: trần PRIORITY &amp; trần SP 1,5 tỷ · có hạn hiệu lực</text>
+</svg>
+</div>
+<div class="grid g3" style="margin-top:10px">
+  <div class="card"><b>Chính sách con chỉ lưu phần khác biệt</b><p style="font-size:14.5px">Gồm tham số override, rule thêm (ADD), rule thay (OVERRIDE), rule bỏ (REMOVE) và thời gian hiệu lực. Phần còn lại lấy từ chính sách cha.</p></div>
+  <div class="card"><b>Thay đổi ở chính sách tổng tự lan xuống</b><p style="font-size:14.5px">Áp cho mọi chính sách con <i>không</i> override tham số đó. VD đổi K(MASS) ở chính sách tổng thì CS-TC-LUONG không bị ảnh hưởng, vì đã tự định nghĩa K(MASS).</p></div>
+  <div class="card"><b>Test case cũng kế thừa</b><p style="font-size:14.5px">Một test case ở chính sách tổng có thể chạy lại dưới chính sách con với expected riêng. Nhờ vậy không phải copy file XML cho từng chính sách con.</p></div>
+</div>
+
+<h3>8.2 Dữ liệu test neo theo tham số</h3>
+<p>Phần lớn công sửa regression nằm ở các <b>test case biên</b>: ngưỡng đổi thì giá trị biên phải đổi theo. Trong DB, giá trị biên được lưu dưới dạng <b>biểu thức tham chiếu tham số</b> thay vì số cứng, nên tự dịch khi chính sách đổi.</p>
+<div class="formula" style="margin:0">TC05  # tuổi tối đa, tất toán vượt biên 1 tháng
+  age   : ${ageMax}                                 # trước: 60   → sau khi đổi: 62
+  tenor : (${ageAtMaturityMax} - ${ageMax}) * 12 + 1  # trước: 61   → sau khi đổi: 37
+  covers: [R02:BOUNDARY_ABOVE]
+TC15  # hạn mức đúng bằng mức tối thiểu
+  declared: ${minLimit} / (${seg.MASS.k} * ${w.declared})</div>
+
+<h3>8.3 Luồng xử lý khi chính sách thay đổi</h3>
+<div class="diagram">
+<svg viewBox="0 0 1000 1230" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Luồng xử lý thay đổi chính sách" style="min-width:640px">
+<defs><marker id="ahC" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="arrowhead"/></marker></defs>
+<g>
+  <path class="edge" d="M500 80 V108" marker-end="url(#ahC)"/>
+  <path class="edge" d="M500 170 V198" marker-end="url(#ahC)"/>
+  <path class="edge" d="M500 260 V288" marker-end="url(#ahC)"/>
+  <path class="edge" d="M770 320 H702" marker-end="url(#ahC)"/>
+  <path class="edge" d="M500 350 V378" marker-end="url(#ahC)"/>
+  <path class="edge" d="M232 410 H298" marker-start="url(#ahC)" marker-end="url(#ahC)"/>
+  <path class="edge" d="M500 440 V468" marker-end="url(#ahC)"/>
+  <path class="edge" d="M500 530 V558" marker-end="url(#ahC)"/>
+  <path class="edge" d="M500 620 V640 H114 V658 M500 640 H904 V658 M272 640 V658 M430 640 V658 M588 640 V658 M746 640 V658"/>
+  <path class="edge" d="M114 716 V738 H904 V716 M272 716 V738 M430 716 V738 M588 716 V738 M746 716 V738"/>
+  <path class="edge" d="M500 738 V758" marker-end="url(#ahC)"/>
+  <path class="edge" d="M500 820 V848" marker-end="url(#ahC)"/>
+  <path class="edge" d="M500 910 V938" marker-end="url(#ahC)"/>
+  <path class="edge" d="M500 1000 V1028" marker-end="url(#ahC)"/>
+  <path class="edge" d="M640 1070 H768" marker-end="url(#ahC)"/>
+  <text class="lbl" x="704" y="1062" text-anchor="middle">Không</text>
+  <path class="edge loop" d="M870 1040 V970 H702" marker-end="url(#ahC)"/>
+  <text class="t3" x="880" y="1010">fix → chạy lại</text>
+  <path class="edge" d="M500 1110 V1138" marker-end="url(#ahC)"/>
+  <text class="lbl" x="510" y="1130">Có</text>
+  <path class="edge loop" d="M300 1170 H16 V420 H28" marker-end="url(#ahC)"/>
+  <text class="t3" x="24" y="1160">ghi baseline mới</text>
+</g>
+<g>
+  <rect class="n-input" x="300" y="20" width="400" height="60" rx="10"/>
+  <text class="t1" x="500" y="44" text-anchor="middle">Chính sách mới / sửa đổi</text>
+  <text class="t2" x="500" y="64" text-anchor="middle">Chính sách tổng hoặc chính sách con</text>
+  <rect class="n-agent" x="300" y="110" width="400" height="60" rx="10"/>
+  <text class="t1" x="500" y="134" text-anchor="middle">A1 + A2 · Rule Catalog phiên bản mới</text>
+  <text class="t2" x="500" y="154" text-anchor="middle">Bóc tách văn bản, chỉ xử lý phần sửa đổi</text>
+  <rect class="n-agent" x="300" y="200" width="400" height="60" rx="10"/>
+  <text class="t1" x="500" y="224" text-anchor="middle">A9 · Policy Diff Agent</text>
+  <text class="t2" x="500" y="244" text-anchor="middle">So Catalog cũ ↔ mới → change set (tham số, rule, feature)</text>
+  <rect class="n-engine" x="300" y="290" width="400" height="60" rx="10"/>
+  <text class="t1" x="500" y="314" text-anchor="middle">Lan truyền theo cây chính sách</text>
+  <text class="t2" x="500" y="334" text-anchor="middle">Xác định CS con bị ảnh hưởng (bỏ qua CS đã override)</text>
+  <rect class="n-input" x="770" y="290" width="200" height="60" rx="10"/>
+  <text class="t1" x="870" y="314" text-anchor="middle">Cây chính sách</text>
+  <text class="t3" x="870" y="334" text-anchor="middle">kế thừa · override · hiệu lực</text>
+  <path class="n-out" d="M30 384 A100 12 0 0 1 230 384 V438 A100 12 0 0 1 30 438 Z"/>
+  <ellipse class="n-out" cx="130" cy="384" rx="100" ry="12"/>
+  <text class="t1" x="130" y="416" text-anchor="middle">Regression DB</text>
+  <text class="t3" x="130" y="434" text-anchor="middle">TC · input · expected · run</text>
+  <rect class="n-engine" x="300" y="380" width="400" height="60" rx="10"/>
+  <text class="t1" x="500" y="404" text-anchor="middle">Impact analysis (truy vấn DB)</text>
+  <text class="t2" x="500" y="424" text-anchor="middle">Rule / tham số / feature bị đổi → test case liên quan</text>
+  <rect class="n-engine" x="300" y="470" width="400" height="60" rx="10"/>
+  <text class="t1" x="500" y="494" text-anchor="middle">Oracle chạy lại mọi TC của CS bị ảnh hưởng</text>
+  <text class="t2" x="500" y="514" text-anchor="middle">So expected cũ ↔ mới; bắt cả ảnh hưởng gián tiếp</text>
+  <rect class="n-agent" x="300" y="560" width="400" height="60" rx="10"/>
+  <text class="t1" x="500" y="584" text-anchor="middle">A10 · Phân loại tác động</text>
+  <text class="t2" x="500" y="604" text-anchor="middle">Mỗi TC vào đúng một nhóm xử lý</text>
+
+  <rect class="n-input" x="40" y="660" width="148" height="56" rx="9"/>
+  <text class="t1" x="114" y="684" text-anchor="middle" style="font-size:13px">Giữ nguyên</text>
+  <text class="t3" x="114" y="702" text-anchor="middle">không đổi gì</text>
+  <rect class="n-engine" x="198" y="660" width="148" height="56" rx="9"/>
+  <text class="t1" x="272" y="684" text-anchor="middle" style="font-size:13px">Cập nhật expected</text>
+  <text class="t3" x="272" y="702" text-anchor="middle">input giữ, KQ đổi</text>
+  <rect class="n-engine" x="356" y="660" width="148" height="56" rx="9"/>
+  <text class="t1" x="430" y="684" text-anchor="middle" style="font-size:13px">Dịch biên</text>
+  <text class="t3" x="430" y="702" text-anchor="middle">input neo tham số</text>
+  <rect class="n-agent" x="514" y="660" width="148" height="56" rx="9"/>
+  <text class="t1" x="588" y="684" text-anchor="middle" style="font-size:13px">Bổ sung feature</text>
+  <text class="t3" x="588" y="702" text-anchor="middle">điền giá trị mặc định</text>
+  <rect class="n-sys" x="672" y="660" width="148" height="56" rx="9"/>
+  <text class="t1" x="746" y="684" text-anchor="middle" style="font-size:13px">Lỗi thời</text>
+  <text class="t3" x="746" y="702" text-anchor="middle">đánh dấu OBSOLETE</text>
+  <rect class="n-agent" x="830" y="660" width="148" height="56" rx="9"/>
+  <text class="t1" x="904" y="684" text-anchor="middle" style="font-size:13px">TC mới (A5)</text>
+  <text class="t3" x="904" y="702" text-anchor="middle">chỉ cho rule / biên mới</text>
+
+  <rect class="n-human" x="300" y="760" width="400" height="60" rx="10"/>
+  <text class="t1" x="500" y="784" text-anchor="middle">Checkpoint: BA + Tester duyệt change set</text>
+  <text class="t2" x="500" y="804" text-anchor="middle">Duyệt theo nhóm; chỉ soi kỹ nhóm có rủi ro</text>
+  <rect class="n-agent" x="300" y="850" width="400" height="60" rx="10"/>
+  <text class="t1" x="500" y="874" text-anchor="middle">A6 · Render XML từ DB</text>
+  <text class="t2" x="500" y="894" text-anchor="middle">Template + giá trị feature, validate XSD, gắn version</text>
+  <rect class="n-sys" x="300" y="940" width="400" height="60" rx="10"/>
+  <text class="t1" x="500" y="964" text-anchor="middle">Chạy regression có chọn lọc</text>
+  <text class="t2" x="500" y="984" text-anchor="middle">TC bị ảnh hưởng + bộ smoke; full suite theo lịch</text>
+  <polygon class="n-dec" points="500,1030 640,1070 500,1110 360,1070"/>
+  <text class="td" x="500" y="1075" text-anchor="middle">Khớp kết quả?</text>
+  <rect class="n-human" x="770" y="1040" width="200" height="60" rx="10"/>
+  <text class="t1" x="870" y="1064" text-anchor="middle">A8 · Triage + Tester</text>
+  <text class="t3" x="870" y="1084" text-anchor="middle">Phân loại lỗi → log defect</text>
+  <rect class="n-out" x="300" y="1140" width="400" height="60" rx="10"/>
+  <text class="t1" x="500" y="1164" text-anchor="middle">Regression DB phiên bản mới</text>
+  <text class="t2" x="500" y="1184" text-anchor="middle">Baseline gắn với phiên bản chính sách</text>
+</g>
+</svg>
+</div>
+<p style="font-size:14px;color:var(--muted)">Vì sao vẫn chạy lại Oracle cho <i>mọi</i> test case của chính sách bị ảnh hưởng chứ không chỉ các TC mà truy vấn tìm ra? Vì Oracle là code nên chạy hàng nghìn TC chỉ mất vài giây. Việc chạy lại bắt được cả ảnh hưởng gián tiếp. VD khi đổi trần segment, một TC được gắn nhãn "kiểm DTI" vẫn có thể đổi hạn mức, vì trần mới trở thành giá trị nhỏ nhất. Truy vấn DB chỉ dùng để thu hẹp phạm vi chạy regression trên hệ thống thật.</p>
+
+<h3>8.4 Thử phân tích tác động</h3>
+<p>Bộ regression mẫu gồm 24 test case thuộc 3 chính sách. Chọn một thay đổi để xem test case nào bị ảnh hưởng, ảnh hưởng thế nào, và bao nhiêu TC thực sự cần người xem lại.</p>
+<div class="card">
+  <label style="display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--muted)">Thay đổi chính sách
+    <select id="impChange" style="font:inherit;font-size:14px;padding:7px 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2);color:var(--text)"></select>
+  </label>
+  <pre class="xml" id="impSet" style="max-height:none"></pre>
+  <div id="impSum" class="impsum"></div>
+  <label style="font-size:13.5px;color:var(--muted);display:flex;gap:6px;align-items:center;margin-top:8px"><input type="checkbox" id="impHide"> Ẩn TC giữ nguyên / ngoài phạm vi</label>
+</div>
+<div class="tablewrap" style="margin-top:10px"><table id="impTable" class="imp">
+<thead><tr><th>TC</th><th>Chính sách</th><th>Nhóm tác động</th><th>Thay đổi input</th><th>Expected cũ</th><th>Expected mới</th></tr></thead>
+<tbody></tbody></table></div>
+
+<h3>8.5 Đưa bộ XML thủ công hiện có vào DB (làm một lần)</h3>
+<p>Không cần viết lại test case. Bộ XML đang vận hành được nhập vào DB và “làm giàu” dần:</p>
+<div class="pipeline" style="margin-top:10px">
+  <div class="step"><div class="num">1</div><div class="body"><b>Thu thập</b> toàn bộ XML regression và expected thủ công (Excel / test tool). Gắn mỗi file với chính sách mà nó kiểm (theo thư mục, tên file hoặc tag trong XML).</div></div>
+  <div class="step"><div class="num">2</div><div class="body"><b>Import Agent</b> parse XML theo XSD → bảng <code>tc_input</code> (giá trị cứng, chưa neo). Feature lạ hoặc thiếu được báo lại để xử lý.</div></div>
+  <div class="step cap"><div class="num">3</div><div class="body"><b>Kiểm chứng chéo</b>: Oracle chạy trên phiên bản chính sách hiện hành rồi so với expected thủ công. <b>Khớp</b> → TC được xác nhận. <b>Lệch</b> → vào hàng chờ review để xác định sai ở expected thủ công, ở Oracle, hay TC đã lỗi thời. Đây cũng là cách kiểm định chính Oracle.</div></div>
+  <div class="step cap"><div class="num">4</div><div class="body"><b>Gắn coverage tự động</b>: Oracle ghi lại rule nào quyết định kết quả (knock-out nào trượt, thành phần MIN nào ràng buộc) → bảng <code>tc_coverage</code>. Agent đề xuất mục đích và kỹ thuật của từng TC.</div></div>
+  <div class="step"><div class="num">5</div><div class="body"><b>Chuyển TC biên sang giá trị neo</b>: agent nhận ra các giá trị trùng ngưỡng (VD age = 60 khi ageMax = 60) và đề xuất biểu thức <code>${ageMax}</code>. Tester duyệt.</div></div>
+  <div class="step"><div class="num">6</div><div class="body"><b>Dò trùng lặp và lỗ hổng</b>: các TC có cùng “đường đi” qua rule bị đánh dấu dư thừa. Rule hoặc thành phần MIN chưa có TC thì giao cho A5 sinh <i>chỉ phần thiếu</i>.</div></div>
+  <div class="step"><div class="num">7</div><div class="body"><b>Chốt baseline v0</b>. Từ đây XML được render từ DB; không sửa tay file XML nữa.</div></div>
+</div>
+
+<h3>8.6 Trước và sau</h3>
+<div class="tablewrap"><table class="cons">
+<thead><tr><th>Việc</th><th>Hiện tại (XML thủ công)</th><th>Với Regression DB</th></tr></thead>
+<tbody>
+<tr><td>Nơi lưu test case</td><td>File XML rời, mỗi chính sách con một bản copy</td><td>DB lưu giá trị feature; XML được render khi cần</td></tr>
+<tr><td>Đổi một tham số (trần, hệ số)</td><td>Mở từng file, tính lại expected bằng tay</td><td>Oracle tính lại expected cho mọi TC; người duyệt theo nhóm</td></tr>
+<tr><td>Đổi ngưỡng (tuổi, DTI)</td><td>Sửa giá trị biên trong từng file</td><td>TC biên neo theo tham số, tự dịch</td></tr>
+<tr><td>Chính sách con</td><td>Copy và sửa file, dễ lệch với chính sách tổng</td><td>Kế thừa + override; thay đổi ở chính sách tổng tự lan xuống</td></tr>
+<tr><td>Biết TC nào bị ảnh hưởng</td><td>Dựa vào kinh nghiệm người làm</td><td>Truy vấn DB + chạy lại Oracle, có danh sách cụ thể</td></tr>
+<tr><td>Thêm test case</td><td>Nghĩ lại từ đầu</td><td>Chỉ sinh cho rule / biên mới mà coverage báo thiếu</td></tr>
+<tr><td>Lịch sử, kiểm toán</td><td>Khó truy lại</td><td>Expected và kết quả chạy lưu theo phiên bản chính sách</td></tr>
+</tbody></table></div>
+
+<h3>8.7 Lược đồ DB gợi ý</h3>
+<div class="grid g2">
+  <div class="card schema"><b>Chính sách &amp; rule</b><pre>policy(policy_id, parent_id, name, valid_from, valid_to, status)
+policy_version(policy_id, version, doc_version, approved_at)
+parameter(policy_id, version, param_key, value, unit, source_clause)
+rule(rule_id, policy_id, version, rule_type, expr, op, source_clause)
+rule_dependency(rule_id, dep_type, dep_key)   -- FEATURE | PARAM
+feature(feature_id, xpath, data_type, domain, xsd_version)</pre></div>
+  <div class="card schema"><b>Test case</b><pre>test_case(tc_id, policy_id, purpose, technique, origin, status,
+          inherit_to_children)
+tc_input(tc_id, feature_id, value_expr, is_anchored)
+tc_coverage(tc_id, rule_id, role)  -- KNOCKOUT|BOUNDARY|BINDING
+expected_result(tc_id, policy_id, policy_version, decision,
+                approved_limit, binding, reason_codes,
+                computed_by, reviewed_by)</pre></div>
+  <div class="card schema"><b>Thay đổi</b><pre>change_set(change_id, policy_id, from_version, to_version)
+change_item(change_id, item_type, key, old_value, new_value,
+            propagated_to)
+tc_impact(change_id, tc_id, impact_class, old_expected,
+          new_expected, review_status, reviewer)</pre></div>
+  <div class="card schema"><b>Chạy test</b><pre>test_run(run_id, build, policy_id, policy_version, scope, started_at)
+run_result(run_id, tc_id, actual_decision, actual_limit,
+           actual_reasons, status, defect_id)</pre></div>
+</div>
+<details class="card" style="margin-top:10px"><summary style="cursor:pointer;font-weight:650">Ví dụ truy vấn: tham số hiệu lực của một chính sách con, và các TC bị ảnh hưởng</summary>
+<pre class="xml" style="max-height:none">-- Tham số hiệu lực = giá trị ở chính sách gần nhất trong chuỗi kế thừa
+WITH RECURSIVE chain AS (
+  SELECT policy_id, parent_id, 0 AS depth FROM policy WHERE policy_id = :pid
+  UNION ALL
+  SELECT p.policy_id, p.parent_id, c.depth + 1
+  FROM policy p JOIN chain c ON p.policy_id = c.parent_id
+)
+SELECT DISTINCT ON (pr.param_key) pr.param_key, pr.value, c.policy_id AS defined_at
+FROM chain c
+JOIN parameter pr ON pr.policy_id = c.policy_id AND pr.is_current
+ORDER BY pr.param_key, c.depth;
+
+-- Ứng viên bị ảnh hưởng bởi một change set (để chọn phạm vi chạy trên hệ thống)
+SELECT DISTINCT tc.tc_id
+FROM change_item ci
+JOIN rule_dependency rd ON rd.dep_key = ci.key
+JOIN tc_coverage cv     ON cv.rule_id = rd.rule_id
+JOIN test_case tc       ON tc.tc_id = cv.tc_id
+WHERE ci.change_id = :cid
+  AND tc.status = 'ACTIVE'
+  AND tc.policy_id = ANY (ci.propagated_to);</pre></details>
+</section>
+
+<section id="uunhuoc">
+<h2>9. Ưu và nhược điểm của AI Agent</h2>
+<p>AI agent mạnh ở việc đọc, hệ thống hoá và sinh khối lượng lớn; yếu ở độ chính xác tuyệt đối và tính tất định. Vì vậy quy trình đặt AI vào các bước đọc – thiết kế, còn bước tính toán và ra quyết định cuối giữ cho code và con người.</p>
+
+<h3>Ưu điểm</h3>
+<div class="grid g3">
+  <div class="card pro"><b>Nhanh hơn nhiều lần</b><p>Đọc văn bản dài, bóc bảng và công thức, sinh hàng trăm kịch bản và file XML trong thời gian ngắn thay vì nhiều ngày làm tay.</p></div>
+  <div class="card pro"><b>Độ phủ có hệ thống</b><p>Áp dụng đều đặn BVA, bảng quyết định, pairwise; ít bỏ sót tổ hợp, đặc biệt là kịch bản cho từng thành phần trong MIN của hạn mức.</p></div>
+  <div class="card pro"><b>Bắt lỗi yêu cầu sớm</b><p>Đối chiếu văn bản với rule của BA trước khi Dev code, phát hiện thiếu rule, lệch ngưỡng (≥ hay &gt;), lệch cách làm tròn.</p></div>
+  <div class="card pro"><b>Truy vết tự động</b><p>Mỗi kịch bản gắn rule và điều khoản nguồn, nên đo được coverage và truy nguyên nhân khi kết quả lệch.</p></div>
+  <div class="card pro"><b>Regression nhanh khi văn bản sửa đổi</b><p>So sánh Rule Catalog cũ và mới, chỉ sinh lại kịch bản bị ảnh hưởng thay vì làm lại toàn bộ.</p></div>
+  <div class="card pro"><b>Nhất quán, ít phụ thuộc cá nhân</b><p>Cách thiết kế kịch bản được chuẩn hoá thành quy trình; người mới vào dự án vẫn ra được bộ test đầy đủ.</p></div>
+</div>
+
+<h3>Nhược điểm, rủi ro và cách giảm thiểu</h3>
+<div class="tablewrap"><table class="cons">
+<thead><tr><th>Nhược điểm</th><th>Biểu hiện trong bài toán tín chấp</th><th>Cách giảm thiểu</th></tr></thead>
+<tbody>
+<tr><td><span class="pill bad">Ảo giác</span></td><td>Bịa ra ngưỡng hoặc rule không có trong văn bản; tự “điền” hệ số segment còn thiếu.</td><td>Bắt buộc trích dẫn điều khoản cho mọi rule; rule không có nguồn bị loại; BA + tester duyệt Rule Catalog.</td></tr>
+<tr><td><span class="pill bad">Diễn giải câu chữ</span></td><td>“Đến 60 tuổi”, “trên 6 tháng”, “không quá 50%” bị hiểu sai biên.</td><td>Đánh dấu AMBIGUOUS, đưa vào ambiguity log để BA/PO chốt; luôn có kịch bản BVA ở cả hai phía biên.</td></tr>
+<tr><td><span class="pill bad">Tính toán kém tin cậy</span></td><td>Tính nhẩm sai PV, sai thứ tự MIN, sai làm tròn → expected sai.</td><td>Expected chỉ do Oracle bằng code tính; LLM không được tự ghi con số kỳ vọng.</td></tr>
+<tr><td><span class="pill bad">Đọc bảng phức tạp</span></td><td>Bảng gộp ô, chú thích dưới bảng, PDF scan làm lệch cột hệ số.</td><td>Ưu tiên file Word gốc; A1 xuất lại bảng để người đối chiếu; OCR có kiểm tra lại.</td></tr>
+<tr><td><span class="pill bad">Không tất định</span></td><td>Hai lần chạy cùng văn bản cho ra bộ kịch bản khác nhau.</td><td>Cố định phiên bản model và prompt; lưu đầu ra mỗi bước có version; kịch bản đã duyệt là baseline.</td></tr>
+<tr><td><span class="pill bad">Lỗi đồng dạng</span></td><td>Cùng một cách hiểu sai lọt vào cả Rule Catalog lẫn Oracle nên kết quả “khớp” mà vẫn sai.</td><td>Oracle được tester review và unit test bằng ví dụ trong văn bản; spot-check tính tay; không copy logic từ code Dev.</td></tr>
+<tr><td><span class="pill bad">Thiếu ngữ cảnh ngầm</span></td><td>Không biết thông lệ nội bộ hoặc quy định liên quan nằm ở văn bản khác (VD quy định CIC chung).</td><td>Cung cấp thêm văn bản tham chiếu; BA bổ sung giả định vào Rule Catalog.</td></tr>
+<tr><td><span class="pill bad">Bảo mật dữ liệu</span></td><td>Văn bản nội bộ, nguy cơ đưa dữ liệu khách hàng thật vào prompt.</td><td>Chỉ dùng môi trường AI được ngân hàng phê duyệt; chỉ dùng dữ liệu giả lập.</td></tr>
+<tr><td><span class="pill bad">Chi phí thiết lập</span></td><td>Cần xây pipeline, prompt, template XML, oracle và quy trình review trước khi thấy lợi ích.</td><td>Bắt đầu với một sản phẩm và một nhóm rule; tái sử dụng template cho các sản phẩm sau.</td></tr>
+<tr><td><span class="pill bad">Phụ thuộc quá mức</span></td><td>Tester chỉ chạy bộ kịch bản được sinh, giảm tư duy khám phá các tình huống bất thường.</td><td>Duy trì phiên exploratory testing; tester được yêu cầu bổ sung kịch bản ngoài bộ AI sinh.</td></tr>
+</tbody></table></div>
+
+<div class="grid g2" style="margin-top:12px">
+  <div class="card"><h3 style="margin-top:0">Nên dùng khi</h3><ul class="tight">
+    <li>Văn bản dài, nhiều bảng tham số và thay đổi thường xuyên</li>
+    <li>Nhiều sản phẩm/segment cùng một khung rule</li>
+    <li>Cần bộ regression lớn và truy vết phục vụ kiểm toán</li>
+  </ul></div>
+  <div class="card"><h3 style="margin-top:0">Chưa nên dùng khi</h3><ul class="tight">
+    <li>Văn bản còn đang soạn, thay đổi từng ngày</li>
+    <li>Chưa có XSD / data dictionary ổn định</li>
+    <li>Không có người đủ nghiệp vụ để duyệt Rule Catalog</li>
+  </ul></div>
+</div>
+</section>
+
+<section id="kiemsoat">
+<h2>10. Kiểm soát rủi ro</h2>
+<div class="grid g2">
+  <div class="card"><h3>Độ chính xác</h3><ul class="tight">
+    <li>LLM chỉ trích xuất và thiết kế; mọi con số kỳ vọng do Oracle code tính.</li>
+    <li>Oracle có unit test từ ví dụ trong văn bản và spot-check thủ công của tester.</li>
+    <li>Oracle viết từ văn bản, không copy logic từ code của Dev.</li>
+  </ul></div>
+  <div class="card"><h3>Truy vết &amp; phiên bản</h3><ul class="tight">
+    <li>Mỗi rule có trích dẫn điều khoản nguồn.</li>
+    <li>Văn bản sửa đổi → diff Rule Catalog → chỉ sinh lại kịch bản bị ảnh hưởng (regression có chọn lọc).</li>
+  </ul></div>
+  <div class="card"><h3>Con người trong vòng lặp</h3><ul class="tight">
+    <li>Duyệt Rule Catalog trước khi sinh kịch bản.</li>
+    <li>BA/PO chốt các điểm mơ hồ; tester xác nhận phân loại defect.</li>
+  </ul></div>
+  <div class="card"><h3>Dữ liệu</h3><ul class="tight">
+    <li>Chỉ dùng dữ liệu giả lập; không đưa thông tin khách hàng thật vào prompt.</li>
+    <li>Văn bản nội bộ xử lý trên môi trường AI được ngân hàng phê duyệt.</li>
+  </ul></div>
+</div>
+</section>
+
+<footer>Tài liệu mô tả khái quát quy trình · Số liệu tham số và cấu trúc XML là minh hoạ, cần thay theo quy định và XSD thực tế.</footer>
+</div>
+
+<script>
+(function(){
+  var P = {
+    ageMin:22, ageMax:60, ageAtMaturityMax:65,
+    w:{casa:0.7, saving:1.0, declared:0.5}, declaredCap:20e6,
+    seg:{MASS:{k:10,dti:0.5,cap:200e6}, AFFLUENT:{k:15,dti:0.6,cap:500e6}, PRIORITY:{k:20,dti:0.7,cap:1000e6}},
+    productCap:1000e6, minLimit:10e6, round:1e6
+  };
+  var REASON = {
+    R01:'R01 – Tuổi ngoài khoảng 22–60', R02:'R02 – Tuổi tại tất toán > 65', R03:'R03 – Nhóm nợ CIC hiện tại > 1',
+    R04:'R04 – Có nợ xấu trong 36 tháng', R05:'R05 – Không có thu nhập ghi nhận', R06:'R06 – Vượt DTI tối đa', R07:'R07 – Hạn mức dưới mức tối thiểu'
+  };
+  var BIND = {HM_TN:'Thu nhập × K', HM_DSR:'Khả năng trả nợ', HM_SEG:'Trần segment', HM_SP:'Trần sản phẩm', HM_DN:'Số tiền đề nghị'};
+
+  function evaluate(x){
+    var r = [], s = P.seg[x.segment] || P.seg.MASS;
+    if (x.age < P.ageMin || x.age > P.ageMax) r.push('R01');
+    if (x.age + x.tenor/12 > P.ageAtMaturityMax + 1e-9) r.push('R02');
+    if (x.cic > 1) r.push('R03');
+    if (x.bad36) r.push('R04');
+    var tnCasa = x.casa * P.w.casa;
+    var tnTk = x.saving * (x.savingRate/100) / 12 * P.w.saving;
+    var tnKk = Math.min(x.declared, P.declaredCap) * P.w.declared;
+    var tn = tnCasa + tnTk + tnKk;
+    if (tn <= 0) r.push('R05');
+    var capacity = tn * s.dti - x.obligation;
+    if (tn > 0 && capacity <= 0) r.push('R06');
+    var i = x.rate/100/12, n = x.tenor;
+    var pv = capacity > 0 ? (i > 0 ? capacity * (1 - Math.pow(1+i, -n)) / i : capacity * n) : 0;
+    var parts = {HM_TN: Math.max(tn*s.k,0), HM_DSR: Math.max(pv,0), HM_SEG: s.cap, HM_SP: P.productCap, HM_DN: x.requested};
+    var minKey = 'HM_TN', minVal = Infinity, ties = [];
+    Object.keys(parts).forEach(function(k){ if (parts[k] < minVal - 0.5){ minVal = parts[k]; minKey = k; } });
+    Object.keys(parts).forEach(function(k){ if (Math.abs(parts[k]-minVal) < 0.5) ties.push(k); });
+    var limit = Math.floor(minVal / P.round) * P.round;
+    if (r.length === 0 && limit < P.minLimit) r.push('R07');
+    var ok = r.length === 0;
+    return {approved:ok, limit: ok ? limit : 0, rawLimit:limit, reasons:r, binding:ties,
+      tnCasa:tnCasa, tnTk:tnTk, tnKk:tnKk, tn:tn, capacity:capacity, parts:parts, seg:s};
+  }
+
+  var base = {age:35, tenor:36, cic:1, bad36:false, casa:25e6, saving:200e6, savingRate:5, declared:10e6, obligation:3e6, segment:'MASS', rate:18, requested:300e6};
+  function mk(id, tech, desc, o){ var x = Object.assign({}, base, o||{}); x.id = id; x.tech = tech; x.desc = desc; return x; }
+  var TCS = [
+    mk('TC01','EP','Khách hàng MASS chuẩn, đủ điều kiện'),
+    mk('TC02','BVA','Tuổi 21 – ngay dưới biên',{age:21}),
+    mk('TC03','BVA','Tuổi 22 – đúng biên dưới',{age:22}),
+    mk('TC04','BVA','Tuổi 60, kỳ hạn 60T → tất toán đúng 65',{age:60,tenor:60}),
+    mk('TC05','BVA','Tuổi 60, kỳ hạn 61T → tất toán > 65',{age:60,tenor:61}),
+    mk('TC06','Bảng QĐ','Tuổi 61, kỳ hạn 60T – trượt đồng thời R01, R02',{age:61,tenor:60}),
+    mk('TC07','EP','Nhóm nợ CIC hiện tại = 2',{cic:2}),
+    mk('TC08','EP','Có nợ xấu trong 36 tháng',{bad36:true}),
+    mk('TC09','Negative','Nghĩa vụ nợ hiện tại vượt DTI',{obligation:12e6}),
+    mk('TC10','Ràng buộc MIN','Hạn mức bị chặn bởi khả năng trả nợ',{obligation:8e6}),
+    mk('TC11','Ràng buộc MIN','Chỉ có thu nhập kê khai → chặn bởi TN × K',{casa:0,saving:0,declared:8e6,obligation:0}),
+    mk('TC12','BVA','Kê khai 60 tr → chỉ ghi nhận trần 20 tr',{casa:0,saving:0,declared:60e6,obligation:0}),
+    mk('TC13','Ràng buộc MIN','AFFLUENT → chặn bởi số tiền đề nghị',{segment:'AFFLUENT'}),
+    mk('TC14','Ràng buộc MIN','PRIORITY thu nhập cao → chặn bởi trần',{segment:'PRIORITY',casa:100e6,requested:1200e6}),
+    mk('TC15','BVA','Hạn mức đúng bằng mức tối thiểu 10 tr',{casa:0,saving:0,declared:2e6,obligation:0}),
+    mk('TC16','BVA','Hạn mức 9,5 tr → làm tròn 9 tr < tối thiểu',{casa:0,saving:0,declared:1.9e6,obligation:0}),
+    mk('TC17','Negative','Không có nguồn thu nào',{casa:0,saving:0,declared:0,obligation:0})
+  ];
+
+  function vnd(v){ return Math.round(v).toLocaleString('vi-VN'); }
+  function bindText(res){ return res.binding.map(function(k){return BIND[k];}).join(' = '); }
+
+  function toXml(x, res){
+    var e = res.approved ? 'APPROVED' : 'REJECTED';
+    return '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<!-- Expected: Decision=' + e + '; ApprovedLimit=' + res.limit + '; ' +
+      (res.approved ? 'BindingConstraint=' + res.binding.join('|') : 'ReasonCodes=' + res.reasons.join('|')) + ' -->\n' +
+    '<CreditApplication>\n' +
+    '  <ScenarioId>' + esc(x.id) + '</ScenarioId>\n' +
+    '  <Customer>\n    <Age>' + x.age + '</Age>\n    <Segment>' + x.segment + '</Segment>\n  </Customer>\n' +
+    '  <CreditBureau>\n    <CurrentDebtGroup>' + x.cic + '</CurrentDebtGroup>\n    <BadDebt36M>' + x.bad36 + '</BadDebt36M>\n    <MonthlyDebtObligation>' + x.obligation + '</MonthlyDebtObligation>\n  </CreditBureau>\n' +
+    '  <Income>\n    <CasaAvgInflow6M>' + x.casa + '</CasaAvgInflow6M>\n    <SavingBalance>' + x.saving + '</SavingBalance>\n    <SavingRate>' + x.savingRate + '</SavingRate>\n    <DeclaredIncome>' + x.declared + '</DeclaredIncome>\n  </Income>\n' +
+    '  <LoanRequest>\n    <Amount>' + x.requested + '</Amount>\n    <TenorMonths>' + x.tenor + '</TenorMonths>\n    <InterestRate>' + x.rate + '</InterestRate>\n  </LoanRequest>\n' +
+    '</CreditApplication>\n';
+  }
+  function esc(s){ return String(s).replace(/[<>&"']/g, function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c];}); }
+
+  // table
+  var tb = document.querySelector('#tcTable tbody');
+  TCS.forEach(function(tc, idx){
+    var res = evaluate(tc), tr = document.createElement('tr');
+    tr.innerHTML = '<td><b>' + tc.id + '</b></td><td><span class="pill tag">' + tc.tech + '</span></td><td>' + tc.desc + '</td>' +
+      '<td>' + (res.approved ? '<span class="pill ok">Phê duyệt</span>' : '<span class="pill bad">Từ chối</span>') + '</td>' +
+      '<td class="num">' + (res.approved ? vnd(res.limit) : '0') + '</td>' +
+      '<td>' + (res.approved ? bindText(res) : res.reasons.join(', ')) + '</td>';
+    tr.addEventListener('click', function(){ load(tc); document.querySelectorAll('#tcTable tr.sel').forEach(function(r){r.classList.remove('sel');}); tr.classList.add('sel'); });
+    tb.appendChild(tr);
+  });
+
+  var fields = ['id','age','tenor','cic','bad36','casa','saving','savingRate','declared','obligation','segment','rate','requested'];
+  function load(x){ fields.forEach(function(f){ document.getElementById(f).value = String(x[f]); }); render(); }
+  function read(){
+    var g = function(id){ return document.getElementById(id).value; };
+    var num = function(id){ var v = parseFloat(g(id)); return isNaN(v) ? 0 : v; };
+    return {id:g('id')||'TC_CUSTOM', age:num('age'), tenor:num('tenor'), cic:parseInt(g('cic'),10), bad36:g('bad36')==='true',
+      casa:num('casa'), saving:num('saving'), savingRate:num('savingRate'), declared:num('declared'), obligation:num('obligation'),
+      segment:g('segment'), rate:num('rate'), requested:num('requested')};
+  }
+  var current = null;
+  function render(){
+    var x = read(), res = evaluate(x); current = {x:x, res:res};
+    document.getElementById('decision').innerHTML = res.approved ? '<span class="pill ok" style="font-size:14px">PHÊ DUYỆT</span>' : '<span class="pill bad" style="font-size:14px">TỪ CHỐI</span>';
+    document.getElementById('limit').textContent = res.approved ? vnd(res.limit) + ' đ' : '';
+    document.getElementById('reasons').innerHTML = res.reasons.map(function(c){return '<div style="color:var(--bad);font-size:14px">• ' + REASON[c] + '</div>';}).join('');
+    var rows = [
+      ['TN từ CASA', res.tnCasa], ['TN từ tiết kiệm', res.tnTk], ['TN từ kê khai', res.tnKk], ['Tổng thu nhập ghi nhận', res.tn],
+      ['Khả năng trả thêm/tháng (DTI ' + Math.round(res.seg.dti*100) + '%)', res.capacity]
+    ];
+    var html = rows.map(function(r){ return '<span>' + r[0] + '</span><span>' + vnd(r[1]) + '</span>'; }).join('');
+    Object.keys(res.parts).forEach(function(k){
+      var b = res.binding.indexOf(k) >= 0 ? ' class="bind"' : '';
+      html += '<span' + b + '>' + k + ' · ' + BIND[k] + '</span><span' + b + '>' + vnd(res.parts[k]) + '</span>';
+    });
+    html += '<span><b>Hạn mức sau làm tròn</b></span><span><b>' + vnd(res.rawLimit) + '</b></span>';
+    document.getElementById('breakdown').innerHTML = html;
+    document.getElementById('xml').textContent = toXml(x, res);
+  }
+  fields.forEach(function(f){ var el = document.getElementById(f); el.addEventListener('input', render); el.addEventListener('change', render); });
+
+  function download(name, text, type){
+    var blob = new Blob([text], {type:type||'application/xml'}), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  document.getElementById('dlXml').addEventListener('click', function(){ download(current.x.id + '.xml', toXml(current.x, current.res)); });
+  document.getElementById('copyXml').addEventListener('click', function(){
+    var t = toXml(current.x, current.res), btn = this;
+    var done = function(){ btn.textContent = 'Đã sao chép'; setTimeout(function(){ btn.textContent = 'Sao chép XML'; }, 1500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, fallback); else fallback();
+    function fallback(){ var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); done(); }catch(e){} ta.remove(); }
+  });
+  document.getElementById('dlCsv').addEventListener('click', function(){
+    var lines = ['ScenarioId,Technique,Description,ExpectedDecision,ExpectedLimit,BindingOrReasons'];
+    TCS.forEach(function(tc){ var r = evaluate(tc);
+      lines.push([tc.id, tc.tech, '"' + tc.desc.replace(/"/g,'""') + '"', r.approved?'APPROVED':'REJECTED', r.limit, r.approved ? r.binding.join('|') : r.reasons.join('|')].join(','));
+    });
+    download('expected.csv', '\ufeff' + lines.join('\n'), 'text/csv;charset=utf-8');
+  });
+  document.getElementById('dlAllXml').addEventListener('click', function(){
+    var out = TCS.map(function(tc){ return '<!-- ===== ' + tc.id + ' ===== -->\n' + toXml(tc, evaluate(tc)).replace(/^<\?xml[^>]*>\n/, ''); }).join('\n');
+    download('all_scenarios.xml.txt', out, 'text/plain;charset=utf-8');
+  });
+
+  // theme toggle
+  document.getElementById('themeBtn').addEventListener('click', function(){
+    var root = document.documentElement, cur = root.getAttribute('data-theme');
+    var dark = cur ? cur === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    root.setAttribute('data-theme', dark ? 'light' : 'dark');
+  });
+
+  load(TCS[0]); tb.firstChild.classList.add('sel');
+})();
+</script>
+<script>
+(function(){
+  var ACT = {ai:'AI agent', human:'Con người', code:'Code tất định', sys:'Hệ thống', input:'Đầu vào', out:'Đầu ra', dec:'Quyết định'};
+  var D = {
+    n0:{t:'Tiếp nhận văn bản quy định', a:'input', act:'Đưa văn bản quy định cho vay tín chấp (phiên bản đang hiệu lực) vào pipeline.', i:'File Word/PDF: văn xuôi + bảng điều kiện, công thức, hệ số segment', o:'Văn bản gốc có mã phiên bản', art:['quy_dinh_v2026.docx'],
+      ex:'Điều 5.1. Khách hàng từ đủ 22 tuổi đến 60 tuổi tại thời\nđiểm đề nghị vay và không quá 65 tuổi tại thời điểm\ntất toán khoản vay.\nPhụ lục 2. Bảng hệ số và trần hạn mức theo segment...'},
+    n1:{t:'A1 · Bóc tách văn bản', a:'ai', act:'Tách chương/điều/khoản, nhận diện bảng và công thức, chuẩn hoá đơn vị (triệu, %, tháng).', i:'Văn bản gốc', o:'JSON cấu trúc, mỗi phần tử có clause_id và trích dẫn nguyên văn', art:['document.json'],
+      ex:'{ "clause_id": "D5.1", "type": "condition",\n  "quote": "từ đủ 22 tuổi đến 60 tuổi ..." }\n{ "clause_id": "PL2", "type": "table",\n  "headers": ["Segment","K","DTI","Trần"], "rows": 3 }'},
+    n2:{t:'A2 · Trích xuất Rule Catalog', a:'ai', act:'Chuyển nội dung thành rule có cấu trúc: loại rule, biểu thức, tham số, thứ tự áp dụng, nguồn điều khoản.', i:'document.json', o:'Rule Catalog v1.0 (YAML)', art:['rule_catalog_v1.0.yaml'],
+      ex:'- id: R01\n  type: knockout\n  expr: 22 <= age <= 60\n  source: D5.1\n- id: C_SEG\n  type: cap\n  expr: limit <= seg_cap[segment]\n  source: PL2'},
+    n2_rev:{t:'A2 · Cập nhật Rule Catalog', a:'ai', act:'Bổ sung rule theo kết luận của BA/PO, tăng version và ghi changelog.', i:'Ambiguity log đã chốt', o:'Rule Catalog v1.1', art:['rule_catalog_v1.1.yaml'],
+      ex:'+ id: R02\n+ type: knockout\n+ expr: age + tenor/12 <= 65\n+ source: D5.1\n+ decided_by: PO (AMB-01)'},
+    l1:{t:'Rule spec của BA', a:'input', act:'Tài liệu BA viết lại cho Dev: rule, bảng tham số, thứ tự tính.', i:'—', o:'BRD / rule spec', art:[], ex:'BRD-3.1  Tuổi KH: 22 ≤ tuổi ≤ 60\nBRD-5.2  HM ≤ trần theo segment\nBRD-5.4  Làm tròn xuống bội số 1 triệu'},
+    n3:{t:'A3 · Đối chiếu văn bản ↔ rule BA', a:'ai', act:'Ghép từng rule trích từ văn bản với rule tương ứng trong BRD; kiểm tra thiếu, thừa, lệch ngưỡng, lệch thứ tự MIN, lệch cách làm tròn.', i:'Rule Catalog + BRD của BA', o:'Bảng ghép rule và gap report', art:['gap_report.md'],
+      ex:'R01    ↔ BRD-3.1   so khớp ngưỡng 22..60\nR03    ↔ BRD-3.4   so khớp nhóm nợ\nC_SEG  ↔ BRD-5.2   so khớp trần\nF_ROUND↔ BRD-5.4   so khớp làm tròn'},
+    n3_rev:{t:'A3 · Đối chiếu lại', a:'ai', act:'Chạy lại đối chiếu sau khi Rule Catalog và BRD đã được cập nhật.', i:'Rule Catalog v1.1 + BRD đã sửa', o:'Gap report mới', art:['gap_report_v2.md'],
+      ex:'R02 ↔ BRD-3.2 (mới bổ sung)  ✔ khớp\nGap còn mở: 0'},
+    d1_no:{t:'Quyết định: không còn gap', a:'dec', act:'Mọi rule đều có cặp tương ứng và khớp ngưỡng; không còn điểm mơ hồ mở.', i:'Gap report', o:'Đi tiếp tới checkpoint', art:[], ex:'Rule: 12/12 khớp\nAMBIGUOUS mở: 0'},
+    d1_yes:{t:'Quyết định: phát hiện gap', a:'dec', act:'Văn bản có điều kiện tuổi tại thời điểm tất toán nhưng BRD không có rule tương ứng.', i:'Gap report', o:'Chuyển cho BA/PO làm rõ', art:[], ex:'GAP-01  D5.1 “không quá 65 tuổi tại thời điểm\n        tất toán” → BRD không có rule\nAMB-01  “đến 60 tuổi” là ≤60 hay <60?'},
+    r1:{t:'BA / PO làm rõ', a:'human', act:'Chốt cách hiểu cho từng điểm gap/mơ hồ, ghi vào ambiguity log; BA cập nhật BRD cho Dev.', i:'Gap report', o:'Ambiguity log đã chốt, BRD sửa đổi', art:['ambiguity_log.xlsx'],
+      ex:'AMB-01  “đến 60 tuổi” = tuổi ≤ 60\nGAP-01  Bổ sung R02: tuổi + kỳ hạn/12 ≤ 65\n        → BA thêm BRD-3.2, PO duyệt'},
+    n4:{t:'Checkpoint: duyệt Rule Catalog', a:'human', act:'BA và tester rà toàn bộ Rule Catalog, khoá thành baseline gắn với phiên bản văn bản.', i:'Rule Catalog + gap report', o:'Rule Catalog baseline', art:['rule_catalog_BASELINE'],
+      ex:'Baseline: rule_catalog v1.1\nVăn bản: quy_dinh_v2026\nDuyệt: BA ✔  Tester ✔'},
+    r2:{t:'XSD / Data dictionary', a:'input', act:'Định nghĩa cấu trúc XML đầu vào của hệ thống.', i:'—', o:'Danh mục tag, kiểu, enum', art:[], ex:'<xs:element name="Age" type="xs:int"/>\n<xs:element name="Segment">\n  <xs:enumeration value="MASS"/> ...'},
+    n5:{t:'A4 · Map rule sang data feature', a:'ai', act:'Gắn từng biến của rule với XPath trong XSD: kiểu dữ liệu, miền giá trị, đơn vị, feature dẫn xuất.', i:'Rule Catalog baseline + XSD', o:'Feature map', art:['feature_map.csv'],
+      ex:'age        → Customer/Age               int\ntenor      → LoanRequest/TenorMonths    int\ncic_group  → CreditBureau/CurrentDebtGroup 1..5\ncasa_6m    → Income/CasaAvgInflow6M     ≥ 0'},
+    n6:{t:'A5 · Thiết kế kịch bản', a:'ai', act:'Sinh ma trận kịch bản theo EP, BVA, bảng quyết định, pairwise, negative; mỗi kịch bản gắn rule được kiểm.', i:'Rule Catalog + feature map', o:'scenarios.json (chỉ giá trị đầu vào)', art:['scenarios.json'],
+      ex:'{ "id": "TC05", "tech": "BVA", "rules": ["R02"],\n  "age": 60, "tenor": 61, "segment": "MASS" }\n{ "id": "TC10", "tech": "MIN-binding",\n  "rules": ["F_DSR"], "obligation": 8000000 }'},
+    n6_rev:{t:'A5 · Bổ sung kịch bản', a:'ai', act:'Thêm kịch bản cho các lỗ hổng trong coverage report.', i:'Coverage report', o:'scenarios.json bản bổ sung', art:['scenarios_v2.json'],
+      ex:'+ TC12  BVA trần kê khai 20 tr (kê khai 60 tr)\n+ TC14  PRIORITY thu nhập cao → HM_SP ràng buộc'},
+    n7:{t:'Oracle tính kết quả kỳ vọng', a:'code', act:'Code sinh từ Rule Catalog chạy từng kịch bản: knock-out → thu nhập → DTI → các hạn mức thành phần → MIN → làm tròn.', i:'scenarios.json', o:'Expected: quyết định, hạn mức, rule ràng buộc, mã lý do', art:['expected.csv'],
+      ex:'TC10: TN = 23.333.333\n      Khả năng trả thêm = 3.666.667/tháng\n      HM_DSR ≈ 101,4 tr  (nhỏ nhất)\n      → APPROVED, HM = 101.000.000'},
+    r3:{t:'Tester spot-check', a:'human', act:'Chọn ngẫu nhiên vài kịch bản tính tay bằng Excel, so với Oracle.', i:'expected.csv', o:'Xác nhận Oracle đúng', art:[], ex:'Kiểm 3/17 kịch bản: TC01, TC10, TC16 ✔'},
+    n8:{t:'A6 · Dựng file XML', a:'ai', act:'Điền giá trị feature vào template XML, đặt tên theo mã kịch bản, validate với XSD.', i:'scenarios.json + template + XSD', o:'TC_xxx.xml', art:['xml/TC01..TC17.xml'],
+      ex:'<CreditApplication>\n  <ScenarioId>TC10</ScenarioId>\n  <Customer><Age>35</Age>\n    <Segment>MASS</Segment></Customer>\n  ...'},
+    d2_yes:{t:'Quyết định: đạt coverage', a:'dec', act:'Mọi file XML hợp lệ; mọi rule và mọi thành phần MIN đều có kịch bản.', i:'Kết quả validate + coverage report', o:'Sẵn sàng gửi', art:['coverage_report.html'], ex:'XSD: 17/17 hợp lệ\nRule có kịch bản: 12/12\nThành phần MIN là ràng buộc: 5/5'},
+    d2_no:{t:'Quyết định: chưa đạt coverage', a:'dec', act:'Coverage report chỉ ra rule/thành phần chưa có kịch bản.', i:'Coverage report', o:'Danh sách lỗ hổng', art:[], ex:'Thành phần MIN là ràng buộc: 4/5\n  ✖ HM_SP chưa có kịch bản\nBiên chưa phủ: trần kê khai 20 tr'},
+    l3:{t:'Lập danh sách bổ sung', a:'ai', act:'Chuyển từng lỗ hổng thành yêu cầu kịch bản cụ thể gửi lại A5.', i:'Danh sách lỗ hổng', o:'Yêu cầu bổ sung', art:[], ex:'NEED: HM_SP ràng buộc → segment PRIORITY,\n      thu nhập rất cao, đề nghị > 1 tỷ\nNEED: kê khai > 20 tr, không CASA/tiết kiệm'},
+    n9:{t:'Gửi XML vào hệ thống', a:'sys', act:'Gửi từng file XML vào API/MQ của engine phê duyệt mà Dev đã phát triển, lưu response.', i:'xml/*.xml', o:'Response của hệ thống', art:['responses/*.xml'], ex:'POST /credit/evaluate  × 17\nbuild: 1.4.2'},
+    n9_rev:{t:'Chạy lại sau khi Dev sửa', a:'sys', act:'Dev sửa lỗi, tester chạy lại kịch bản lỗi và bộ regression liên quan.', i:'Build mới', o:'Response mới', art:['responses_rerun/*.xml'], ex:'POST /credit/evaluate  × 17\nbuild: 1.4.3 (fix DEF-231)'},
+    n10:{t:'A7 · So sánh actual vs expected', a:'ai', act:'Parse response, so sánh quyết định, hạn mức, mã lý do của từng kịch bản.', i:'Response + expected.csv', o:'Bảng so sánh', art:['compare_report.csv'], ex:'17 kịch bản × 3 trường\n(Decision, ApprovedLimit, ReasonCodes)'},
+    n10_rev:{t:'A7 · So sánh lần chạy lại', a:'ai', act:'So sánh lại toàn bộ sau bản sửa.', i:'Response mới + expected.csv', o:'Bảng so sánh mới', art:['compare_report_rerun.csv'], ex:'TC10  101.000.000 = 101.000.000 ✔'},
+    d3_yes:{t:'Quyết định: tất cả khớp', a:'dec', act:'Không còn chênh lệch giữa kết quả hệ thống và kết quả kỳ vọng.', i:'Bảng so sánh', o:'Đóng gói test pack', art:[], ex:'Khớp: 17/17'},
+    d3_no:{t:'Quyết định: có kết quả lệch', a:'dec', act:'Một hoặc nhiều kịch bản cho kết quả khác kỳ vọng.', i:'Bảng so sánh', o:'Chuyển triage', art:[], ex:'TC10  Decision  APPROVED = APPROVED  ✔\n      Limit     101.000.000\n             vs 101.400.000          ✖'},
+    r4:{t:'A8 · Triage + Tester', a:'human', act:'Agent truy vết rule liên quan và đề xuất nguyên nhân; tester xác nhận và log defect cho đúng bên.', i:'Kịch bản lệch + truy vết', o:'Defect đã phân loại', art:['DEF-231'],
+      ex:'TC10 lệch 400.000 → rule F_ROUND (BRD-5.4:\nlàm tròn xuống 1 tr). Hệ thống chưa làm tròn.\n→ Lỗi code Dev · DEF-231'},
+    n11:{t:'Test pack hoàn chỉnh', a:'out', act:'Đóng gói toàn bộ đầu ra để lưu, review và dùng lại cho regression.', i:'Tất cả sản phẩm trước đó', o:'Bộ test pack có version', art:['test_pack_v2026.zip'],
+      ex:'xml/  expected.csv  rule_catalog  feature_map\ntraceability.xlsx  coverage_report  compare_report'}
+  };
+  var A  = [[null,'n0'],['e0','n1'],['e1','n2'],['e2','n3',['eL1','l1']]];
+  var GAP= [['e3','d1_yes'],['eD1y','r1'],['eR1loop','n2_rev'],['e2','n3_rev',['eL1','l1']]];
+  var B  = [['e3','d1_no'],['eD1n','n4'],['e4','n5',['eR2','r2']],['e5','n6'],['e6','n7',['eR3','r3']],['e7','n8']];
+  var COV= [['e8','d2_no'],['eD2n','l3'],['eL3loop','n6_rev'],['e6','n7'],['e7','n8']];
+  var C  = [['e8','d2_yes'],['eD2y','n9'],['e9','n10']];
+  var MIS= [['e10','d3_no'],['eD3n','r4'],['eR4loop','n9_rev'],['e9','n10_rev']];
+  var E  = [['e10','d3_yes'],['eD3y','n11']];
+  var SC = {
+    happy:{s:A.concat(B,C,E), d:'Văn bản và rule BA khớp nhau, kịch bản đủ coverage, hệ thống trả kết quả đúng ngay lần đầu.'},
+    gap:{s:A.concat(GAP,B,C,E), d:'A3 phát hiện BRD thiếu điều kiện tuổi tại thời điểm tất toán; BA/PO chốt, Rule Catalog lên v1.1 rồi đi tiếp.'},
+    coverage:{s:A.concat(B,COV,C,E), d:'Coverage report cho thấy chưa có kịch bản mà trần sản phẩm là ràng buộc; A5 bổ sung rồi dựng lại XML.'},
+    mismatch:{s:A.concat(B,C,MIS,E), d:'TC10 lệch hạn mức do hệ thống chưa làm tròn xuống; triage xác định lỗi code, Dev sửa, chạy lại khớp.'},
+    full:{s:A.concat(GAP,B,COV,C,MIS,E), d:'Đi qua cả ba vòng lặp: làm rõ rule, bổ sung coverage và sửa lỗi hệ thống.'}
+  };
+  var SPEED = {slow:{e:1100,p:1700}, mid:{e:700,p:1100}, fast:{e:380,p:550}};
+
+  var svg = document.getElementById('fSvg'), diag = document.getElementById('fDiag'), dot = document.getElementById('fDot');
+  var elScen = document.getElementById('fScen'), elSpeed = document.getElementById('fSpeed'), btnPlay = document.getElementById('fPlay');
+  var steps = SC.happy.s, idx = -1, playing = false, busy = false, timer = null, rafId = null;
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function info(k){ return D[k] || D[k.split('_')[0]]; }
+  function base(k){ return k.split('_')[0]; }
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+
+  function clearAll(){
+    diag.classList.remove('started');
+    svg.querySelectorAll('.node').forEach(function(n){ n.classList.remove('visited','active'); });
+    svg.querySelectorAll('.edge').forEach(function(e){
+      e.classList.remove('done');
+      if (e.hasAttribute('marker-end')) e.setAttribute('marker-end','url(#ah)');
+      if (e.hasAttribute('marker-start')) e.setAttribute('marker-start','url(#ah)');
+    });
+    dot.setAttribute('visibility','hidden');
+  }
+  function markEdge(id){
+    var e = $(id); if (!e) return; e.classList.add('done');
+    if (e.hasAttribute('marker-end')) e.setAttribute('marker-end','url(#ahA)');
+    if (e.hasAttribute('marker-start')) e.setAttribute('marker-start','url(#ahA)');
+  }
+  function markStep(st){
+    if (st[0]) markEdge(st[0]);
+    $(base(st[1])).classList.add('visited');
+    if (st[2]){ markEdge(st[2][0]); $(st[2][1]).classList.add('visited'); }
+  }
+  function setActive(st){
+    svg.querySelectorAll('.node.active').forEach(function(n){ n.classList.remove('active'); });
+    $(base(st[1])).classList.add('active');
+  }
+  function artifactsUpTo(i){
+    var list = [], seen = {};
+    for (var j = 0; j <= i; j++){ (info(steps[j][1]).art || []).forEach(function(a){ if(!seen[a]){ seen[a]=1; list.push([a, j===i]); } }); }
+    return list;
+  }
+  function panel(i){
+    var st = steps[i], d = info(st[1]);
+    $('fStepNo').textContent = 'Bước ' + (i+1) + ' / ' + steps.length;
+    $('fTitle').textContent = d.t;
+    $('fActor').innerHTML = '<span class="actor ' + d.a + '">' + ACT[d.a] + '</span>';
+    $('fBody').innerHTML = '<dl><dt>Hành động</dt><dd>' + esc(d.act) + '</dd><dt>Đầu vào</dt><dd>' + esc(d.i) + '</dd><dt>Đầu ra</dt><dd>' + esc(d.o) + '</dd><dt>Ví dụ</dt></dl><pre>' + esc(d.ex) + '</pre>';
+    var arts = artifactsUpTo(i);
+    $('fArtifacts').innerHTML = arts.length ? arts.map(function(a){ return '<span class="chip' + (a[1] ? ' new' : '') + '">' + esc(a[0]) + '</span>'; }).join('') : '<span class="chip muted">—</span>';
+    $('fBar').style.width = ((i+1)/steps.length*100) + '%';
+  }
+  function intro(){
+    $('fStepNo').textContent = 'Chưa bắt đầu · ' + steps.length + ' bước';
+    $('fTitle').textContent = 'Bấm ▶ Chạy để xem từng action';
+    $('fActor').innerHTML = '';
+    $('fBody').innerHTML = '<p style="color:var(--muted)">Mỗi bước cho biết ai thực hiện, làm gì, nhận đầu vào nào, tạo ra đầu ra nào, kèm một ví dụ cụ thể cho bài toán tín chấp.</p>';
+    $('fArtifacts').innerHTML = '<span class="chip muted">—</span>';
+    $('fBar').style.width = '0';
+  }
+  function focusNode(id){
+    var g = $(id); if (!g) return;
+    var bb = g.getBBox(), sc = svg.getBoundingClientRect().width / 1000;
+    diag.scrollTo({top: (bb.y + bb.height/2) * sc - diag.clientHeight/2, left: (bb.x + bb.width/2) * sc - diag.clientWidth/2, behavior: reduce ? 'auto' : 'smooth'});
+  }
+  function renderUpTo(i){
+    cancelAnim(); clearAll(); idx = i;
+    if (i < 0){ intro(); updateBtns(); return; }
+    diag.classList.add('started');
+    for (var j = 0; j <= i; j++) markStep(steps[j]);
+    setActive(steps[i]); panel(i); focusNode(base(steps[i][1])); updateBtns();
+  }
+  function cancelAnim(){ if (rafId) cancelAnimationFrame(rafId); rafId = null; busy = false; dot.setAttribute('visibility','hidden'); }
+  function animateEdge(id, dur, cb){
+    var p = $(id); if (!p || reduce){ cb(); return; }
+    var L = p.getTotalLength(), t0 = null; busy = true; dot.setAttribute('visibility','visible');
+    function f(ts){
+      if (t0 === null) t0 = ts;
+      var k = Math.min((ts - t0)/dur, 1), e = k<.5 ? 2*k*k : 1-Math.pow(-2*k+2,2)/2, pt = p.getPointAtLength(L*e);
+      dot.setAttribute('cx', pt.x); dot.setAttribute('cy', pt.y);
+      if (k < 1) rafId = requestAnimationFrame(f); else { rafId = null; busy = false; dot.setAttribute('visibility','hidden'); cb(); }
+    }
+    rafId = requestAnimationFrame(f);
+  }
+  function next(){
+    if (busy || idx >= steps.length - 1) return;
+    var i = idx + 1, st = steps[i], sp = SPEED[elSpeed.value];
+    diag.classList.add('started');
+    focusNode(base(st[1]));
+    var finish = function(){
+      markStep(st); setActive(st); idx = i; panel(i); updateBtns();
+      if (playing){ if (idx >= steps.length - 1) stop(); else timer = setTimeout(next, sp.p); }
+    };
+    if (st[0]) animateEdge(st[0], sp.e, finish); else finish();
+  }
+  function prev(){ stop(); if (idx > 0) renderUpTo(idx - 1); else renderUpTo(-1); }
+  function play(){
+    if (idx >= steps.length - 1) renderUpTo(-1);
+    playing = true; btnPlay.textContent = '⏸ Dừng'; next();
+  }
+  function stop(){ playing = false; clearTimeout(timer); btnPlay.textContent = '▶ Chạy'; }
+  function updateBtns(){
+    $('fPrev').disabled = idx < 0; $('fNext').disabled = idx >= steps.length - 1;
+    if (!playing) btnPlay.textContent = idx >= steps.length - 1 && idx >= 0 ? '↻ Chạy lại' : '▶ Chạy';
+  }
+  function setScenario(){
+    stop(); steps = SC[elScen.value].s; $('fScenDesc').textContent = SC[elScen.value].d; renderUpTo(-1);
+    diag.scrollTo({top:0,left:0});
+  }
+
+  btnPlay.addEventListener('click', function(){ if (playing) stop(); else play(); });
+  $('fNext').addEventListener('click', function(){ stop(); next(); });
+  $('fPrev').addEventListener('click', prev);
+  $('fReset').addEventListener('click', function(){ stop(); renderUpTo(-1); diag.scrollTo({top:0,left:0}); });
+  elScen.addEventListener('change', setScenario);
+  svg.querySelectorAll('.node').forEach(function(n){
+    n.addEventListener('click', function(){
+      stop();
+      var hit = -1;
+      for (var j = 0; j < steps.length; j++){ if (base(steps[j][1]) === n.id){ hit = j; if (j >= idx + 1) break; } }
+      if (hit >= 0) renderUpTo(hit);
+      else {
+        var d = info(n.id);
+        $('fStepNo').textContent = 'Không thuộc luồng đang chọn';
+        $('fTitle').textContent = d.t;
+        $('fActor').innerHTML = '<span class="actor ' + d.a + '">' + ACT[d.a] + '</span>';
+        $('fBody').innerHTML = '<dl><dt>Hành động</dt><dd>' + esc(d.act) + '</dd><dt>Ví dụ</dt></dl><pre>' + esc(d.ex) + '</pre><p style="color:var(--muted);font-size:13.5px">Chọn luồng khác (VD “Tổng hợp”) để thấy bước này trong quy trình.</p>';
+      }
+    });
+  });
+  document.addEventListener('keydown', function(ev){
+    var tag = (ev.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+    var r = $('flow').getBoundingClientRect(); if (r.bottom < 0 || r.top > window.innerHeight) return;
+    if (ev.key === 'ArrowRight'){ stop(); next(); ev.preventDefault(); }
+    else if (ev.key === 'ArrowLeft'){ prev(); ev.preventDefault(); }
+  });
+  setScenario();
+})();
+</script>
+<script>
+(function(){
+  var M0 = {ageMin:22, ageMax:60, ageAtMaturityMax:65, 'w.casa':0.7, 'w.saving':1, 'w.declared':0.5, declaredCap:20e6,
+    'seg.MASS.k':10, 'seg.MASS.dti':0.5, 'seg.MASS.cap':200e6, 'seg.AFFLUENT.k':15, 'seg.AFFLUENT.dti':0.6, 'seg.AFFLUENT.cap':500e6,
+    'seg.PRIORITY.k':20, 'seg.PRIORITY.dti':0.7, 'seg.PRIORITY.cap':1000e6, productCap:1000e6, minLimit:10e6, empMin:null};
+  var POL0 = {
+    MASTER:{name:'CS-TC-2026', parent:null, ov:{}},
+    LUONG:{name:'CS-TC-LUONG', parent:'MASTER', ov:{'w.casa':0.9, 'seg.MASS.k':12}},
+    PROMO:{name:'CS-TC-PROMO', parent:'MASTER', ov:{'seg.PRIORITY.cap':1500e6, productCap:1500e6}}
+  };
+  function clone(o){ return JSON.parse(JSON.stringify(o)); }
+  function chain(pol, P){ var c = []; for (var p = pol; p; p = P[p].parent) c.unshift(p); return c; }
+  function flat(pol, M, P){ var F = Object.assign({}, M); chain(pol, P).forEach(function(p){ Object.assign(F, P[p].ov); }); return F; }
+  function children(pol, P){ return Object.keys(P).filter(function(k){ return P[k].parent === pol; }); }
+
+  function ev(x, F){
+    var r = [], s = x.segment, k = F['seg.'+s+'.k'], dti = F['seg.'+s+'.dti'], cap = F['seg.'+s+'.cap'];
+    if (x.age < F.ageMin || x.age > F.ageMax) r.push('R01');
+    if (x.age + x.tenor/12 > F.ageAtMaturityMax + 1e-9) r.push('R02');
+    if (x.cic > 1) r.push('R03');
+    if (x.bad36) r.push('R04');
+    if (F.empMin != null && x.emp < F.empMin) r.push('R08');
+    var tn = x.casa*F['w.casa'] + x.saving*(x.savingRate/100)/12*F['w.saving'] + Math.min(x.declared, F.declaredCap)*F['w.declared'];
+    if (tn <= 0) r.push('R05');
+    var capa = tn*dti - x.obligation;
+    if (tn > 0 && capa <= 0) r.push('R06');
+    var i = x.rate/100/12, pv = capa > 0 ? capa*(1-Math.pow(1+i,-x.tenor))/i : 0;
+    var parts = {HM_TN:tn*k, HM_DSR:pv, HM_SEG:cap, HM_SP:F.productCap, HM_DN:x.requested};
+    var mn = Math.min.apply(null, Object.keys(parts).map(function(q){ return parts[q]; }));
+    var lim = Math.floor(mn/1e6)*1e6;
+    if (!r.length && lim < F.minLimit) r.push('R07');
+    return {ok:!r.length, limit:r.length ? 0 : lim, reasons:r};
+  }
+  var BASE = {age:35, tenor:36, cic:1, bad36:false, casa:25e6, saving:200e6, savingRate:5, declared:10e6, obligation:3e6, segment:'MASS', rate:18, requested:300e6};
+  function T(id, pol, desc, o){ return {id:id, pol:pol, desc:desc, inp:Object.assign({}, BASE, o || {})}; }
+  var kw = function(F){ return F['seg.MASS.k']*F['w.declared']; };
+  var TCS = [
+    T('TC01','MASTER','MASS chuẩn'),
+    T('TC02','MASTER','Tuổi = biên dưới − 1',{age:function(F){return F.ageMin-1;}}),
+    T('TC03','MASTER','Tuổi = biên dưới',{age:function(F){return F.ageMin;}}),
+    T('TC04','MASTER','Tuổi tối đa, tất toán đúng biên',{age:function(F){return F.ageMax;}, tenor:function(F){return (F.ageAtMaturityMax-F.ageMax)*12;}}),
+    T('TC05','MASTER','Tuổi tối đa, tất toán vượt 1 tháng',{age:function(F){return F.ageMax;}, tenor:function(F){return (F.ageAtMaturityMax-F.ageMax)*12+1;}}),
+    T('TC06','MASTER','Tuổi tối đa + 1',{age:function(F){return F.ageMax+1;}, tenor:60}),
+    T('TC07','MASTER','Nhóm nợ CIC 2',{cic:2}),
+    T('TC08','MASTER','Nợ xấu 36 tháng',{bad36:true}),
+    T('TC09','MASTER','Vượt DTI',{obligation:12e6}),
+    T('TC10','MASTER','Ràng buộc khả năng trả nợ',{obligation:8e6}),
+    T('TC11','MASTER','Chỉ kê khai → TN × K',{casa:0,saving:0,declared:8e6,obligation:0}),
+    T('TC12','MASTER','Kê khai vượt trần ghi nhận',{casa:0,saving:0,obligation:0,declared:function(F){return F.declaredCap*3;}}),
+    T('TC13','MASTER','AFFLUENT → số tiền đề nghị',{segment:'AFFLUENT'}),
+    T('TC14','MASTER','PRIORITY → trần',{segment:'PRIORITY',casa:100e6,requested:1200e6}),
+    T('TC15','MASTER','HM đúng mức tối thiểu',{casa:0,saving:0,obligation:0,declared:function(F){return F.minLimit/kw(F);}}),
+    T('TC16','MASTER','HM ngay dưới mức tối thiểu',{casa:0,saving:0,obligation:0,declared:function(F){return (F.minLimit-0.5e6)/kw(F);}}),
+    T('TC17','MASTER','Không có thu nhập',{casa:0,saving:0,declared:0,obligation:0}),
+    T('L01','LUONG','MASS nhận lương, chuẩn'),
+    T('L02','LUONG','Chỉ có lương qua CASA',{casa:15e6,saving:0,declared:0,obligation:0}),
+    T('L03','LUONG','AFFLUENT nhận lương',{segment:'AFFLUENT'}),
+    T('L04','LUONG','Ràng buộc khả năng trả nợ',{obligation:8e6}),
+    T('P01','PROMO','PRIORITY, đề nghị 1,5 tỷ',{segment:'PRIORITY',casa:100e6,requested:1500e6}),
+    T('P02','PROMO','PRIORITY, thu nhập trung bình',{segment:'PRIORITY',casa:60e6,requested:1200e6}),
+    T('P03','PROMO','AFFLUENT trong CS ưu đãi',{segment:'AFFLUENT',requested:600e6})
+  ];
+  var CH = [
+    {label:'Chính sách tổng: trần hạn mức MASS 200 tr → 250 tr', target:'MASTER', type:'PARAM', key:'seg.MASS.cap', val:250e6},
+    {label:'Chính sách tổng: hệ số K (MASS) 10 → 11', target:'MASTER', type:'PARAM', key:'seg.MASS.k', val:11},
+    {label:'Chính sách tổng: tuổi tối đa 60 → 62', target:'MASTER', type:'PARAM', key:'ageMax', val:62},
+    {label:'Chính sách tổng: tỷ lệ ghi nhận thu nhập kê khai 50% → 40%', target:'MASTER', type:'PARAM', key:'w.declared', val:0.4},
+    {label:'Chính sách con Lương: hệ số K (MASS) 12 → 14', target:'LUONG', type:'PARAM', key:'seg.MASS.k', val:14},
+    {label:'Chính sách tổng: thêm R08 – thời gian công tác ≥ 12 tháng (feature mới)', target:'MASTER', type:'RULE_ADD', key:'empMin', val:12, feature:'Customer/EmploymentMonths', dflt:24,
+      newTcs:[T('N01','MASTER','R08 biên dưới − 1',{emp:function(F){return F.empMin-1;}}), T('N02','MASTER','R08 đúng biên',{emp:function(F){return F.empMin;}})]},
+    {label:'Chính sách con Promo hết hiệu lực', target:'PROMO', type:'RETIRE'}
+  ];
+  var CAT = {
+    KEEP:{l:'Giữ nguyên', c:'ic-keep'}, EXP:{l:'Cập nhật expected', c:'ic-exp'}, SHIFT:{l:'Dịch biên', c:'ic-shift'},
+    FEAT:{l:'Bổ sung feature', c:'ic-feat'}, NEW:{l:'TC mới', c:'ic-new'}, OBS:{l:'Lỗi thời', c:'ic-obs'}, OUT:{l:'Ngoài phạm vi', c:'ic-out'}
+  };
+  var ORDER = ['NEW','FEAT','SHIFT','EXP','OBS','KEEP','OUT'];
+  var LBL = {age:'tuổi', tenor:'kỳ hạn', declared:'kê khai', emp:'tháng công tác'};
+
+  function fmtP(key, v){
+    if (v == null) return '—';
+    if (/cap|Cap|minLimit/.test(key)) return (v/1e6).toLocaleString('vi-VN') + ' tr';
+    if (/^w\.|dti/.test(key)) return Math.round(v*100) + '%';
+    return String(v);
+  }
+  function fmtV(k, v){ return (k === 'declared') ? (Math.round(v/1e5)/10).toLocaleString('vi-VN') + ' tr' : String(v); }
+  function res(r){ return r.ok ? 'Duyệt ' + (r.limit/1e6).toLocaleString('vi-VN') + ' tr' : 'Từ chối ' + r.reasons.join(', '); }
+  function mat(tc, F, ch){
+    var x = {}, added = false;
+    Object.keys(tc.inp).forEach(function(k){ var v = tc.inp[k]; x[k] = typeof v === 'function' ? v(F) : v; });
+    if (F.empMin != null && x.emp == null){ x.emp = ch && ch.dflt != null ? ch.dflt : 24; added = true; }
+    return {x:x, added:added};
+  }
+  function affected(ch, P){
+    var out = [];
+    (function walk(p, first){
+      if (!first && ch.type === 'PARAM' && Object.prototype.hasOwnProperty.call(P[p].ov, ch.key)) return;
+      out.push(p); children(p, P).forEach(function(c){ walk(c, false); });
+    })(ch.target, true);
+    return out;
+  }
+  function blocked(ch, P){
+    if (ch.type !== 'PARAM') return [];
+    var b = [];
+    (function walk(p){ children(p, P).forEach(function(c){ if (Object.prototype.hasOwnProperty.call(P[c].ov, ch.key)) b.push(c); else walk(c); }); })(ch.target);
+    return b;
+  }
+  function analyze(ch){
+    var M1 = clone(M0), P1 = clone(POL0);
+    if (ch.type === 'PARAM' || ch.type === 'RULE_ADD'){ if (ch.target === 'MASTER') M1[ch.key] = ch.val; else P1[ch.target].ov[ch.key] = ch.val; }
+    var aff = affected(ch, POL0), rows = [];
+    TCS.forEach(function(tc){
+      var Fo = flat(tc.pol, M0, POL0), Fn = flat(tc.pol, M1, P1);
+      var o = mat(tc, Fo), n = mat(tc, Fn, ch), ro = ev(o.x, Fo), rn = ev(n.x, Fn);
+      var diff = Object.keys(n.x).filter(function(k){ return o.x[k] !== n.x[k]; }).map(function(k){
+        return (LBL[k] || k) + ' ' + (o.x[k] == null ? '∅' : fmtV(k, o.x[k])) + ' → ' + fmtV(k, n.x[k]);
+      });
+      var cat;
+      if (aff.indexOf(tc.pol) < 0) cat = 'OUT';
+      else if (ch.type === 'RETIRE') cat = 'OBS';
+      else if (n.added) cat = 'FEAT';
+      else if (diff.length) cat = 'SHIFT';
+      else if (res(ro) !== res(rn)) cat = 'EXP';
+      else cat = 'KEEP';
+      rows.push({id:tc.id, pol:POL0[tc.pol].name, desc:tc.desc, cat:cat, diff:(cat === 'OUT' || cat === 'OBS') ? [] : diff, eo:res(ro), en:cat === 'OUT' ? '(không chạy lại)' : cat === 'OBS' ? '—' : res(rn)});
+    });
+    (ch.newTcs || []).forEach(function(tc){
+      var Fn = flat(tc.pol, M1, P1), n = mat(tc, Fn, ch);
+      rows.push({id:tc.id, pol:POL0[tc.pol].name, desc:tc.desc, cat:'NEW', diff:['tháng công tác = ' + n.x.emp], eo:'—', en:res(ev(n.x, Fn))});
+    });
+    var set = [];
+    if (ch.type === 'PARAM'){
+      var Fo = flat(ch.target, M0, POL0);
+      set.push('PARAM_CHANGED  ' + ch.key + '  @' + POL0[ch.target].name + ':  ' + fmtP(ch.key, Fo[ch.key]) + ' → ' + fmtP(ch.key, ch.val));
+    } else if (ch.type === 'RULE_ADD'){
+      set.push('RULE_ADDED     R08: emp_months >= ' + ch.val + '  @' + POL0[ch.target].name);
+      set.push('FEATURE_ADDED  ' + ch.feature + '  (mặc định cho TC cũ: ' + ch.dflt + ')');
+    } else {
+      set.push('POLICY_RETIRED ' + POL0[ch.target].name + '  (valid_to đã qua)');
+    }
+    var down = aff.filter(function(p){ return p !== ch.target; }).map(function(p){ return POL0[p].name; });
+    if (down.length) set.push('Lan truyền tới:  ' + down.join(', '));
+    var bl = blocked(ch, POL0).map(function(p){ return POL0[p].name; });
+    if (bl.length) set.push('Không lan tới:   ' + bl.join(', ') + '  (đã override ' + ch.key + ')');
+    if (!down.length && !bl.length && ch.target !== 'MASTER') set.push('Phạm vi:         chỉ ' + POL0[ch.target].name);
+    return {rows:rows, set:set};
+  }
+  var sel = document.getElementById('impChange'), hide = document.getElementById('impHide');
+  CH.forEach(function(c, i){ var o = document.createElement('option'); o.value = i; o.textContent = c.label; sel.appendChild(o); });
+  function esc(s){ return String(s).replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+  function render(){
+    var a = analyze(CH[+sel.value]), cnt = {};
+    a.rows.forEach(function(r){ cnt[r.cat] = (cnt[r.cat] || 0) + 1; });
+    document.getElementById('impSet').textContent = a.set.join('\n');
+    var total = a.rows.filter(function(r){ return r.cat !== 'NEW'; }).length;
+    var bulk = a.rows.filter(function(r){ return r.cat === 'FEAT' && r.eo === r.en; }).length;
+    var review = a.rows.filter(function(r){ return ['EXP','SHIFT','OBS','NEW'].indexOf(r.cat) >= 0 || (r.cat === 'FEAT' && r.eo !== r.en); }).length;
+    var html = '<div class="chips" style="margin-top:10px">' + ORDER.filter(function(c){ return cnt[c]; }).map(function(c){
+      return '<span class="ic ' + CAT[c].c + '">' + CAT[c].l + ': ' + cnt[c] + '</span>'; }).join('') + '</div>';
+    html += '<p style="margin:8px 0 0;font-size:14.5px">Trên ' + total + ' TC hiện có: <b>' + review + '</b> mục cần người duyệt' +
+      (cnt.NEW ? ' (gồm ' + cnt.NEW + ' TC mới)' : '') + '.' +
+      (bulk ? ' <b>' + bulk + '</b> TC được điền giá trị mặc định cho feature mới hàng loạt, expected không đổi, chỉ cần duyệt một lần cho cả nhóm.' : '') +
+      ' Giá trị input và expected của mọi mục đều đã được tính sẵn; phần còn lại không cần đụng tới.</p>';
+    document.getElementById('impSum').innerHTML = html;
+    var rows = a.rows.slice().sort(function(x, y){ return ORDER.indexOf(x.cat) - ORDER.indexOf(y.cat); });
+    if (hide.checked) rows = rows.filter(function(r){ return r.cat !== 'KEEP' && r.cat !== 'OUT'; });
+    document.querySelector('#impTable tbody').innerHTML = rows.map(function(r){
+      var changed = r.eo !== r.en && r.cat !== 'OUT' && r.cat !== 'OBS' && r.cat !== 'NEW';
+      return '<tr class="' + (r.cat === 'OUT' ? 'dim' : '') + '"><td><b>' + r.id + '</b><div style="font-size:12.5px;color:var(--muted)">' + esc(r.desc) + '</div></td>' +
+        '<td style="font-size:13px">' + r.pol + '</td><td><span class="ic ' + CAT[r.cat].c + '">' + CAT[r.cat].l + '</span></td>' +
+        '<td style="font-size:13px">' + (r.diff.length ? r.diff.map(esc).join('<br>') : '<span style="color:var(--muted)">—</span>') + '</td>' +
+        '<td style="font-size:13px">' + r.eo + '</td><td style="font-size:13px' + (changed ? ';font-weight:700;color:var(--accent)' : '') + '">' + r.en + '</td></tr>';
+    }).join('');
+  }
+  sel.addEventListener('change', render); hide.addEventListener('change', render);
+  render();
+})();
+</script>
+</body>
+</html>
