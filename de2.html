@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tóm tắt AI Test Case</title>
+<style>
+:root{
+  --bg:#f5f6f8; --surface:#fff; --surface-2:#f0f2f5; --text:#18202b; --muted:#5b6675; --border:#dfe3e9; --accent:#1f5fbf;
+  --ai:#2563c9; --ai-bg:#e8effc; --hu:#b26a00; --hu-bg:#fdf2df; --co:#1d7a4c; --co-bg:#e2f4ea; --sy:#9a3b3b; --sy-bg:#f9e9e9;
+  --p1:#2563c9; --p2:#6a3fb5; --p3:#0f7a80; --p4:#b26a00;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 4px 14px rgba(16,24,40,.06);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f1318; --surface:#171c23; --surface-2:#1e252e; --text:#e6ebf1; --muted:#9aa6b5; --border:#2c3540; --accent:#7fb0ff;
+  --ai:#86b4ff; --ai-bg:#1a2a42; --hu:#f0b75a; --hu-bg:#3a2c14; --co:#6fd3a0; --co-bg:#163327; --sy:#f09a9a; --sy-bg:#3a1f1f;
+  --p1:#86b4ff; --p2:#b99af0; --p3:#6fd0d6; --p4:#f0b75a; --shadow:none;}}
+:root[data-theme="dark"]{
+  --bg:#0f1318; --surface:#171c23; --surface-2:#1e252e; --text:#e6ebf1; --muted:#9aa6b5; --border:#2c3540; --accent:#7fb0ff;
+  --ai:#86b4ff; --ai-bg:#1a2a42; --hu:#f0b75a; --hu-bg:#3a2c14; --co:#6fd3a0; --co-bg:#163327; --sy:#f09a9a; --sy-bg:#3a1f1f;
+  --p1:#86b4ff; --p2:#b99af0; --p3:#6fd0d6; --p4:#f0b75a; --shadow:none;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 16px 48px}
+.top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700}
+h1{font-size:clamp(23px,3.6vw,32px);line-height:1.25;margin:4px 0 8px}
+.lead{color:var(--muted);margin:0;max-width:760px;font-size:16px}
+h2{font-size:19px;margin:34px 0 4px}
+.h2sub{color:var(--muted);margin:0 0 14px;font-size:14.5px}
+button{font:inherit;font-size:13.5px;padding:7px 12px;border-radius:8px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer;white-space:nowrap}
+button.solid{background:var(--accent);color:var(--surface)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow)}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.g4{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+
+/* glossary */
+.gloss{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.gloss span{font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:4px 12px}
+.gloss b{color:var(--accent)}
+
+/* actors */
+.actors{display:flex;flex-wrap:wrap;gap:8px 16px;margin:0 0 14px;font-size:13.5px;color:var(--muted)}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;border:1.5px solid;white-space:nowrap}
+.t-ai{color:var(--ai);background:var(--ai-bg);border-color:var(--ai)}
+.t-hu{color:var(--hu);background:var(--hu-bg);border-color:var(--hu)}
+.t-co{color:var(--co);background:var(--co-bg);border-color:var(--co)}
+.t-sy{color:var(--sy);background:var(--sy-bg);border-color:var(--sy)}
+
+/* flow */
+.flowbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.flowbar .hint{font-size:13px;color:var(--muted)}
+.phases{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px;position:relative}
+@media (max-width:1000px){.phases{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){.phases{grid-template-columns:1fr}}
+.phase{background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);overflow:visible;position:relative;display:flex;flex-direction:column}
+.phase .ph{padding:14px 16px 12px;border-radius:16px 16px 0 0;color:#fff;position:relative}
+.phase .ph .no{font-size:11.5px;font-weight:700;letter-spacing:.08em;opacity:.9}
+.phase .ph h3{margin:2px 0 0;font-size:17px;display:flex;align-items:center;gap:8px;color:#fff}
+.phase .ph p{margin:4px 0 0;font-size:13px;opacity:.92}
+.phase .ph svg{width:22px;height:22px;flex:0 0 22px}
+.ph1 .ph{background:linear-gradient(135deg,#2563c9,#3b82f6)}
+.ph2 .ph{background:linear-gradient(135deg,#6a3fb5,#8b5cf6)}
+.ph3 .ph{background:linear-gradient(135deg,#0f7a80,#14a3a9)}
+.ph4 .ph{background:linear-gradient(135deg,#b26a00,#e08e0b)}
+.ph4{border-style:dashed;border-width:2px;border-color:var(--p4)}
+.phase:not(:last-child)::after{content:"";position:absolute;right:-18px;top:34px;width:14px;height:14px;border-top:3px solid var(--muted);border-right:3px solid var(--muted);transform:rotate(45deg);opacity:.55}
+@media (max-width:1000px){.phase:nth-child(2)::after{display:none}}
+@media (max-width:620px){.phase:not(:last-child)::after{display:block;right:auto;left:50%;top:auto;bottom:-17px;transform:translateX(-50%) rotate(135deg)}}
+.steps{list-style:none;margin:0;padding:12px 14px 14px;display:flex;flex-direction:column;gap:0;flex:1}
+.step{display:grid;grid-template-columns:34px 1fr;gap:10px;position:relative;padding:8px 6px;border-radius:10px;transition:background .3s ease,opacity .3s ease,transform .3s ease}
+.step:not(:last-child)::before{content:"";position:absolute;left:22px;top:42px;bottom:-8px;width:2px;background:var(--border)}
+.step .ic{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);border:2px solid var(--border);color:var(--muted);position:relative;z-index:1;transition:all .3s ease}
+.step .ic svg{width:17px;height:17px}
+.step .num{position:absolute;top:-6px;right:-7px;background:var(--surface);border:1px solid var(--border);border-radius:999px;font-size:10px;font-weight:700;padding:0 5px;color:var(--muted)}
+.step b{display:block;font-size:14.5px;line-height:1.35}
+.step p{margin:3px 0 5px;font-size:13.2px;color:var(--muted)}
+.step.check{background:var(--hu-bg)}
+.step.check .ic{border-color:var(--hu);color:var(--hu)}
+.ph1 .step .ic{color:var(--p1)} .ph2 .step .ic{color:var(--p2)} .ph3 .step .ic{color:var(--p3)} .ph4 .step .ic{color:var(--p4)}
+.ph1 .step.check .ic,.ph2 .step.check .ic,.ph3 .step.check .ic,.ph4 .step.check .ic{color:var(--hu)}
+.loop{margin:0 14px 14px;font-size:12.5px;color:var(--muted);border-top:1px dashed var(--border);padding-top:8px;display:flex;gap:6px;align-items:flex-start}
+.loop svg{width:15px;height:15px;flex:0 0 15px;margin-top:2px}
+/* playback */
+.playing .step{opacity:.35}
+.playing .step.on{opacity:1}
+.step.now{background:var(--ai-bg);transform:scale(1.02)}
+.step.now .ic{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 18%,transparent)}
+.outcome{margin-top:18px;display:flex;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--border);border-left:5px solid var(--co);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow)}
+.outcome svg{width:30px;height:30px;color:var(--co);flex:0 0 30px}
+.outcome b{display:block;font-size:15.5px}
+.outcome span{font-size:14px;color:var(--muted)}
+
+/* example */
+.ex{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:14px}
+@media (max-width:760px){.ex{grid-template-columns:1fr}}
+.profile dl{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;margin:8px 0 0;font-size:14px}
+.profile dt{color:var(--muted)}
+.profile dd{margin:0;font-weight:600}
+.answer .verdict{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.answer .verdict .big{font-size:26px;font-weight:800;color:var(--co)}
+.bars{margin-top:10px;display:flex;flex-direction:column;gap:9px}
+.bar{display:grid;grid-template-columns:150px 1fr 70px;gap:10px;align-items:center;font-size:13.5px}
+@media (max-width:480px){.bar{grid-template-columns:110px 1fr 58px;font-size:12.5px}}
+.bar .track{height:14px;background:var(--surface-2);border-radius:999px;overflow:hidden}
+.bar .fill{height:100%;border-radius:999px;background:color-mix(in srgb,var(--muted) 55%,transparent)}
+.bar.min .fill{background:var(--co)}
+.bar.min{font-weight:700}
+.bar .v{text-align:right;font-variant-numeric:tabular-nums}
+.why{font-size:13.5px;color:var(--muted);margin-top:10px}
+
+/* lists */
+.pros h3,.cons h3{margin:0 0 6px;font-size:16px}
+.pros{border-top:4px solid var(--co)} .cons{border-top:4px solid var(--sy)}
+ul{margin:4px 0 0;padding-left:18px} li{margin:5px 0;font-size:14.5px}
+.cons li span{display:block;color:var(--muted);font-size:13.5px}
+.mini h4{margin:0 0 4px;font-size:15px}
+.mini p{margin:0;font-size:14px;color:var(--muted)}
+footer{margin-top:30px;font-size:13px;color:var(--muted);border-top:1px solid var(--border);padding-top:10px}
+footer a{color:var(--accent)}
+@media (prefers-reduced-motion: reduce){.step,.step .ic{transition:none}.step.now{transform:none}}
+@media print{button,.flowbar .hint{display:none}body{background:#fff}.wrap{padding:0}.card,.phase,.outcome{break-inside:avoid;box-shadow:none}.playing .step{opacity:1}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6"/><path d="m20 20-4.2-4.2"/></symbol>
+    <symbol id="i-compare" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M17 4v16"/><path d="M3 8h8M13 16h8"/><path d="m9 6 2 2-2 2M15 14l-2 2 2 2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.4 3.4-5.5 6.5-5.5s5.7 2.1 6.5 5.5"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14.5c2.3.2 4 1.9 4.5 4.5"/></symbol>
+    <symbol id="i-calc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15v3M8 18h.01M12 18h.01"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 10 14"/><path d="M21 3 14 21l-4-7-7-4z"/></symbol>
+    <symbol id="i-scale" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M7 21h10M5 7h14"/><path d="m5 7-3 6a3 3 0 0 0 6 0zM19 7l-3 6a3 3 0 0 0 6 0z"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.8-.7-.7-2.8z"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.5-4.5L4 8"/><path d="M4 3v5h5"/><path d="M4 13a8 8 0 0 0 14.5 4.5L20 16"/><path d="M20 21v-5h-5"/></symbol>
+    <symbol id="i-diff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M6 8.5v7M8.3 7.2 15.7 11M8.3 16.8l7.4-3.8"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></symbol>
+    <symbol id="i-loop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 21h8M9 17h6"/></symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+<div class="top">
+  <div>
+    <div class="eyebrow">Tóm tắt cho khối kinh doanh · Cho vay tín chấp</div>
+    <h1>Dùng AI để kiểm tra hệ thống phê duyệt tín chấp có làm đúng chính sách</h1>
+    <p class="lead">Mỗi khi ngân hàng ban hành hoặc sửa chính sách cho vay tín chấp, hệ thống phê duyệt phải được kiểm tra xem có <b>duyệt đúng người, đúng hạn mức</b> hay không. Cách làm mới để AI hỗ trợ phần việc tốn công nhất, còn con người giữ quyền xác nhận.</p>
+  </div>
+  <button id="th" type="button">Sáng / Tối</button>
+</div>
+<div class="gloss">
+  <span><b>Tình huống kiểm thử</b> = một hồ sơ khách hàng giả định</span>
+  <span><b>Đáp án đúng</b> = kết quả mà hệ thống phải trả ra theo chính sách</span>
+  <span><b>Bộ kiểm tra lặp lại</b> = các tình huống chạy lại mỗi lần có thay đổi</span>
+</div>
+
+<h2>Quy trình 4 giai đoạn</h2>
+<p class="h2sub">Bấm “Xem quy trình chạy” để đi qua từng bước.</p>
+<div class="actors">
+  <span>Ai thực hiện:</span>
+  <span class="tag t-ai">AI</span><span class="tag t-hu">Con người</span><span class="tag t-co">Máy tính theo công thức</span><span class="tag t-sy">Hệ thống ngân hàng</span>
+</div>
+<div class="flowbar">
+  <button class="solid" id="play" type="button">▶ Xem quy trình chạy</button>
+  <span class="hint" id="hint">12 bước · khoảng 15 giây</span>
+</div>
+
+<div class="phases" id="phases">
+  <section class="phase ph1">
+    <div class="ph"><div class="no">GIAI ĐOẠN 1</div><h3><svg><use href="#i-doc"/></svg>Hiểu đúng chính sách</h3><p>Biến văn bản thành bộ quy tắc rõ ràng</p></div>
+    <ol class="steps">
+      <li class="step"><div class="ic"><svg><use href="#i-scan"/></svg><span class="num">1</span></div><div><b>Đọc văn bản chính sách</b><p>Tách ra điều kiện cho vay, công thức tính, bảng hệ số theo nhóm khách hàng.</p><span class="tag t-ai">AI</span></div></li>
+      <li class="step"><div class="ic"><svg><use href="#i-compare"/></svg><span class="num">2</span></div><div><b>So với tài liệu BA gửi IT</b><p>Chỉ ra chỗ thiếu hoặc chỗ hiểu khác nhau, ví dụ “đến 60 tuổi” là tính lúc vay hay lúc trả hết nợ.</p><span class="tag t-ai">AI</span></div></li>
+      <li class="step check"><div class="ic"><svg><use href="#i-users"/></svg><span class="num">3</span></div><div><b>Chốt bộ quy tắc chuẩn</b><p>BA và Tester xác nhận; điểm chưa rõ được đơn vị chính sách trả lời.</p><span class="tag t-hu">Con người duyệt</span></div></li>
+    </ol>
+    <div class="loop"><svg><use href="#i-loop"/></svg>Còn chỗ chưa rõ → hỏi lại đơn vị chính sách, cập nhật rồi mới đi tiếp.</div>
+  </section>
+
+  <section class="phase ph2">
+    <div class="ph"><div class="no">GIAI ĐOẠN 2</div><h3><svg><use href="#i-users"/></svg>Tạo tình huống kiểm thử</h3><p>Hồ sơ giả định kèm đáp án đúng</p></div>
+    <ol class="steps">
+      <li class="step"><div class="ic"><svg><use href="#i-doc"/></svg><span class="num">4</span></div><div><b>Nghĩ ra hồ sơ khách hàng giả định</b><p>Đủ điều kiện, sát ngưỡng tuổi, có nợ xấu, thu nhập thấp, chạm trần hạn mức…</p><span class="tag t-ai">AI</span></div></li>
+      <li class="step"><div class="ic"><svg><use href="#i-calc"/></svg><span class="num">5</span></div><div><b>Tính sẵn đáp án đúng</b><p>Duyệt hay từ chối, hạn mức bao nhiêu, vì sao. Tính bằng công thức cố định, không để AI “đoán”.</p><span class="tag t-co">Máy tính</span></div></li>
+      <li class="step check"><div class="ic"><svg><use href="#i-check"/></svg><span class="num">6</span></div><div><b>Kiểm tra ngẫu nhiên đáp án</b><p>Tester tự tính lại một số hồ sơ bằng Excel để chắc chắn.</p><span class="tag t-hu">Con người duyệt</span></div></li>
+    </ol>
+    <div class="loop"><svg><use href="#i-loop"/></svg>Còn quy tắc chưa có tình huống nào → AI tạo bổ sung.</div>
+  </section>
+
+  <section class="phase ph3">
+    <div class="ph"><div class="no">GIAI ĐOẠN 3</div><h3><svg><use href="#i-scale"/></svg>Kiểm tra hệ thống</h3><p>So kết quả thật với đáp án đúng</p></div>
+    <ol class="steps">
+      <li class="step"><div class="ic"><svg><use href="#i-send"/></svg><span class="num">7</span></div><div><b>Gửi hồ sơ vào hệ thống phê duyệt</b><p>Mỗi hồ sơ được đóng thành một file dữ liệu (XML) đúng định dạng hệ thống.</p><span class="tag t-ai">AI</span> <span class="tag t-sy">Hệ thống</span></div></li>
+      <li class="step"><div class="ic"><svg><use href="#i-scale"/></svg><span class="num">8</span></div><div><b>So kết quả với đáp án</b><p>Đối chiếu quyết định, hạn mức và lý do từ chối của từng hồ sơ.</p><span class="tag t-ai">AI</span></div></li>
+      <li class="step check"><div class="ic"><svg><use href="#i-wrench"/></svg><span class="num">9</span></div><div><b>Xử lý chỗ lệch</b><p>Xác định lỗi nằm ở lập trình, tài liệu hay chính sách chưa rõ, rồi báo đúng bên sửa.</p><span class="tag t-hu">Con người</span></div></li>
+    </ol>
+    <div class="loop"><svg><use href="#i-loop"/></svg>Có lệch → sửa → chạy lại đến khi khớp.</div>
+  </section>
+
+  <section class="phase ph4">
+    <div class="ph"><div class="no">GIAI ĐOẠN 4 · LẶP LẠI</div><h3><svg><use href="#i-refresh"/></svg>Khi chính sách thay đổi</h3><p>Chỉ làm lại phần bị ảnh hưởng</p></div>
+    <ol class="steps">
+      <li class="step"><div class="ic"><svg><use href="#i-diff"/></svg><span class="num">10</span></div><div><b>Chỉ ra điểm thay đổi</b><p>Thay đổi gì, ảnh hưởng tới chính sách con nào. Chính sách con tự kế thừa từ chính sách tổng.</p><span class="tag t-ai">AI</span></div></li>
+      <li class="step"><div class="ic"><svg><use href="#i-calc"/></svg><span class="num">11</span></div><div><b>Tự cập nhật bộ kiểm tra cũ</b><p>Tính lại đáp án, dời hồ sơ sát ngưỡng theo ngưỡng mới; chỉ tạo mới phần thật sự mới.</p><span class="tag t-co">Máy tính</span> <span class="tag t-ai">AI</span></div></li>
+      <li class="step check"><div class="ic"><svg><use href="#i-flag"/></svg><span class="num">12</span></div><div><b>Duyệt phần thay đổi, chạy lại</b><p>Người chỉ cần xem các hồ sơ bị ảnh hưởng thay vì soát lại toàn bộ.</p><span class="tag t-hu">Con người duyệt</span></div></li>
+    </ol>
+    <div class="loop"><svg><use href="#i-loop"/></svg>Quay lại giai đoạn 3 để kiểm tra hệ thống với bộ đã cập nhật.</div>
+  </section>
+</div>
+
+<div class="outcome">
+  <svg><use href="#i-trophy"/></svg>
+  <div><b>Kết quả: bộ kiểm tra đầy đủ, có bằng chứng, dùng lại được</b><span>Mỗi hồ sơ đều truy ngược được về điều khoản chính sách mà nó kiểm tra, thuận tiện khi kiểm toán hoặc khi chính sách sửa đổi.</span></div>
+</div>
+
+<h2>Một tình huống kiểm thử trông như thế nào?</h2>
+<p class="h2sub">Ví dụ minh hoạ, số liệu giả định.</p>
+<div class="ex">
+  <div class="card profile">
+    <span class="tag t-ai">Hồ sơ giả định</span>
+    <dl>
+      <dt>Tuổi</dt><dd>35</dd>
+      <dt>Nhóm khách hàng</dt><dd>Phổ thông</dd>
+      <dt>Tiền vào tài khoản</dt><dd>25 triệu/tháng</dd>
+      <dt>Tiết kiệm</dt><dd>200 triệu</dd>
+      <dt>Thu nhập tự kê khai</dt><dd>10 triệu/tháng</dd>
+      <dt>Đang trả nợ khác</dt><dd>3 triệu/tháng</dd>
+      <dt>Lịch sử tín dụng</dt><dd>Tốt, không nợ xấu</dd>
+      <dt>Đề nghị vay</dt><dd>300 triệu, 3 năm</dd>
+    </dl>
+  </div>
+  <div class="card answer">
+    <span class="tag t-co">Đáp án đúng</span>
+    <div class="verdict" style="margin-top:8px"><span class="big">Duyệt 200 triệu</span><span style="color:var(--muted)">thay vì 300 triệu đề nghị</span></div>
+    <div class="bars">
+      <div class="bar"><span>Theo thu nhập</span><div class="track"><div class="fill" style="width:77.8%"></div></div><span class="v">233 tr</span></div>
+      <div class="bar"><span>Theo khả năng trả nợ</span><div class="track"><div class="fill" style="width:80%"></div></div><span class="v">240 tr</span></div>
+      <div class="bar min"><span>Trần nhóm phổ thông ✓</span><div class="track"><div class="fill" style="width:66.7%"></div></div><span class="v">200 tr</span></div>
+      <div class="bar"><span>Số tiền đề nghị</span><div class="track"><div class="fill" style="width:100%"></div></div><span class="v">300 tr</span></div>
+    </div>
+    <div class="why">Chính sách lấy <b>mức thấp nhất</b> trong các giới hạn. Nếu hệ thống trả ra 233 triệu thì nghĩa là đã quên áp trần theo nhóm khách hàng. Đây đúng là loại lỗi mà bộ kiểm tra cần bắt được.</div>
+  </div>
+</div>
+
+<h2>Vì sao AI không tự tính đáp án?</h2>
+<div class="grid g4" style="margin-top:12px">
+  <div class="card mini"><h4>AI giỏi đọc và nghĩ tình huống</h4><p>Đọc văn bản dài, phát hiện chỗ mâu thuẫn, nghĩ ra nhiều hồ sơ khác nhau rất nhanh.</p></div>
+  <div class="card mini"><h4>Nhưng có thể tính sai</h4><p>Với tiền và hạn mức, sai một con số là sai quyết định cho vay.</p></div>
+  <div class="card mini"><h4>Nên đáp án do công thức cố định tính</h4><p>Chạy giống nhau mọi lần, được Tester kiểm tra lại.</p></div>
+  <div class="card mini"><h4>Con người chốt ở 4 điểm</h4><p>Bộ quy tắc, đáp án mẫu, nguyên nhân lỗi và phần thay đổi khi chính sách sửa.</p></div>
+</div>
+
+<h2>Lợi ích và rủi ro</h2>
+<div class="grid g2" style="margin-top:12px">
+  <div class="card pros"><h3>Lợi ích</h3><ul>
+    <li><b>Nhanh hơn</b>: giảm thời gian chuẩn bị bộ kiểm tra từ nhiều ngày xuống ngắn hơn đáng kể.</li>
+    <li><b>Ít bỏ sót</b>: kiểm đủ các ngưỡng tuổi, nợ xấu, trần hạn mức theo từng nhóm khách hàng.</li>
+    <li><b>Phát hiện sớm</b> chỗ tài liệu IT hiểu khác chính sách, trước khi đưa vào vận hành.</li>
+    <li><b>Đổi chính sách nhẹ nhàng hơn</b>: chỉ soát phần bị ảnh hưởng, không làm lại từ đầu.</li>
+  </ul></div>
+  <div class="card cons"><h3>Rủi ro và cách kiểm soát</h3><ul>
+    <li>AI hiểu sai câu chữ chính sách<span>→ Mọi quy tắc phải dẫn đúng điều khoản; con người duyệt.</span></li>
+    <li>Tính sai hạn mức<span>→ Đáp án do công thức cố định tính, không do AI.</span></li>
+    <li>Lộ thông tin nội bộ<span>→ Chỉ dùng môi trường AI được ngân hàng phê duyệt, dữ liệu giả định.</span></li>
+    <li>Tốn công thiết lập ban đầu<span>→ Thí điểm với một sản phẩm, rồi nhân rộng.</span></li>
+  </ul></div>
+</div>
+
+<footer>Số liệu minh hoạ. Bản chi tiết cho đội kỹ thuật: <a href="quy-trinh-test-case-ai-tin-chap.html">quy-trinh-test-case-ai-tin-chap.html</a> (đặt hai file cùng thư mục để link hoạt động).</footer>
+</div>
+
+<script>
+(function(){
+  document.getElementById('th').addEventListener('click',function(){var r=document.documentElement,c=r.getAttribute('data-theme');var d=c?c==='dark':matchMedia('(prefers-color-scheme: dark)').matches;r.setAttribute('data-theme',d?'light':'dark');});
+  var box=document.getElementById('phases'), btn=document.getElementById('play'), hint=document.getElementById('hint');
+  var steps=[].slice.call(box.querySelectorAll('.step')), t=null, i=0;
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function clear(){ clearTimeout(t); box.classList.remove('playing'); steps.forEach(function(s){ s.classList.remove('on','now'); }); }
+  function tick(){
+    steps.forEach(function(s){ s.classList.remove('now'); });
+    if(i>=steps.length){ box.classList.remove('playing'); btn.textContent='↻ Xem lại'; hint.textContent='Hoàn tất 12 bước'; return; }
+    var s=steps[i]; s.classList.add('on','now');
+    var r=s.getBoundingClientRect(); if(r.top<0||r.bottom>innerHeight) s.scrollIntoView({block:'center',behavior:reduce?'auto':'smooth'});
+    hint.textContent='Bước '+(i+1)+' / 12: '+s.querySelector('b').textContent;
+    i++; t=setTimeout(tick, reduce?700:1300);
+  }
+  btn.addEventListener('click',function(){
+    if(box.classList.contains('playing')){ clear(); btn.textContent='▶ Xem quy trình chạy'; hint.textContent='12 bước · khoảng 15 giây'; return; }
+    clear(); i=0; box.classList.add('playing'); btn.textContent='⏸ Dừng'; tick();
+  });
+})();
+</script>
+</body>
+</html>
