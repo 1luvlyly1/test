@@ -1,0 +1,323 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Tín hiệu nhỏ, rủi ro chung</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Noto+Serif+Display:wght@600;700&family=Roboto+Mono:wght@400;500&display=swap&subset=vietnamese">
+<style>
+/* Layout: luận điểm ngắn → bảng tổng hợp các chủ đề → mỗi chủ đề một khối: danh sách bài (di chuột xem tóm tắt), tiêu chí, tiêu chí chung, kết luận */
+:root {
+  --bg: #F1F3F7;
+  --surface: #FFFFFF;
+  --ink: #15203A;
+  --muted: #586379;
+  --line: #D4DAE4;
+  --accent: #A34A06;
+  --accent-fill: #E8891C;
+  --accent-soft: #FBEBD5;
+  --cool: #2F6B8F;
+  --cool-soft: #E1EEF5;
+  --shadow: 0 10px 30px rgba(21, 32, 58, .16);
+  --font-display: "Noto Serif Display", "Noto Serif", Georgia, serif;
+  --font-body: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1420; --surface: #161F31; --ink: #E5E9F1; --muted: #9BA5B9; --line: #2A3550;
+    --accent: #F2A54A; --accent-fill: #E8891C; --accent-soft: #33240F;
+    --cool: #7DB8DA; --cool-soft: #16304A; --shadow: 0 10px 30px rgba(0, 0, 0, .5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1420; --surface: #161F31; --ink: #E5E9F1; --muted: #9BA5B9; --line: #2A3550;
+  --accent: #F2A54A; --accent-fill: #E8891C; --accent-soft: #33240F;
+  --cool: #7DB8DA; --cool-soft: #16304A; --shadow: 0 10px 30px rgba(0, 0, 0, .5);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 40px 64px;
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 48px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+p { margin: 0; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+.hero { display: grid; gap: 16px; max-width: 760px; }
+.hero h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(34px, 5.6vw, 54px); line-height: 1.08; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.lede { font-size: clamp(17px, 2.3vw, 20px); line-height: 1.55; max-width: 62ch; }
+.legend-row { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; color: var(--muted); align-items: center; }
+.legend-row .chip { margin: 0; }
+
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; line-height: 1.4; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); margin: 0 4px 4px 0; }
+.chip .k { color: var(--muted); font-weight: 400; }
+.chip.inf { border-style: dashed; color: var(--muted); }
+.chip.hit { border-color: var(--accent-fill); background: var(--accent-soft); color: var(--accent); }
+.chip.hit.inf { background: transparent; }
+.chip.cause { border-color: transparent; background: var(--cool-soft); color: var(--cool); }
+.chip.dup { opacity: .55; text-decoration: line-through; }
+.chip.ctr { border-color: transparent; background: var(--line); color: var(--muted); }
+
+.summary { width: 100%; border-collapse: collapse; font-size: 15px; background: var(--surface); }
+.summary th, .summary td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.summary th { font-family: var(--font-mono); font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+.summary tr:last-child td { border-bottom: 0; }
+.summary td:first-child a { font-weight: 600; color: var(--ink); }
+.summary .chip { margin: 0 3px 3px 0; }
+.summary .sub { font-size: 13px; color: var(--muted); }
+.pill { display: inline-block; font-size: 12.5px; font-weight: 600; padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
+.pill.open { background: var(--accent-soft); color: var(--accent); }
+.pill.no { background: var(--line); color: var(--muted); }
+.tbl-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--line); border-radius: 10px; }
+.tbl-scroll .summary { min-width: 700px; }
+
+.topic { display: grid; gap: 14px; scroll-margin-top: 16px; }
+.t-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; border-bottom: 2px solid var(--ink); padding-bottom: 10px; }
+.t-head h2 { font-family: var(--font-display); font-weight: 600; font-size: clamp(22px, 3vw, 28px); line-height: 1.25; }
+.t-head .meta { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.t-type { color: var(--muted); font-size: 15px; }
+
+.events { display: grid; }
+.ev { display: grid; grid-template-columns: 62px minmax(0, 1.45fr) minmax(0, 1.35fr) minmax(0, .85fr); gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); align-items: start; }
+.ev.head { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 6px 0; }
+.ev .date { font-family: var(--font-mono); font-size: 14px; font-variant-numeric: tabular-nums; }
+.ev.open .date { color: var(--accent); font-weight: 500; }
+.ev .alone { color: var(--muted); font-size: 14.5px; }
+.ev .alone b { color: var(--accent); font-weight: 600; }
+.ev .lbl { display: none; }
+.ev-title { position: relative; }
+.ev-title > a { color: var(--ink); font-weight: 500; text-decoration: underline; text-decoration-color: var(--line); }
+.ev-title > a:hover { color: var(--accent); text-decoration-color: var(--accent); }
+.ev-title .ext { font-size: 12px; color: var(--muted); margin-left: 3px; }
+.ev-title .src { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+.tag { display: inline-block; font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; margin-left: 6px; vertical-align: 2px; }
+.tag.ctr { background: var(--cool-soft); color: var(--cool); }
+.tag.cf { background: var(--line); color: var(--ink); }
+.pv { display: none; position: absolute; left: 0; top: 100%; padding-top: 8px; z-index: 30; width: min(440px, 78vw); }
+.pv .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 14px 16px; display: grid; gap: 8px; }
+.pv .m { font-family: var(--font-mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.pv h4 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.4; }
+.pv ul, details.pv-m ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14px; }
+.pv .go { font-size: 13px; }
+.pv .url { font-family: var(--font-mono); font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
+@media (hover: hover) and (pointer: fine) {
+  .ev-title:hover .pv, .ev-title:focus-within .pv { display: block; }
+  details.pv-m { display: none; }
+}
+details.pv-m { margin-top: 6px; }
+details.pv-m summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+details.pv-m ul { margin-top: 6px; }
+
+.result { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 16px; }
+.result > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
+.result .common { border-color: var(--accent-fill); }
+.result h3 { font-family: var(--font-mono); font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--accent); font-weight: 500; }
+.result .concl h3 { color: var(--muted); }
+.result .x { color: var(--accent); font-weight: 700; margin: 0 2px; }
+.result .common .chip { margin: 0; }
+.result .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.result p { font-size: 15px; }
+.result .bank { font-size: 14px; color: var(--muted); }
+.result .bank b { color: var(--ink); font-weight: 600; }
+
+footer { border-top: 1px solid var(--line); padding-top: 18px; font-size: 13.5px; color: var(--muted); max-width: 80ch; }
+
+@media (max-width: 760px) {
+  .ev.head { display: none; }
+  .ev { grid-template-columns: 1fr; gap: 6px; }
+  .ev .lbl { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+  .result { grid-template-columns: 1fr; }
+}
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="eyebrow">Ý tưởng outside-in · gom cụm tín hiệu</span>
+    <h1>Tín hiệu nhỏ, <em>rủi ro chung</em></h1>
+    <p class="lede">Một tin nhỏ có thể không cần chú ý. Nhiều tin có điểm chung, cùng chạm một nhóm khách hàng trong thời gian ngắn, là chuyện khác. </p>
+    <div class="legend-row">
+      <span class="chip">Nêu trong bài</span>
+      <span class="chip inf">Suy ra</span>
+      <span class="chip hit">Tiêu chí chung</span>
+      <span class="chip cause">Nguyên nhân</span>
+      <span class="chip cause dup">Nguyên nhân trùng</span>
+      <span>Di chuột lên tiêu đề bài để xem tóm tắt, bấm để mở bài gốc.</span>
+    </div>
+  </header>
+
+  <section aria-label="Tổng hợp">
+    <div class="tbl-scroll"><table class="summary" id="summary"></table></div>
+  </section>
+
+  <div id="topics" style="display:grid;gap:48px"></div>
+
+  <footer>Tin thật năm 2026, ngày theo ngày đăng. Tóm tắt khi di chuột là bản tóm lược nội dung bài, không phải trích nguyên văn; trang không nhúng được web khác. Cụm mở khi có từ 3 nguyên nhân khác nhau cùng chạm tiêu chí chung trong cửa sổ thời gian; ngưỡng và cửa sổ là minh họa để thảo luận. Tin lừa đảo chỉ mô tả ở mức nhận diện.</footer>
+</div>
+
+<script>
+(function () {
+  function D(d, m) { return Date.UTC(2026, m - 1, d); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function ddmm(t) { var d = new Date(t); return ("0" + d.getUTCDate()).slice(-2) + "/" + ("0" + (d.getUTCMonth() + 1)).slice(-2); }
+  var DAY = 86400000, THR = 3;
+
+  var TOPICS = [
+    {
+      id: "go", name: "Gỗ xuất khẩu sang Mỹ", period: "Tháng 6–8/2026", win: 14,
+      type: "Nhiều nguyên nhân khác nhau dồn vào một ngành",
+      causes: { phong_ve: "Thuế quan, phòng vệ", xanh: "Quy định xanh EU", van_tai: "Cước vận tải", chi_phi: "Chi phí vốn" },
+      crit: [["nganh", "Ngành", "Gỗ, nội thất"], ["vt", "Vai trò", "DN xuất khẩu"], ["tt", "Thị trường", "Mỹ"], ["pk", "Phân khúc", "DN lớn, SME"]],
+      concl: "Trong năm ngày, bốn tin về thuế, quy định xanh, cước vận tải và chi phí vốn cùng rơi vào doanh nghiệp gỗ xuất khẩu sang Mỹ. Đọc riêng, tin nào cũng có lý do để bỏ qua. Số liệu ngày 12/08 cho thấy đồ nội thất giảm 2,3%, sang Mỹ giảm khoảng 6%.",
+      bank: "Vốn lưu động, tài trợ xuất khẩu của DN gỗ; xưởng vệ tinh; tài khoản lương và vay tiêu dùng của công nhân. Kiểm tra lô lương, tiền về từ người mua nước ngoài.",
+      events: [
+        { d: D(16, 6), causes: ["phong_ve", "xanh"], dir: "risk", t: "Xuất khẩu gỗ vẫn tăng nhưng chịu áp lực kép", src: "VnEconomy", url: "https://en.vneconomy.vn/wood-exports-maintain-growth-but-industry-still-faces-dual-pressure.htm", sum: ["Xuất khẩu gỗ 5 tháng tăng 4,4%, khoảng 7,12 tỷ USD.", "Thách thức: phòng vệ thương mại, yêu cầu xanh của EU; Mỹ mở điều tra Mục 301 với đồ gỗ nội thất từ 11/3."], c: { nganh: "e", vt: "e", tt: "e", pk: "i" }, alone: "Số liệu vẫn tăng" },
+        { d: D(18, 6), causes: ["van_tai"], dir: "risk", t: "Cước container 40 feet tăng 23% trong một tuần", src: "Báo Đầu tư", url: "https://baodautu.vn/cuoc-van-tai-bien-tang-them-ap-luc-len-xuat-khau-d617862.html", sum: ["Chỉ số Drewry tăng 23% trong một tuần; tuyến Thượng Hải – Los Angeles tăng 31%.", "Do mùa cao điểm sớm, đẩy hàng trước khi Mỹ đổi thuế, tàu đi vòng vì căng thẳng Trung Đông.", "Ảnh hưởng: đồ gỗ, dệt may, da giày, nông sản chế biến."], c: { nganh: "e", vt: "e", tt: "e", pk: "i" }, alone: "Mùa cao điểm" },
+        { d: D(19, 6), causes: ["phong_ve"], dir: "risk", t: "Mỹ áp thuế lên tới 208,88% với gỗ dán Việt Nam", src: "Trung tâm WTO", url: "https://trungtamwto.vn/chuyen-de/32735-my-danh-thue-hon-200-len-mat-hang-ty-usd-cua-viet-nam-xuat-khau-lap-tuc-giam-toc", sum: ["Thuế chống bán phá giá, chống trợ cấp lên tới 208,88% với gỗ dán.", "Xuất khẩu gỗ sang Mỹ 5 tháng giảm 6,5%; Mỹ chiếm 49,2% kim ngạch."], c: { nganh: "e", vt: "e", tt: "e", pk: "i" }, alone: "Chỉ một mặt hàng" },
+        { d: D(20, 6), causes: ["phong_ve", "xanh", "van_tai", "chi_phi"], dir: "risk", t: "Dự báo xuất khẩu gỗ nửa cuối năm 2026", src: "Mekong ASEAN", url: "https://mekongasean.vn/du-bao-xuat-khau-go-nua-cuoi-nam-2026-56480.html", sum: ["Sản phẩm gỗ chế biến 5 tháng giảm khoảng 4%.", "Rủi ro: thuế Mỹ, quy định chống phá rừng EU, chi phí nguyên liệu, logistics, tài chính, lãi suất.", "Doanh nghiệp vừa và nhỏ cần tín dụng để nâng cấp."], c: { nganh: "e", vt: "e", tt: "e", pk: "e" }, alone: "Dự báo chung" },
+        { d: D(24, 7), causes: ["phong_ve"], dir: "risk", t: "Mỹ áp thuế bổ sung Mục 301, Việt Nam chịu 12,5%", src: "Trung tâm WTO", url: "https://trungtamwto.vn/hiep-dinh-khac/33123-viet-nam-ung-pho-ra-sao-truoc-chinh-sach-thue-quan-moi-cua-hoa-ky", sum: ["Từ 24/7, thuế bổ sung Mục 301 với 60 nền kinh tế; Việt Nam 12,5%.", "Dệt may, da giày, gỗ, thủy sản chịu sức ép rõ nhất."], c: { nganh: "e", vt: "e", tt: "e" }, alone: "Áp chung 60 nền kinh tế" },
+        { d: D(12, 8), causes: [], dir: "confirm", t: "Xuất khẩu gỗ 7 tháng thấp hơn kỳ vọng", src: "Trung tâm WTO", url: "https://trungtamwto.vn/chuyen-de/33220-nganh-go-vuot-suc-ep-thue-huong-toi-muc-tieu-19-ty-usd", sum: ["7 tháng khoảng 10,1 tỷ USD, tăng 5% nhưng thấp hơn kỳ vọng.", "Đồ nội thất giảm 2,3%, sang Mỹ giảm khoảng 6%; Trung Quốc, Nhật, EU tăng bù một phần."], c: { nganh: "e", vt: "e", tt: "e" }, alone: "Số liệu xác nhận" }
+      ]
+    },
+    {
+      id: "tay-nguyen", name: "Nông hộ Tây Nguyên", period: "Tháng 7/2026", win: 30,
+      type: "Ba ngành khác nhau, cùng một nhóm người trong một vùng",
+      causes: { tieu: "Giá tiêu", caphe: "Giá cà phê", dich: "Dịch bệnh vật nuôi" },
+      crit: [["vung", "Vùng", "Tây Nguyên"], ["vt", "Vai trò", "Nông hộ"], ["pk", "Phân khúc", "KHCN"], ["nganh", "Ngành", "Nông nghiệp"]],
+      concl: "Giá tiêu giảm, giá cà phê giảm và dịch tả lợn châu Phi ở Đắk Lắk thuộc ba ngành khác nhau, nên lọc theo ngành sẽ không thấy. Khóa chung là vùng và vai trò: nông hộ Tây Nguyên thường trồng cà phê, xen tiêu và chăn nuôi thêm, nay các nguồn thu cùng chịu áp lực. Tin giá tiêu hồi lại 15/07 là tín hiệu ngược chiều cần cân nhắc.",
+      bank: "Đại lý thu mua, vật tư bán chịu theo vụ; hộ kinh doanh bán lẻ trong vùng; tiền gửi chi nhánh. Kiểm tra tất toán sớm, ShopCash đại lý, doanh thu QR theo tỉnh.",
+      events: [
+        { d: D(2, 7), causes: ["tieu"], dir: "risk", t: "Giá tiêu quay đầu giảm 2.000–4.000 đồng/kg", src: "Doanh nghiệp Hội nhập", url: "https://doanhnghiephoinhap.vn/gia-tieu-hom-nay-272026-ho-tieu-trong-nuoc-quay-dau-giam-manh-141762.html", sum: ["Giá tiêu còn khoảng 133.000–137.000 đồng/kg ở Đắk Lắk, Gia Lai, Lâm Đồng.", "Do tiêu nhập khẩu giá rẻ và nông dân bán tháo để thu hồi vốn."], c: { vung: "e", vt: "e", pk: "i", nganh: "e" }, alone: "Giá tiêu lên xuống thường xuyên" },
+        { d: D(10, 7), causes: ["caphe"], dir: "risk", t: "Giá cà phê Tây Nguyên giảm 2.500 đồng/kg", src: "Báo Lào Cai", url: "https://baolaocai.vn/gia-ca-phe-hom-nay-107-giam-manh-tren-dien-rong-post903577.html", sum: ["Bình quân 92.300 đồng/kg; Gia Lai, Đắk Lắk, Lâm Đồng đều giảm.", "Do Robusta London giảm mạnh, giao dịch trong nước chậm."], c: { vung: "e", vt: "i", pk: "i", nganh: "e" }, alone: "Một phiên giảm giá" },
+        { d: D(15, 7), causes: [], dir: "counter", t: "Giá tiêu tăng trở lại 140.000 đồng/kg", src: "Doanh nghiệp Hội nhập", url: "https://doanhnghiephoinhap.vn/gia-tieu-hom-nay-1572026-gia-tieu-tang-vot-tro-lai-moc-140000-dongkg-143214.html", sum: ["Giá tiêu tăng 2.000–3.000 đồng/kg; Đắk Lắk, Lâm Đồng lên 140.000 đồng/kg."], c: { vung: "e", vt: "i", nganh: "e" }, alone: "Tin tốt, không đếm vào cụm rủi ro" },
+        { d: D(18, 7), causes: ["dich"], dir: "risk", t: "Đắk Lắk: dịch tả lợn châu Phi ở 113 hộ, tiêu hủy hơn 8.500 con", src: "VOV", url: "https://vov.vn/kinh-te/dak-lak-chu-dong-ung-pho-truoc-nguy-co-virus-moi-tren-dan-vat-nuoi-post1316200.vov", sum: ["Dịch ở 113 hộ thuộc 30 xã, phường; tiêu hủy hơn 8.500 con.", "Nguy cơ chủng lai mà vắc-xin hiện có chưa bảo hộ."], c: { vung: "e", vt: "e", pk: "i", nganh: "e" }, alone: "Dịch cục bộ, ngành khác" },
+        { d: D(10, 8), causes: [], dir: "confirm", t: "Xuất khẩu cà phê tăng lượng nhưng hụt giá trị", src: "Trung tâm WTO", url: "https://trungtamwto.vn/chuyen-de/33200-xuat-khau-ca-phe-truoc-nghich-ly-tang-luong-nhung-hut-gia-tri", sum: ["7 tháng: lượng tăng khoảng 21%, kim ngạch giảm khoảng 11% do giá bình quân giảm sâu.", "Người trồng hưởng lợi phần nào từ nhịp phục hồi giá cuối tháng 7."], c: { vung: "e", vt: "e", nganh: "e" }, alone: "Số liệu xác nhận" }
+      ]
+    },
+    {
+      id: "hang-khong", name: "Hàng không và du lịch bay xa", period: "Tháng 3–6/2026", win: 30,
+      type: "Một gốc tách thành nhiều kênh tác động",
+      causes: { nhien_lieu: "Chi phí nhiên liệu", nguon_cung: "Nguồn cung nhiên liệu", cau: "Nhu cầu du lịch nội địa", qt: "Khách quốc tế" },
+      crit: [["nganh", "Ngành", "Hàng không"], ["vt", "Vai trò", "Hãng bay, đại lý vé"], ["dl", "Ngành", "Du lịch, lưu trú"], ["khach", "Vai trò", "Khách du lịch"]],
+      concl: "Gốc chung là xung đột Trung Đông, nhưng tin chạm nhóm hàng không – du lịch qua bốn kênh khác nhau: chi phí, nguồn cung nhiên liệu, nhu cầu nội địa, khách quốc tế. Đếm theo kênh thì cụm mở ngày 26/03, ba tháng trước khi hãng bay quốc gia báo chi phí quý 2 tăng thêm hơn 7.000 tỷ đồng.",
+      bank: "Tài trợ đại lý vé; lữ hành, khách sạn, hộ kinh doanh lưu trú ở điểm đến bay xa. Cơ hội: du lịch gần đô thị, đi ô tô tăng. Kiểm tra đại lý vé chậm trả, QR lưu trú theo tỉnh.",
+      events: [
+        { d: D(24, 3), causes: ["nhien_lieu"], dir: "risk", t: "Nhiên liệu bay tăng gần gấp ba, hãng Việt giảm chuyến, tăng phụ thu", src: "VTC News", url: "https://vtcnews.vn/hang-khong-viet-chat-vat-giam-chuyen-tang-phu-thu-giua-cang-thang-nhien-lieu-ar1009129.html", sum: ["Jet A1 từ khoảng 80–86 lên 220–230 USD/thùng.", "Hãng cắt chuyến chặng lẻ, sân bay địa phương; phụ thu nhiên liệu quốc tế từ đầu tháng 4."], c: { nganh: "e", vt: "e", dl: "i" }, alone: "Tin chi phí của hãng bay" },
+        { d: D(24, 3), causes: ["nguon_cung"], dir: "risk", t: "Cục Hàng không cảnh báo nguy cơ thiếu nhiên liệu bay", src: "VietnamFinance", url: "https://vietnamfinance.vn/hang-khong-viet-ung-pho-ra-sao-truoc-nguy-co-thieu-nhien-lieu-bay-d141985.html", sum: ["Nguồn cung Jet A-1 bị hạn chế do xung đột Trung Đông.", "Hãng bay quốc gia dự kiến tạm dừng nhiều đường bay từ 1/4."], c: { nganh: "e", vt: "e" }, alone: "Mới là cảnh báo" },
+        { d: D(26, 3), causes: ["cau"], dir: "risk", t: "Hàng không thu hẹp, người dân tính lại kế hoạch nghỉ lễ 30/4", src: "VnBusiness", url: "https://vnbusiness.vn/gia-nhien-lieu-tang-hang-khong-thu-hep-hoat-dong-nguoi-dan-tinh-lai-ke-hoach-nghi-le-304.html", sum: ["Khoảng 1.000 chuyến dự kiến bị cắt trong tháng 4–5; chi phí khai thác tăng 60–70%.", "Vé khứ hồi Hà Nội – Phú Quốc dịp 30/4 gần 7 triệu đồng; nhiều gia đình chuyển sang điểm gần, đi ô tô hoặc hoãn."], c: { nganh: "e", vt: "e", dl: "e", khach: "e" }, alone: "Tin tiêu dùng mùa lễ" },
+        { d: D(14, 5), causes: ["qt"], dir: "risk", t: "Giá vé neo cao, du lịch hè 2026 đối mặt cú sốc chi phí", src: "Doanh nghiệp Hội nhập", url: "https://doanhnghiephoinhap.vn/gia-ve-may-bay-neo-muc-cao-ky-luc-du-lich-mua-he-2026-doi-mat-cu-soc-chi-phi-135644.html", sum: ["Nhiên liệu bay khoảng 150 USD/thùng sau khi từng vượt 200; giá vé khó giảm sớm.", "Một số hãng nước ngoài cắt chuyến quốc tế, có hãng cắt mạnh tuyến Đông Nam Á."], c: { nganh: "e", vt: "e", dl: "e", khach: "e" }, alone: "Tin hãng nước ngoài" },
+        { d: D(28, 6), causes: [], dir: "confirm", t: "Hãng bay quốc gia gánh thêm hơn 7.000 tỷ đồng chi phí quý 2", src: "Mekong ASEAN", url: "https://mekongasean.vn/gia-nhien-lieu-tang-vietnam-airlines-ganh-them-hon-7000-ty-dong-chi-phi-trong-quy-2-56732.html", sum: ["Chi phí nhiên liệu tăng thêm hơn 7.000 tỷ đồng trong quý 2.", "Dự kiến lỗ khoảng 2.000 tỷ đồng quý 2, vẫn lãi lũy kế 6 tháng."], c: { nganh: "e", vt: "e" }, alone: "Số liệu xác nhận" }
+      ]
+    },
+    {
+      id: "nguoi-tre", name: "Lừa đảo nhắm vào người trẻ", period: "29/10 – 01/11/2026", win: 7,
+      type: "Tin gian lận: cùng nhóm tuổi, cùng kiểu mạo danh, ba kênh khác nhau",
+      causes: { web: "Website giả mạo", ai: "Giả mạo bằng AI", goi: "Cuộc gọi giả danh công an" },
+      crit: [["pk", "Phân khúc", "KHCN"], ["kieu", "Kiểu", "Mạo danh cơ quan nhà nước"], ["kenh", "Kênh", "Kênh số"], ["tuoi", "Độ tuổi", "Học sinh, sinh viên"]],
+      concl: "Trong bốn ngày, ba cảnh báo cùng nhắm vào người dùng kênh số bằng cách mạo danh cơ quan nhà nước; hai trong đó nói rõ nhóm bị nhắm là học sinh, sinh viên. Độ tuổi chỉ khớp 2/3 tin, nên khóa chắc là KHCN × mạo danh cơ quan nhà nước × kênh số; người trẻ là nhóm cần ưu tiên kiểm tra.",
+      bank: "Chỉ ở mức nhận diện. Kiểm tra tài khoản sinh viên mới mở nhận tiền nhiều nguồn rồi chuyển đi, báo lừa đảo cùng kịch bản, đăng nhập thiết bị lạ. Cơ hội: cảnh báo chủ động cho khách trẻ.",
+      events: [
+        { d: D(29, 10), causes: ["web"], dir: "risk", t: "Công an cảnh báo trang web giả mạo VNeID", src: "CafeF", url: "https://cafef.vn/tat-ca-nguoi-dung-vneid-chu-y-thong-bao-nong-tu-cong-an-188261028133515035.chn", sum: ["Công an Hải Phòng cảnh báo trang web giả mạo Hệ thống định danh điện tử VNeID.", "Mục đích: đánh cắp thông tin cá nhân và chiếm đoạt tài sản."], c: { pk: "e", kieu: "e", kenh: "e" }, alone: "Cảnh báo chung, không nhắm nhóm nào" },
+        { d: D(30, 10), causes: ["ai"], dir: "risk", t: "Người trẻ thành thạo thiết bị vẫn dễ bị thao túng", src: "CafeF", url: "https://cafef.vn/lua-dao-cong-nghe-cao-nguoi-tre-thanh-thao-thiet-bi-van-de-bi-thao-tung-188261030094415724.chn", sum: ["Cục An ninh mạng cảnh báo sinh viên, người trẻ dễ bị thao túng tâm lý.", "Nhắc tới 'bắt cóc online' và giả mạo âm thanh, hình ảnh bằng AI."], c: { pk: "e", kieu: "i", kenh: "e", tuoi: "e" }, alone: "Bài tuyên truyền" },
+        { d: D(1, 11), causes: ["goi"], dir: "risk", t: "Cảnh báo lừa đảo 'bắt cóc online' nhằm vào người trẻ", src: "VietnamPlus", url: "https://www.vietnamplus.vn/canh-bao-thu-doan-lua-dao-bat-coc-online-nham-vao-nguoi-tre-post1145526.vnp", sum: ["Công an TP.HCM cảnh báo các đối tượng nhắm vào học sinh, sinh viên, thanh thiếu niên; vụ việc ngày 21 và 23/10.", "Hình thức chủ yếu: giả danh cơ quan công an để chiếm đoạt tài sản."], c: { pk: "e", kieu: "e", kenh: "e", tuoi: "e" }, alone: "Vài vụ việc cụ thể" }
+      ]
+    },
+    {
+      id: "vay-nha", name: "Người vay mua nhà (phản ví dụ)", period: "Tháng 6–8/2026", win: 30,
+      type: "Nhiều bài, một nguyên nhân: không phải cụm",
+      causes: { ls: "Lãi suất thả nổi" },
+      crit: [["vt", "Vai trò", "Người vay mua nhà"], ["pk", "Phân khúc", "KHCN"], ["nganh", "Ngành", "Bất động sản"]],
+      concl: "Bốn bài cùng chạm người vay mua nhà, tiêu chí trùng hoàn toàn, nhưng cùng một nguyên nhân: lãi suất thả nổi sau ưu đãi. Đây là một tin lớn kéo dài, xử lý bằng playbook tin đơn lẻ. Chỉ thành cụm khi có thêm nguyên nhân khác chạm cùng nhóm, ví dụ thu nhập giảm hoặc giá nhà giảm.",
+      bank: "Theo dõi khoản vay hết ưu đãi, chuyển sang trả tối thiểu thẻ, tất toán tiết kiệm, bán gấp tài sản bảo đảm. Bài 27/08 nêu nợ nhóm 2 tăng đều.",
+      events: [
+        { d: D(8, 6), causes: ["ls"], dir: "risk", t: "Lãi suất vay tăng cao, nhà đầu tư bất động sản chịu áp lực bán cắt lỗ", src: "Doanh nghiệp Hội nhập", url: "https://doanhnghiephoinhap.vn/lai-suat-vay-tang-cao-nha-dau-tu-bat-dong-san-chiu-ap-luc-ban-cat-lo-139106.html", sum: ["Lãi vay mua nhà từ ưu đãi 8–10% lên 13–15%/năm khi hết ưu đãi.", "Nhà đầu tư dùng đòn bẩy cao rao bán cắt lỗ."], c: { vt: "e", pk: "i", nganh: "e" }, alone: "Tin lãi suất" },
+        { d: D(27, 7), causes: ["ls"], dir: "risk", t: "Lãi suất vay mua nhà neo hai con số", src: "Thời báo Tài chính Việt Nam", url: "https://thoibaotaichinhvietnam.vn/lai-suat-vay-mua-nha-neo-hai-con-so-ky-vong-ha-nhiet-khong-de-201273-201273.html", sum: ["Thả nổi sau ưu đãi có nơi tới 14–15%/năm.", "Khó giảm mạnh trong 2026; cho vay mua nhà có thể phục hồi vào 2027."], c: { vt: "e", pk: "i", nganh: "e" }, alone: "Vẫn một nguyên nhân" },
+        { d: D(4, 8), causes: ["ls"], dir: "risk", t: "Lãi suất thả nổi neo cao, người mua nhà chật vật xoay xở", src: "Tiền Phong", url: "https://tienphong.vn/lai-suat-tha-noi-neo-cao-nguoi-mua-nha-chat-vat-xoay-xo-post1865018.tpo", sum: ["Thả nổi thường 13–16%/năm tùy ngân hàng.", "Nhiều gia đình cắt chi tiêu, không còn tích lũy; có người bán lại hợp đồng."], c: { vt: "e", pk: "i", nganh: "e" }, alone: "Cùng nguyên nhân" },
+        { d: D(27, 8), causes: ["ls"], dir: "risk", t: "Rủi ro lớn dần khi lãi suất thả nổi vay mua nhà tăng cao", src: "VietnamFinance", url: "https://vietnamfinance.vn/rui-ro-lon-dan-khi-lai-suat-tha-noi-vay-mua-nha-tang-cao-d149495.html", sum: ["Từ đầu tháng 8, thả nổi khoảng 12–15%/năm.", "Cảnh báo nợ nhóm 2 tăng đều, nợ xấu có nguy cơ tăng ở cho vay cá nhân."], c: { vt: "e", pk: "e", nganh: "e" }, alone: "Cùng nguyên nhân" }
+      ]
+    }
+  ];
+
+  TOPICS.forEach(function (tp) {
+    var risk = tp.events.filter(function (e) { return e.dir === "risk"; });
+    tp.events.forEach(function (e, idx) {
+      e.dup = {};
+      e.causes.forEach(function (k) {
+        e.dup[k] = tp.events.some(function (o, j) { return j < idx && o.dir === "risk" && o.d > e.d - tp.win * DAY && o.causes.indexOf(k) >= 0; });
+      });
+    });
+    tp.open = null;
+    risk.forEach(function (e) {
+      if (tp.open) return;
+      var set = {};
+      risk.forEach(function (o) { if (o.d <= e.d && o.d > e.d - tp.win * DAY) o.causes.forEach(function (k) { set[k] = 1; }); });
+      if (Object.keys(set).length >= THR) tp.open = e;
+    });
+    var all = {}; risk.forEach(function (e) { e.causes.forEach(function (k) { all[k] = 1; }); });
+    tp.nCause = Object.keys(all).length;
+    tp.common = tp.crit.map(function (cr) {
+      var n = risk.filter(function (e) { return e.c[cr[0]]; }).length;
+      var anyE = risk.some(function (e) { return e.c[cr[0]] === "e"; });
+      return { cr: cr, n: n, of: risk.length, inf: !anyE };
+    }).filter(function (x) { return x.n >= Math.min(THR, x.of); });
+  });
+
+  function chip(html, cls) { return '<span class="chip ' + (cls || "") + '">' + html + "</span>"; }
+  function verdict(tp) {
+    return tp.open ? '<span class="pill open">Mở cụm ' + ddmm(tp.open.d) + "</span>" : '<span class="pill no">Không mở cụm</span>';
+  }
+  function commonChips(tp, sep) {
+    return tp.common.map(function (x) {
+      return chip('<span class="k">' + x.cr[1] + "</span>" + esc(x.cr[2]) + (x.inf ? " (suy ra)" : "") + " · " + x.n + "/" + x.of, "hit" + (x.inf ? " inf" : ""));
+    }).join(sep || "");
+  }
+
+  document.getElementById("summary").innerHTML =
+    "<thead><tr><th>Chủ đề</th><th>Số tin</th><th>Tiêu chí chung</th><th>Nguyên nhân khác nhau</th><th>Kết luận</th></tr></thead><tbody>" +
+    TOPICS.map(function (tp) {
+      return '<tr><td><a href="#' + tp.id + '">' + esc(tp.name) + '</a><br><span class="sub">' + esc(tp.period) + "</span></td>" +
+        "<td>" + tp.events.length + "</td><td>" + commonChips(tp) + "</td><td>" + tp.nCause + "</td><td>" + verdict(tp) + "</td></tr>";
+    }).join("") + "</tbody>";
+
+  document.getElementById("topics").innerHTML = TOPICS.map(function (tp) {
+    var commonIds = tp.common.map(function (x) { return x.cr[0]; });
+    var rows = tp.events.map(function (e) {
+      var tag = e.dir === "counter" ? '<span class="tag ctr">Ngược chiều</span>' : e.dir === "confirm" ? '<span class="tag cf">Xác nhận</span>' : "";
+      var crit = tp.crit.filter(function (cr) { return e.c[cr[0]]; }).map(function (cr) {
+        return chip('<span class="k">' + cr[1] + "</span>" + esc(cr[2]), (e.c[cr[0]] === "i" ? "inf " : "") + (commonIds.indexOf(cr[0]) >= 0 && e.dir === "risk" ? "hit" : ""));
+      }).join("");
+      var causes = e.dir === "risk" ? e.causes.map(function (k) { return chip(esc(tp.causes[k]), "cause" + (e.dup[k] ? " dup" : "")); }).join("")
+        : chip(e.dir === "counter" ? "Ngược chiều, không đếm" : "Xác nhận, không đếm", "ctr");
+      var list = "<ul>" + e.sum.map(function (s) { return "<li>" + esc(s) + "</li>"; }).join("") + "</ul>";
+      var isOpen = tp.open === e;
+      var when = esc(e.src) + " · " + ddmm(e.d) + "/2026";
+      return '<div class="ev' + (isOpen ? " open" : "") + '" role="row"><span class="date">' + ddmm(e.d) + "</span>" +
+        '<div class="ev-title"><span class="lbl">Bài báo</span><a href="' + esc(e.url) + '" target="_blank" rel="noopener">' + esc(e.t) + '<span class="ext">↗</span></a>' + tag +
+          '<span class="src">' + when + "</span>" +
+          '<div class="pv" role="tooltip"><div class="card"><span class="m">' + when + "</span><h4>" + esc(e.t) + "</h4>" + list +
+            '<a class="go" href="' + esc(e.url) + '" target="_blank" rel="noopener">Mở bài gốc ↗</a><span class="url">' + esc(e.url) + "</span></div></div>" +
+          '<details class="pv-m"><summary>Tóm tắt bài</summary>' + list + "</details></div>" +
+        '<div><span class="lbl">Tiêu chí</span>' + crit + causes + "</div>" +
+        '<span class="alone"><span class="lbl">Đọc riêng thì</span>' + esc(e.alone) + (isOpen ? ". <b>Nguyên nhân thứ 3, mở cụm</b>" : "") + "</span></div>";
+    }).join("");
+    var nRisk = tp.events.filter(function (e) { return e.dir === "risk"; }).length;
+    return '<section class="topic" id="' + tp.id + '" aria-label="' + esc(tp.name) + '">' +
+      '<div class="t-head"><h2>' + esc(tp.name) + '</h2><span class="meta">' + esc(tp.period) + " · cửa sổ " + tp.win + " ngày · " + verdict(tp) + "</span></div>" +
+      '<p class="t-type">' + esc(tp.type) + "</p>" +
+      '<div class="events" role="table"><div class="ev head" role="row"><span>Ngày</span><span>Bài báo</span><span>Tiêu chí</span><span>Đọc riêng thì</span></div>' + rows + "</div>" +
+      '<div class="result"><div class="common"><h3>Tiêu chí chung</h3><div class="row">' + commonChips(tp, '<span class="x">×</span>') + '</div><p class="bank">' + tp.nCause + " nguyên nhân khác nhau trong " + nRisk + " tin rủi ro</p></div>" +
+        '<div class="concl"><h3>Kết luận</h3><p>' + esc(tp.concl) + '</p><p class="bank"><b>Với ngân hàng:</b> ' + esc(tp.bank) + "</p></div></div>" +
+    "</section>";
+  }).join("");
+})();
+</script>
+
+</body></html>
